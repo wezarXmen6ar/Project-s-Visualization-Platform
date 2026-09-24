@@ -415,6 +415,16 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .scope-summary ol { margin: var(--sp-2) 0 0; padding-left: 1.4em; }
 .scope-summary p { margin: var(--sp-2) 0 0; }
 
+.header-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: var(--sp-4); align-items: start; }
+.settings-grid .card { margin-bottom: 0; }
+.list-editor { list-style: none; margin: 0 0 var(--sp-3); padding: 0; }
+.list-editor-row { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); }
+.list-editor-row input { flex: 1; min-width: 0; }
+.list-editor-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.list-editor-add { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); }
+
 .errors {
   display: flex;
   gap: var(--sp-3);

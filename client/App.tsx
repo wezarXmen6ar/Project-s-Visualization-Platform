@@ -5,6 +5,7 @@ import { CreateProjectPage } from './pages/manage/CreateProjectPage';
 import { EditProjectPage } from './pages/manage/EditProjectPage';
 import { ManageDashboardPage } from './pages/manage/ManageDashboardPage';
 import { ProjectPage } from './pages/manage/ProjectPage';
+import { SettingsPage } from './pages/manage/SettingsPage';
 import { FocusPage } from './pages/present/FocusPage';
 import { PortfolioPage } from './pages/present/PortfolioPage';
 
@@ -13,6 +14,7 @@ export function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/manage" element={<ManageDashboardPage />} />
+      <Route path="/manage/settings" element={<SettingsPage />} />
       <Route path="/manage/projects/new" element={<CreateProjectPage />} />
       <Route path="/manage/projects/:id" element={<ProjectPage />} />
       <Route path="/manage/projects/:id/edit" element={<EditProjectPage />} />

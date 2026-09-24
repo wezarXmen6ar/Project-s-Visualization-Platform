@@ -23,7 +23,10 @@ export function ManageDashboardPage() {
           <Link to="/" className="crumb"><ArrowLeftIcon />Start</Link>
           <h1>Projects</h1>
         </div>
-        <Link to="/manage/projects/new" className="button"><PlusIcon />New project</Link>
+        <div className="header-actions">
+          <Link to="/manage/settings" className="button secondary">Settings</Link>
+          <Link to="/manage/projects/new" className="button"><PlusIcon />New project</Link>
+        </div>
       </div>
 
       {projects.error ? (
