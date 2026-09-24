@@ -2335,6 +2335,7 @@ The user reviewed the M1 build and asked for three changes before M2 starts. Two
 **Files:**
 - Modify: `client/gantt/rows.ts`, `client/gantt/rows.test.ts`
 - Modify: `client/pages/manage/CreateProjectPage.tsx`, `client/pages/manage/CreateProjectPage.test.tsx`
+- Modify: `client/styles.css` — the phase row's grid gains a 4th column for the new drag handle, plus a minimal `.drag-handle` style reusing existing tokens (noted here after the fact; the implementer flagged this deviation and it was confirmed as a necessary, in-scope consequence of the drag handle rather than scope creep).
 
 **Interfaces:**
 - `rows.ts`:
@@ -2343,7 +2344,7 @@ The user reviewed the M1 build and asked for three changes before M2 starts. Two
   - `export function phaseColorFor(name: string): string` — normalises `name`; returns the mapped colour if the normalised name (or an alias) is known; otherwise derives a stable index from the normalised name (a simple deterministic string hash mod `PHASE_PALETTE.length`) so any custom phase name still always gets the same colour, on every project, without a persisted registry.
   - `phaseRows(project: { phases: PhaseLike[] }): GanttRow[]` — drops the now-unused `color` from the project param type; each bar gets `color: phaseColorFor(p.name)` and `label: p.name`.
   - `portfolioRows` switches from `p.color` to `phaseColorFor(ph.name)` per bar, for the same reason (consistent palette everywhere, not just the project page).
-- `CreateProjectPage.tsx`: each phase row gets a drag handle (`aria-label="Reorder phase N"`) and becomes draggable (native HTML5 drag-and-drop: `draggable`, `onDragStart`, `onDragOver`, `onDrop` on the row). Dropping re-indexes the phase state array; the existing live-preview effect re-schedules and re-renders unchanged, since it already reacts to phase list changes. Retyping a phase's name into a recognised one (e.g. "UAT") updates its bar colour live, since colour is derived from the name on every render.
+- `CreateProjectPage.tsx`: each phase row gets a drag handle (`aria-label="Reorder phase N"`) that is itself the draggable element (native HTML5 drag-and-drop: `draggable`, `onDragStart` on the handle; `onDragOver`, `onDrop`, `onDragEnd` on the row) — not the whole row, since a draggable row containing text/number inputs risks interfering with clicking or selecting text inside them in some browsers. Dropping re-indexes the phase state array; the preview is derived directly on each render (not from a `useEffect`), so it re-schedules and re-renders unchanged, since it already reacts to phase list changes. Retyping a phase's name into a recognised one (e.g. "UAT") updates its bar colour live, since colour is derived from the name on every render.
 
 **Acceptance:**
 - [ ] `rows.test.ts`: `phaseColorFor('Requirements')` and `phaseColorFor('requirements')` are equal (case-insensitive); `phaseColorFor('Gathering Requirements')` equals `phaseColorFor('Requirements')` (alias); `phaseColorFor('Requirements')` and `phaseColorFor('Development')` differ; two different unknown names deterministically get a colour each, and the same unknown name always gets the same colour; `phaseRows(...)[i].bars[0]` has `label` equal to the phase name and no longer depends on a `color` field on the project.
