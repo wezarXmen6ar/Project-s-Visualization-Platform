@@ -1,6 +1,6 @@
 # Visual Project Portfolio Tool — Design Spec
 
-**Status:** DRAFT: brainstorming in progress. Sections 1–3 are approved; Section 4 is under review; Section 5 is not yet written.
+**Status:** DRAFT: brainstorming in progress. Sections 1–4 are approved; Section 5 is not yet written.
 **Date:** 2026-09-24
 
 ## 0. Purpose
@@ -71,6 +71,8 @@ client/   React + Vite
 - `Attachment`: file, name, **type** (editable list: Meeting Minutes, Approval, Change Request, Business Analysis Document, BRD, Documentation, Design, Test Report, Other), entry (optional), phase, deliverable date.
 - `Event`: machine-recorded history. Types: phase started or finished, hold started or ended, change request approved, date shifted, overload resolved, holiday applied, requirement ready. Each has a **cause** and optional links (other project, change request, holiday, resource).
 - `Hold`: project, start date, end date, reason, **receiving project**.
+- **Responsibility** (on change requests, requirements, holds, slip causes, waiting periods, and the delay days of each `Event`): one or more of **Technical team · Business user · Decision makers · External** (list editable in Settings), plus Calendar (automatic, for holidays only). When several parties share responsibility, delay days are split evenly by default and the split can be adjusted. Defaults: change request, requirement and waiting period → Business user; hold → Decision makers; holiday → Calendar; late-phase cause → chosen in the prompt.
+- `Milestone`: either a ⭐ flag on a phase or requirement end, with a stakeholder-friendly name, or a standalone milestone (date and name, no duration). A flagged milestone's date follows the plan automatically.
 - `ChangeRequest`: project, requested by, description, extra days by role, status (proposed, approved, rejected), approval attachment.
 - `Baseline`: a numbered snapshot of all phase dates. Created at kickoff and for each approved change request.
 - `ProjectLink`: finish-to-start dependency between phases in different projects.
@@ -148,14 +150,35 @@ All actions across projects, filtered by assignee (including "Mine") and sorted 
 ### 3.9 Settings
 Weekend days, holidays, attachment types, roles, dropdown lists, and waiting-clock thresholds.
 
-## 4. Presentation screens (UNDER REVIEW)
+## 4. Presentation screens (APPROVED)
 
 All read-only. The only exception is saving a sandbox scenario as a *proposed* change request.
 
-- **Presentation dashboard:** tiles for active, finished this year, scheduled to start this year, on hold, and waiting for business input. Proposed: **"Where did the time go?"**, which splits delay days by cause. Year selector.
-- **Portfolio Gantt chart:** every project in parallel, grouped by main project with summary bars. **Hold bars are hatched, with an arrow to the project that received the resources** (labelled, e.g. "3 devs"); arrows stay faint until hovered. Dependency arrows. Filters: all, hand-picked, by main project, department, category or status.
-- **Focus mode:** the phase and requirement Gantt chart with dashed baseline outlines, added-later markers, grey "waiting for business input" segments and hold bars. Clicking anything opens a read-only side panel that shows only highlighted entries. Proposed: a **"Why did the end date move?"** step chart. A Scope tab showing original vs added scope.
-- **Presenter mode:** full screen, large text, no internal details.
+### 4.1 Presentation dashboard
+- Tiles: active, finished this year, scheduled to start this year, on hold, waiting for business input. Year selector.
+- **Where did the time go?** One bar showing all delay days for the selected year, with a toggle between **By cause** (change requests, holds, waiting for information, holidays, team slips) and **By responsibility** (Business user, Decision makers, Technical team, External, Calendar). Days come from recorded `Event`s, so each day is counted once. Time saved by early finishes counts as negative. Clicking a segment breaks it down by project and by the other dimension.
+- **Upcoming milestones:** next 30, 60 or 90 days, showing each milestone's current date, original date and a "moved +Nd" note that links to the project's "Why did the end date move?" chart.
+
+### 4.2 Portfolio Gantt chart
+Every project in parallel, grouped by main project with summary bars. **Hold bars are hatched, with an arrow to the project that received the resources** (labelled, e.g. "3 devs"); arrows stay faint until hovered. Dependency arrows. Filters: all, hand-picked, by main project, department, category or status.
+
+### 4.3 Focus mode (one project)
+- The phase and requirement Gantt chart with dashed baseline outlines, added-later markers, grey "waiting for business input" segments, hold bars and ⭐ milestones.
+- Clicking anything opens a read-only side panel that shows only highlighted entries.
+- **Why did the end date move?** A step (waterfall) chart that goes from the original end date to the current end date. Each step is one event, shown with its cause, days and responsible-party tag; steps that saved time appear in green. Clicking a step opens its evidence. During playback the chart builds itself step by step.
+- Scope tab: original vs added scope, plus the requirements table.
+
+### 4.4 Project health
+- Measured **against the currently agreed baseline**, not the original one.
+- 🔵 **On track:** within tolerance (configurable, default 5%).
+- ⚪ **Adjusted by decision:** moved because of a hold or decision that hasn't been through a change request yet. Neutral grey, with the reason shown.
+- 🟠 **Needs attention:** a slip caused by the technical team, or not yet explained, beyond the tolerance.
+- 🔴 **Only for "decision needed from stakeholders"**, for example a change request waiting for approval, or a requirement waiting for information for more than 30 days.
+
+### 4.5 Export and presenter mode
+- **Export to PDF:** portfolio Gantt chart, Where did the time go?, and focus view.
+- **Presenter mode:** full screen, large text, no internal details (routine updates and unflagged entries are hidden).
+- **Not included:** a team capacity view for stakeholders. Capacity stays on the project management side.
 
 ## 5. Playback, sandbox, errors and testing (NOT YET WRITTEN — decisions so far)
 
