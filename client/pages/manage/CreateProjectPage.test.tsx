@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router';
 import { describe, expect, it } from 'vitest';
@@ -67,5 +67,27 @@ describe('CreateProjectPage', () => {
     expect(screen.getByLabelText('Phase 8 name')).toHaveValue('');
     await user.click(screen.getByRole('button', { name: 'Remove phase 8' }));
     expect(screen.queryByLabelText('Phase 8 name')).toBeNull();
+  });
+
+  it('reorders phases via drag-and-drop, updating the preview order', async () => {
+    mockFetch(calendarRoute);
+    renderPage();
+
+    expect(screen.getByLabelText('Phase 1 name')).toHaveValue('Requirements gathering');
+    expect(screen.getByLabelText('Phase 2 name')).toHaveValue('Business analysis');
+
+    const row1 = screen.getByLabelText('Reorder phase 1').closest('.phase-row') as HTMLElement;
+    const row2 = screen.getByLabelText('Reorder phase 2').closest('.phase-row') as HTMLElement;
+    const dataTransfer = { setData: () => {}, getData: () => '' };
+
+    fireEvent.dragStart(row2, { dataTransfer });
+    fireEvent.dragOver(row1, { dataTransfer });
+    fireEvent.drop(row1, { dataTransfer });
+
+    expect(screen.getByLabelText('Phase 1 name')).toHaveValue('Business analysis');
+    expect(screen.getByLabelText('Phase 2 name')).toHaveValue('Requirements gathering');
+
+    const previewRow0 = await screen.findByTestId('gantt-row-0');
+    expect(previewRow0).toHaveTextContent('Business analysis');
   });
 });

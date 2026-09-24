@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { DEFAULT_CALENDAR, isISODate, todayLocal } from '../../../shared/calendar';
 import { newProjectSchema, toIssues, type ValidationIssue } from '../../../shared/schemas';
@@ -9,6 +9,19 @@ import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useAsync } from '../../useAsync';
+
+function DragHandleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <circle cx="9" cy="6" r="1.3" fill="currentColor" />
+      <circle cx="9" cy="12" r="1.3" fill="currentColor" />
+      <circle cx="9" cy="18" r="1.3" fill="currentColor" />
+      <circle cx="15" cy="6" r="1.3" fill="currentColor" />
+      <circle cx="15" cy="12" r="1.3" fill="currentColor" />
+      <circle cx="15" cy="18" r="1.3" fill="currentColor" />
+    </svg>
+  );
+}
 
 const DEFAULT_PHASES: PhaseInput[] = [
   { name: 'Requirements gathering', durationDays: 10 },
@@ -31,15 +44,46 @@ export function CreateProjectPage() {
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [saving, setSaving] = useState(false);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
+  const dragIndexRef = useRef<number | null>(null);
 
   const cal = calendar.data ?? DEFAULT_CALENDAR;
   const previewPhases = phases.filter((p) => p.name.trim() !== '' && Number.isInteger(p.durationDays) && p.durationDays >= 1);
   const scheduled = isISODate(startDate) ? schedulePhases(startDate, previewPhases, cal) : [];
-  const rows = phaseRows({ color, phases: scheduled });
+  const rows = phaseRows({ phases: scheduled });
   const range = rangeFor(rows, isISODate(startDate) ? startDate : todayLocal());
 
   function updatePhase(index: number, patch: Partial<PhaseInput>) {
     setPhases((ps) => ps.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  }
+
+  function movePhase(from: number, to: number) {
+    if (from === to) return;
+    setPhases((ps) => {
+      const next = [...ps];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
+  function onPhaseDragStart(index: number) {
+    return () => {
+      dragIndexRef.current = index;
+    };
+  }
+
+  function onPhaseDragOver(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+  }
+
+  function onPhaseDrop(index: number) {
+    return (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const from = dragIndexRef.current;
+      dragIndexRef.current = null;
+      if (from === null) return;
+      movePhase(from, index);
+    };
   }
 
   async function onSubmit(e: FormEvent) {
@@ -93,7 +137,17 @@ export function CreateProjectPage() {
           <h2>Phases</h2>
           <p className="field-hint">Durations are in working days. Dates are calculated from the working calendar.</p>
           {phases.map((phase, i) => (
-            <div className="phase-row" key={i}>
+            <div
+              className="phase-row"
+              key={i}
+              draggable
+              onDragStart={onPhaseDragStart(i)}
+              onDragOver={onPhaseDragOver}
+              onDrop={onPhaseDrop(i)}
+            >
+              <button type="button" className="drag-handle" aria-label={`Reorder phase ${i + 1}`}>
+                <DragHandleIcon />
+              </button>
               <input
                 aria-label={`Phase ${i + 1} name`}
                 placeholder="Phase name"

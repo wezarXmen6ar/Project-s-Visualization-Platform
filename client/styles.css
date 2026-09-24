@@ -329,11 +329,25 @@ input[type='number'] { text-align: right; }
 
 .phase-row {
   display: grid;
-  grid-template-columns: 1fr 120px auto;
+  grid-template-columns: auto 1fr 120px auto;
   gap: var(--sp-2);
   align-items: center;
   margin-bottom: var(--sp-2);
 }
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.375rem;
+  cursor: grab;
+}
+.drag-handle:hover { background: var(--surface-2); color: var(--ink); }
+.drag-handle:active { cursor: grabbing; }
 
 .errors {
   display: flex;
