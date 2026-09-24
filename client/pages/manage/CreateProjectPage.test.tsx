@@ -77,10 +77,10 @@ describe('CreateProjectPage', () => {
     expect(screen.getByLabelText('Phase 2 name')).toHaveValue('Business analysis');
 
     const row1 = screen.getByLabelText('Reorder phase 1').closest('.phase-row') as HTMLElement;
-    const row2 = screen.getByLabelText('Reorder phase 2').closest('.phase-row') as HTMLElement;
+    const handle2 = screen.getByLabelText('Reorder phase 2');
     const dataTransfer = { setData: () => {}, getData: () => '' };
 
-    fireEvent.dragStart(row2, { dataTransfer });
+    fireEvent.dragStart(handle2, { dataTransfer });
     fireEvent.dragOver(row1, { dataTransfer });
     fireEvent.drop(row1, { dataTransfer });
 
@@ -89,5 +89,25 @@ describe('CreateProjectPage', () => {
 
     const previewRow0 = await screen.findByTestId('gantt-row-0');
     expect(previewRow0).toHaveTextContent('Business analysis');
+  });
+
+  it('reorders phases via keyboard, moving focus with the phase', async () => {
+    mockFetch(calendarRoute);
+    renderPage();
+
+    expect(screen.getByLabelText('Phase 1 name')).toHaveValue('Requirements gathering');
+    expect(screen.getByLabelText('Phase 2 name')).toHaveValue('Business analysis');
+
+    const handle2 = screen.getByLabelText('Reorder phase 2');
+    handle2.focus();
+    fireEvent.keyDown(handle2, { key: 'ArrowUp' });
+
+    expect(screen.getByLabelText('Phase 1 name')).toHaveValue('Business analysis');
+    expect(screen.getByLabelText('Phase 2 name')).toHaveValue('Requirements gathering');
+
+    const previewRow0 = await screen.findByTestId('gantt-row-0');
+    expect(previewRow0).toHaveTextContent('Business analysis');
+
+    expect(screen.getByLabelText('Reorder phase 1')).toHaveFocus();
   });
 });

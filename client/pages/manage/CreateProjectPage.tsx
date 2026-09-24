@@ -1,4 +1,4 @@
-import { useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { DEFAULT_CALENDAR, isISODate, todayLocal } from '../../../shared/calendar';
 import { newProjectSchema, toIssues, type ValidationIssue } from '../../../shared/schemas';
@@ -45,6 +45,14 @@ export function CreateProjectPage() {
   const [saving, setSaving] = useState(false);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
   const dragIndexRef = useRef<number | null>(null);
+  const handleRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [pendingFocusIndex, setPendingFocusIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (pendingFocusIndex === null) return;
+    handleRefs.current[pendingFocusIndex]?.focus();
+    setPendingFocusIndex(null);
+  }, [pendingFocusIndex]);
 
   const cal = calendar.data ?? DEFAULT_CALENDAR;
   const previewPhases = phases.filter((p) => p.name.trim() !== '' && Number.isInteger(p.durationDays) && p.durationDays >= 1);
@@ -67,7 +75,7 @@ export function CreateProjectPage() {
   }
 
   function onPhaseDragStart(index: number) {
-    return (e: DragEvent<HTMLDivElement>) => {
+    return (e: DragEvent<HTMLButtonElement>) => {
       dragIndexRef.current = index;
       e.dataTransfer.setData('text/plain', String(index));
       e.dataTransfer.effectAllowed = 'move';
@@ -75,7 +83,9 @@ export function CreateProjectPage() {
   }
 
   function onPhaseDragOver(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
+    if (dragIndexRef.current !== null) {
+      e.preventDefault();
+    }
   }
 
   function onPhaseDrop(index: number) {
@@ -85,6 +95,22 @@ export function CreateProjectPage() {
       dragIndexRef.current = null;
       if (from === null) return;
       movePhase(from, index);
+    };
+  }
+
+  function onHandleKeyDown(index: number) {
+    return (e: KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (index === 0) return;
+        movePhase(index, index - 1);
+        setPendingFocusIndex(index - 1);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (index === phases.length - 1) return;
+        movePhase(index, index + 1);
+        setPendingFocusIndex(index + 1);
+      }
     };
   }
 
@@ -142,12 +168,19 @@ export function CreateProjectPage() {
             <div
               className="phase-row"
               key={i}
-              draggable
-              onDragStart={onPhaseDragStart(i)}
               onDragOver={onPhaseDragOver}
               onDrop={onPhaseDrop(i)}
+              onDragEnd={() => { dragIndexRef.current = null; }}
             >
-              <button type="button" className="drag-handle" aria-label={`Reorder phase ${i + 1}`}>
+              <button
+                type="button"
+                className="drag-handle"
+                aria-label={`Reorder phase ${i + 1}`}
+                draggable
+                onDragStart={onPhaseDragStart(i)}
+                onKeyDown={onHandleKeyDown(i)}
+                ref={(el) => { handleRefs.current[i] = el; }}
+              >
                 <DragHandleIcon />
               </button>
               <input

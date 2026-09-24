@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import type { ProjectRecord } from '../../shared/types';
 import { PHASE_PALETTE, phaseColorFor, phaseRows, portfolioRows, rangeFor } from './rows';
@@ -48,7 +49,7 @@ describe('rows', () => {
     it('gives different known phases different colours', () => {
       expect(phaseColorFor('Requirements')).not.toBe(phaseColorFor('Development'));
     });
-    it('derives a stable colour for unknown phase names, and different unknown names differ', () => {
+    it('derives a stable, palette colour for unknown phase names', () => {
       const a = phaseColorFor('Data Migration');
       const b = phaseColorFor('Rollback Planning');
       expect(phaseColorFor('Data Migration')).toBe(a);
