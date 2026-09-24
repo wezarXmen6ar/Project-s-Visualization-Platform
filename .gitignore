@@ -2,3 +2,5 @@
 node_modules/
 *.db
 attachments/
+data/
+dist/
