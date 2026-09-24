@@ -2324,6 +2324,44 @@ Run `npm run dev` and open http://localhost:5173. The user should be able to:
 
 **Ask the user for feedback before continuing to M2.**
 
+### Task 7a: Phase reordering and shared phase colour palette (M1 demo feedback, 2026-09-24)
+
+The user reviewed the M1 build and asked for three changes before M2 starts. Two are new behaviour; the third turns on something the renderer already supports:
+
+1. Phases can't be reordered — only deleted and re-added. Fix: **drag-and-drop** reordering in the phase list (not up/down buttons — more clicks for the same result).
+2. Every phase bar renders in the project's one colour. Fix: a **fixed colour palette keyed by phase name** — "Requirements" is always the same colour on every project, "Development" always another, "UAT" always another, and so on (see spec §2, §3.2 Step 3). Confirmed 2026-09-24: keyed by **name**, not by position — position was considered and rejected because the user wants the *meaning* of the phase, not its slot, to carry the colour.
+3. Phase names aren't shown on the bar in this view, only in the row label. `Gantt.tsx` already draws `bar.label` on the bar (portfolio view already sets it) — `phaseRows` just never set it. Turn it on here too.
+
+**Files:**
+- Modify: `client/gantt/rows.ts`, `client/gantt/rows.test.ts`
+- Modify: `client/pages/manage/CreateProjectPage.tsx`, `client/pages/manage/CreateProjectPage.test.tsx`
+
+**Interfaces:**
+- `rows.ts`:
+  - `export const PHASE_PALETTE: string[]` — 8 OKLCH colours (`L 0.62 C 0.12`, hues spread across 95–330°), matching the app's existing token system (`client/styles.css`) and deliberately clear of the red/amber hues already used for `--danger` and `--warning` alerts elsewhere in the spec (late phases, waiting-clock).
+  - `const KNOWN_PHASE_COLORS: Record<string, string>` — normalised (trimmed, lower-cased) common phase names mapped one-to-one onto `PHASE_PALETTE`, in typical lifecycle order: `requirements` (also matches `gathering requirements`), `analysis`, `design`, `development`, `testing`/`qa`, `uat`, `security testing`, `deployment`. A short alias list (e.g. `gathering requirements` → `requirements`, `go-live` → `deployment`) covers the obvious variants.
+  - `export function phaseColorFor(name: string): string` — normalises `name`; returns the mapped colour if the normalised name (or an alias) is known; otherwise derives a stable index from the normalised name (a simple deterministic string hash mod `PHASE_PALETTE.length`) so any custom phase name still always gets the same colour, on every project, without a persisted registry.
+  - `phaseRows(project: { phases: PhaseLike[] }): GanttRow[]` — drops the now-unused `color` from the project param type; each bar gets `color: phaseColorFor(p.name)` and `label: p.name`.
+  - `portfolioRows` switches from `p.color` to `phaseColorFor(ph.name)` per bar, for the same reason (consistent palette everywhere, not just the project page).
+- `CreateProjectPage.tsx`: each phase row gets a drag handle (`aria-label="Reorder phase N"`) and becomes draggable (native HTML5 drag-and-drop: `draggable`, `onDragStart`, `onDragOver`, `onDrop` on the row). Dropping re-indexes the phase state array; the existing live-preview effect re-schedules and re-renders unchanged, since it already reacts to phase list changes. Retyping a phase's name into a recognised one (e.g. "UAT") updates its bar colour live, since colour is derived from the name on every render.
+
+**Acceptance:**
+- [ ] `rows.test.ts`: `phaseColorFor('Requirements')` and `phaseColorFor('requirements')` are equal (case-insensitive); `phaseColorFor('Gathering Requirements')` equals `phaseColorFor('Requirements')` (alias); `phaseColorFor('Requirements')` and `phaseColorFor('Development')` differ; two different unknown names deterministically get a colour each, and the same unknown name always gets the same colour; `phaseRows(...)[i].bars[0]` has `label` equal to the phase name and no longer depends on a `color` field on the project.
+- [ ] `CreateProjectPage.test.tsx`: dragging phase row 2 above phase row 1 swaps `Phase 1 name` / `Phase 2 name` values and the Gantt preview's row order (`gantt-row-*`) updates to match; the existing "adds and removes phases" test still passes with drag handles present.
+- [ ] `Gantt.test.tsx`: unchanged — it already asserts on `bar.label`.
+- [ ] `npm test` and `npm run typecheck` both pass.
+
+**Non-goals (still not in scope):** the project page (`ProjectPage.tsx`) is read-only and only displays the saved order — no reordering there. Reordering sub-phases (nested phases) is out of scope until sub-phases ship. A per-phase colour override or an editable name→colour mapping in Settings (spec still says static/shared, not user-chosen) is out of scope.
+
+- [ ] **Commit:**
+
+```bash
+git add -A
+git commit -m "feat: drag-and-drop phase reordering and shared phase colour palette"
+```
+
+**Show the user the updated build for review before continuing to M2.**
+
 ---
 
 # MILESTONE 2: Portfolio presentation

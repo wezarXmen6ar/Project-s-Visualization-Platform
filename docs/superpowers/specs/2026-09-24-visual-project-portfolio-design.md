@@ -62,6 +62,7 @@ client/   React + Vite
 - `MainProject`: name. Can be created inline.
 - `ScopeItem`: project, kind (scope, out-of-scope, problem, objective), text, order, `addedByChangeRequestId` (nullable), date added.
 - `Phase`: project, name, order, planned start and end, duration in working days, actual start and end, % complete, `parentId` (sub-phases are optional on **any** phase and one level deep), weight.
+- **Phase colour (post-M1-demo feedback, 2026-09-24):** not a field on `Phase`. Every Gantt bar is coloured from a **fixed palette keyed by the phase's name** (normalised: trimmed, case-insensitive) — "Requirements" is always the same colour, "Development" is always another, "UAT" another, and so on — shared across every project and every screen (project page, wizard live preview, portfolio, focus view). A set of common phase names (Requirements, Analysis, Design, Development, Testing/QA, UAT, Security Testing, Deployment) is mapped to the palette up front; a phase named something else still gets a colour, deterministically derived from its name so the same custom name always lands on the same colour everywhere, without needing a name registry. A project's own `colour` (§3.2 Step 1) plays no part in this — it identifies the project elsewhere (lists, tags), not its phase bars.
 - **Requirement fields** (on sub-phases under development): source (original or added later), date received, linked change request, linked scope item, readiness (incomplete or ready), start-at-risk flag and reason.
 - `RequirementEvidence`: requirement, then **either** an attachment **or** an entry (a meeting), plus a confirmation date. A requirement can have several pieces of evidence. Readiness counts from the earliest one.
 - `Assignment`: phase, resource, allocation %, role (responsible or contributor).
@@ -90,7 +91,7 @@ Two tiles: **Project Management** and **Project Presentation**.
 
 ### 3.2 Create project wizard
 **Step 1: Basic info and classification**
-- Project name, Jira key (reference text, no integration), colour, priority, project manager, business owner (person).
+- Project name, Jira key (reference text, no integration), colour (identifies the project in lists and tags — phase bars use the shared per-phase palette, see §2), priority, project manager, business owner (person).
 - Main project: Standalone, or Part of a main project (dropdown, with **+ Add new** inline).
 - Categorisation: Strategic / Operational.
 - Project type: Criminal / Customer / Management. **"Other" adds a new value to the list.**
@@ -105,7 +106,7 @@ Two tiles: **Project Management** and **Project Presentation**.
 - Tables for **Scope**, **Out of scope**, **Problem statements** and **Objectives**. Each works the same way: type an item, click Add, and it is auto-numbered. Rows can be edited, deleted and reordered by dragging. There is no limit on rows.
 - Scope items added by an approved change request are tagged "Added by CR-x (date)", which drives the scope growth views.
 
-**Step 3: Phases.** Ordered phases with durations in working days. End dates are calculated from the working calendar. Optional sub-phases on any phase. Live Gantt preview.
+**Step 3: Phases.** Ordered phases with durations in working days, **reordered by dragging** the row (post-M1-demo feedback, 2026-09-24 — not up/down buttons, to keep it to one motion). End dates are calculated from the working calendar and recompute immediately when the order changes. Optional sub-phases on any phase. Live Gantt preview: each bar is coloured by the shared, name-keyed palette (§2) — renaming a phase to a recognised name (e.g. typing "UAT") updates its colour live — and shows the **phase name written on the bar itself**, hidden only when the bar is too narrow to fit it.
 
 **Step 4: People.** Assign resources to phases with an allocation %. Overload warnings appear immediately.
 
