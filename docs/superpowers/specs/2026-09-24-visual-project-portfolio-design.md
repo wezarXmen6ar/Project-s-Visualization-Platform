@@ -62,7 +62,7 @@ client/   React + Vite
 - `MainProject`: name. Can be created inline.
 - `ScopeItem`: project, kind (scope, out-of-scope, problem, objective), text, order, `addedByChangeRequestId` (nullable), date added.
 - `Phase`: project, name, order, planned start and end, duration in working days, actual start and end, % complete, `parentId` (sub-phases are optional on **any** phase and one level deep), weight.
-- **Phase colour (post-M1-demo feedback, 2026-09-24):** not a field on `Phase`. Every Gantt bar is coloured from a **fixed palette keyed by the phase's name** (normalised: trimmed, case-insensitive) — "Requirements" is always the same colour, "Development" is always another, "UAT" another, and so on — shared across every project and every screen (project page, wizard live preview, portfolio, focus view). A set of common phase names (Requirements, Analysis, Design, Development, Testing/QA, UAT, Security Testing, Deployment) is mapped to the palette up front; a phase named something else still gets a colour, deterministically derived from its name so the same custom name always lands on the same colour everywhere, without needing a name registry. A project's own `colour` (§3.2 Step 1) plays no part in this — it identifies the project elsewhere (lists, tags), not its phase bars.
+- **Phase colour (post-M1-demo feedback, 2026-09-24):** not a field on `Phase`. Every Gantt bar is coloured from a **fixed palette keyed by the phase's name** (normalised: trimmed, case-insensitive) — "Requirements" is always the same colour, "Development" is always another, "UAT" another, and so on — shared across every project and every screen (project page, wizard live preview, portfolio, focus view). A set of standard phase names (Requirements, Analysis, Design, Development plan, Development, Testing/QA, UAT, Security testing, Deployment, Launch — with Go-live as an alias of Launch) is mapped to a 10-colour palette up front, neighbouring lifecycle phases getting clearly different hues; a phase named something else still gets a colour, deterministically derived from its name so the same custom name always lands on the same colour everywhere, without needing a name registry. A project's own `colour` (§3.2 Step 1) plays no part in this — it identifies the project elsewhere (lists, tags), not its phase bars.
 - **Requirement fields** (on sub-phases under development): source (original or added later), date received, linked change request, linked scope item, readiness (incomplete or ready), start-at-risk flag and reason.
 - `RequirementEvidence`: requirement, then **either** an attachment **or** an entry (a meeting), plus a confirmation date. A requirement can have several pieces of evidence. Readiness counts from the earliest one.
 - `Assignment`: phase, resource, allocation %, role (responsible or contributor).
@@ -91,7 +91,12 @@ Two tiles: **Project Management** and **Project Presentation**.
 
 ### 3.2 Create project wizard
 **Step 1: Basic info and classification**
-- Project name, Jira key (reference text, no integration), colour (identifies the project in lists and tags — phase bars use the shared per-phase palette, see §2), priority, project manager, business owner (person).
+- Project name, Jira key (reference text, no integration), colour (identifies the project in lists and tags — phase bars use the shared per-phase palette, see §2), priority.
+- **People (post-M3-demo feedback, 2026-09-25):** every project has **two project managers** who run it together:
+  - **Project manager (tech)** — from the technical team (the user's side).
+  - **Business project manager** — the business owner's representative, with an optional **UAE mobile** (accepts +971 / 00971 / 971 / 0 in front of 5X XXX XXXX, with spaces or dashes; stored and shown as `+971 5X XXX XXXX`) and an optional **email**. Name, phone and email are each optional.
+  - **Business owner** — the department side that owns the business for the project.
+  - All three are free text until the Resources list arrives (M4).
 - Main project: Standalone, or Part of a main project (dropdown, with **+ Add new** inline).
 - Categorisation: Strategic / Operational.
 - Project type: Criminal / Customer / Management. **"Other" adds a new value to the list.**
@@ -106,7 +111,7 @@ Two tiles: **Project Management** and **Project Presentation**.
 - Tables for **Scope**, **Out of scope**, **Problem statements** and **Objectives**. Each works the same way: type an item, click Add, and it is auto-numbered. Rows can be edited, deleted and reordered by dragging. There is no limit on rows.
 - Scope items added by an approved change request are tagged "Added by CR-x (date)", which drives the scope growth views.
 
-**Step 3: Phases.** Ordered phases with durations in working days, **reordered by dragging** the row (post-M1-demo feedback, 2026-09-24 — not up/down buttons, to keep it to one motion). End dates are calculated from the working calendar and recompute immediately when the order changes. Optional sub-phases on any phase. Live Gantt preview: each bar is coloured by the shared, name-keyed palette (§2) — renaming a phase to a recognised name (e.g. typing "UAT") updates its colour live — and shows the **phase name written on the bar itself**, hidden only when the bar is too narrow to fit it.
+**Step 3: Phases.** Each phase name is **chosen from a dropdown** over an editable **Phases** list (Settings), with **"Other…"** adding a new name to the list (post-M3-demo feedback, 2026-09-25). New projects start with nine phases: **Requirements gathering, Business analysis, Development plan, Development, QA, UAT, Security testing, Deployment, Launch**. "Design" stays in the list for projects that need it but is not a default. Ordered phases with durations in working days, **reordered by dragging** the row (post-M1-demo feedback, 2026-09-24 — not up/down buttons, to keep it to one motion). End dates are calculated from the working calendar and recompute immediately when the order changes. Optional sub-phases on any phase. Live Gantt preview: each bar is coloured by the shared, name-keyed palette (§2) — renaming a phase to a recognised name (e.g. typing "UAT") updates its colour live — and shows the **phase name written on the bar itself**, hidden only when the bar is too narrow to fit it.
 
 **Step 4: People.** Assign resources to phases with an allocation %. Overload warnings appear immediately.
 
@@ -150,7 +155,7 @@ Saving creates Baseline 1.
 All actions across projects, filtered by assignee (including "Mine") and sorted by due date.
 
 ### 3.9 Settings
-Weekend days, holidays, attachment types, roles, dropdown lists, and waiting-clock thresholds.
+Weekend days, holidays, attachment types, roles, dropdown lists (main projects, project types, goals, business users, **phases**), and waiting-clock thresholds. Renaming a phase in the list renames it on every project's phases; a phase name any project uses cannot be deleted.
 
 ## 4. Presentation screens (APPROVED)
 

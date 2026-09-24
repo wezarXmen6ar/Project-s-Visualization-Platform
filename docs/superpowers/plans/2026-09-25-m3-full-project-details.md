@@ -23,6 +23,10 @@
 - **Editing:** project details can be edited after creation (Steps 1–2 fields and the scope tables). Phases stay create-only until M8 (change requests and baselines).
 - **People fields:** Project manager and Business owner are free text for now. M4 turns them into pickers from the Resources list.
 - **Create page layout:** a 3-step wizard: Basic info → Description & scope → Phases. The People and History steps (spec Steps 4–5) come in later milestones.
+- **After the M3 demo (2026-09-25), Tasks 9–10:**
+  - **Two project managers:** "Project manager (tech)" from the technical team, and a "Business project manager" (the business owner's representative) with an optional UAE mobile and an optional email.
+  - **Phase names from a dropdown:** names come from an editable Phases list with "Other…".
+  - **New default phases:** Requirements gathering, Business analysis, Development plan, Development, QA, UAT, Security testing, Deployment, Launch. "Design" stays in the list but is not a default.
 
 **Deliberate deviations and choices (flag if you disagree):**
 - **Main projects are stored as a list.** The spec models `MainProject` as its own entity with just a name. It is stored in `list_values` next to the other dropdown lists, so one table, one API and one Settings editor cover all four.
@@ -4472,6 +4476,1337 @@ git commit -m "feat: portfolio grouped by main project, demo projects with full 
 
 ---
 
+### Task 9: Two project managers — business PM with optional UAE mobile and email (M3 demo feedback, 2026-09-25)
+
+The user reviewed the M3 build and explained that every project has **two** project managers who run it together:
+- **Project manager (tech):** from the technical team (the user's side). This is the existing `projectManager` field, relabelled.
+- **Business project manager:** the business owner's representative. This is a new field, with an optional **UAE mobile** and an optional **email**.
+
+**Business owner** stays as it is: the department side that owns the business for the project. All three fields stay free text until M4 (Resources).
+
+The phone accepts `+971`, `00971`, `971` or `0` in front of `5X XXX XXXX`, with any spaces or dashes. It is stored and shown as `+971 5X XXX XXXX`. Anything else is refused with "Enter a UAE mobile number, e.g. +971 50 123 4567".
+
+**Files:**
+- Modify: `shared/schemas.ts`, `shared/types.ts`, `server/db.ts` (append migration 3), `server/projects/repo.ts`
+- Modify: `client/pages/manage/projectDraft.ts`, `client/testing/mockFetch.ts`, `client/pages/manage/ProjectPage.tsx`, `client/styles.css`, `server/demoData.ts`
+- Modify (replace whole file): `client/pages/manage/DetailsFields.tsx`
+- Test: `shared/schemas.test.ts`, `server/projects/details.test.ts`, `client/pages/manage/CreateProjectPage.test.tsx`, `client/pages/manage/EditProjectPage.test.tsx`, `client/pages/manage/ProjectPage.test.tsx`, `server/demoData.test.ts`
+
+**Interfaces:**
+- Consumes: `projectDetailsSchema`, `optionalText` (Task 2); `DETAIL_COLUMNS`, `detailValues`, `toProject` (Task 2); `DetailsDraft`, `STEP_FIELDS` (Task 5); `ProjectPage` Details card (Task 6); `DEMO_PROJECTS` (Task 8).
+- Produces:
+  - `shared/schemas.ts`: `normalizeUaeMobile(input: string): string | null`. `projectDetailsSchema` gains three optional fields:
+    - `businessPmName` (text, blank → null)
+    - `businessPmPhone` (UAE mobile, normalised, blank → null)
+    - `businessPmEmail` (valid email, blank → null, "Enter a valid email address")
+  - `ProjectRecord` gains `businessPmName: string | null`, `businessPmPhone: string | null` and `businessPmEmail: string | null`.
+  - Migration 3 adds the columns `business_pm_name`, `business_pm_phone` and `business_pm_email`.
+  - Wizard Step 1 gets a new "People" card with these labels:
+    - "Project manager (tech)" (was "Project manager")
+    - "Business owner"
+    - "Business project manager"
+    - "Business PM phone (UAE mobile)"
+    - "Business PM email"
+  - Project page Details:
+    - "Project manager (tech)".
+    - "Business project manager", with the phone as a `tel:` link and the email as a `mailto:` link when set.
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `shared/schemas.test.ts` (add `normalizeUaeMobile` to its import from `./schemas`):
+
+```ts
+describe('normalizeUaeMobile', () => {
+  it('accepts the usual ways of writing a UAE mobile and stores one format', () => {
+    for (const input of ['+971 50 123 4567', '+971501234567', '00971 50 123 4567', '971-50-123-4567', '050 123 4567', '0501234567']) {
+      expect(normalizeUaeMobile(input)).toBe('+971 50 123 4567');
+    }
+  });
+
+  it('rejects landlines, short numbers and other countries', () => {
+    for (const input of ['04 123 4567', '+971 4 123 4567', '050 123 456', '+44 7700 900123', 'abc']) {
+      expect(normalizeUaeMobile(input)).toBeNull();
+    }
+  });
+});
+```
+
+Append inside `describe('project details', ...)` in `server/projects/details.test.ts`:
+
+```ts
+  it('stores the business project manager with a normalised UAE mobile, every part optional', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      payload: { ...base, businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '050 123 4567', businessPmEmail: ' mariam@example.com ' },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({
+      businessPmName: 'Mariam Al Suwaidi',
+      businessPmPhone: '+971 50 123 4567',
+      businessPmEmail: 'mariam@example.com',
+    });
+    const none = (await app.inject({ method: 'POST', url: '/api/projects', payload: base })).json();
+    expect(none).toMatchObject({ businessPmName: null, businessPmPhone: null, businessPmEmail: null });
+  });
+
+  it('rejects a phone that is not a UAE mobile and a malformed email', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/projects', payload: { ...base, businessPmPhone: '04 123 4567', businessPmEmail: 'mariam@' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().issues).toEqual([
+      { path: 'businessPmPhone', message: 'Enter a UAE mobile number, e.g. +971 50 123 4567' },
+      { path: 'businessPmEmail', message: 'Enter a valid email address' },
+    ]);
+  });
+```
+
+In `client/pages/manage/CreateProjectPage.test.tsx`, test `'creates a project with its details, scope and phases'`:
+- Replace the line `await user.type(screen.getByLabelText('Project manager'), 'Sara Ahmed');` with:
+
+```tsx
+    await user.type(screen.getByLabelText('Project manager (tech)'), 'Sara Ahmed');
+    await user.type(screen.getByLabelText('Business project manager'), 'Mariam Al Suwaidi');
+    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '050 123 4567');
+    await user.type(screen.getByLabelText('Business PM email'), 'mariam@example.com');
+```
+
+- In the same test, add these three properties to the `expect(sent).toMatchObject({ ... })` object. The client sends the phone as typed, and the server normalises it.
+
+```tsx
+      businessPmName: 'Mariam Al Suwaidi',
+      businessPmPhone: '050 123 4567',
+      businessPmEmail: 'mariam@example.com',
+```
+
+Then add this test inside the same `describe`:
+
+```tsx
+  it('will not move on with a business PM phone that is not a UAE mobile', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByLabelText('Project name'), 'Portal');
+    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '04 123 4567');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText('Enter a UAE mobile number, e.g. +971 50 123 4567')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
+  });
+```
+
+In `client/pages/manage/EditProjectPage.test.tsx`, replace every `getByLabelText('Project manager')` with `getByLabelText('Project manager (tech)')`.
+
+Append inside `describe('ProjectPage', ...)` in `client/pages/manage/ProjectPage.test.tsx`:
+
+```tsx
+  it("shows both project managers, with the business PM's phone and email as links", async () => {
+    mockFetch({
+      'GET /api/projects/1': () => ({
+        body: sampleProject({
+          projectManager: 'Sara Ahmed',
+          businessPmName: 'Mariam Al Suwaidi',
+          businessPmPhone: '+971 50 123 4567',
+          businessPmEmail: 'mariam@example.com',
+        }),
+      }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+    });
+    renderAt('/manage/projects/1');
+    expect(await screen.findByText('Mariam Al Suwaidi')).toBeInTheDocument();
+    expect(screen.getByText('Project manager (tech)')).toBeInTheDocument();
+    expect(screen.getByText('Sara Ahmed')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '+971 50 123 4567' })).toHaveAttribute('href', 'tel:+971501234567');
+    expect(screen.getByRole('link', { name: 'mariam@example.com' })).toHaveAttribute('href', 'mailto:mariam@example.com');
+  });
+```
+
+In `server/demoData.test.ts`, inside the `seedDemo` test, add after the `Customer Portal Revamp` `toMatchObject` assertion:
+
+```ts
+    expect(projects.find((p) => p.name === 'Customer Portal Revamp')).toMatchObject({
+      businessPmName: 'Mariam Al Suwaidi',
+      businessPmPhone: '+971 50 123 4567',
+      businessPmEmail: 'mariam.alsuwaidi@example.com',
+    });
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `npx vitest run shared/schemas.test.ts server/projects/details.test.ts server/demoData.test.ts client/pages/manage`
+Expected: FAIL.
+- `normalizeUaeMobile` is not exported.
+- The business PM fields are `undefined` in responses.
+- The labels "Project manager (tech)" and "Business project manager" cannot be found.
+
+- [ ] **Step 3: Add the phone and email rules and the fields to `shared/schemas.ts`**
+
+Add after the `optionalId` constant:
+
+```ts
+/**
+ * Normalises a UAE mobile number to "+971 5X XXX XXXX". Accepts +971, 00971, 971 or 0 in front of 5X XXX XXXX, with
+ * any spaces or dashes. Returns null when the input is not a UAE mobile number.
+ */
+export function normalizeUaeMobile(input: string): string | null {
+  const digits = input.replace(/[\s-]/g, '');
+  const match = /^(?:\+971|00971|971|0)(5\d)(\d{3})(\d{4})$/.exec(digits);
+  return match ? `+971 ${match[1]} ${match[2]} ${match[3]}` : null;
+}
+
+/** Optional UAE mobile: blank becomes null, anything else must be a UAE mobile and is stored normalised. */
+const optionalUaeMobile = z
+  .string()
+  .trim()
+  .max(30)
+  .nullish()
+  .transform((v, ctx) => {
+    if (!v) return null;
+    const normalized = normalizeUaeMobile(v);
+    if (normalized === null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter a UAE mobile number, e.g. +971 50 123 4567' });
+      return z.NEVER;
+    }
+    return normalized;
+  });
+
+/** Optional email: blank becomes null. */
+const optionalEmail = z
+  .string()
+  .trim()
+  .max(200)
+  .nullish()
+  .transform((v) => (v ? v : null))
+  .refine((v) => v === null || z.string().email().safeParse(v).success, 'Enter a valid email address');
+```
+
+In `projectDetailsSchema`, add these three fields directly after `businessOwner: optionalText(200),`:
+
+```ts
+  businessPmName: optionalText(200),
+  businessPmPhone: optionalUaeMobile,
+  businessPmEmail: optionalEmail,
+```
+
+- [ ] **Step 4: Add the fields to `ProjectRecord` in `shared/types.ts`**
+
+Directly after `businessOwner: string | null;`:
+
+```ts
+  /** The business owner's representative, who runs the project together with the tech project manager. */
+  businessPmName: string | null;
+  /** Normalised UAE mobile, "+971 5X XXX XXXX". */
+  businessPmPhone: string | null;
+  businessPmEmail: string | null;
+```
+
+- [ ] **Step 5: Append migration 3 to `server/db.ts`** (a new array entry after migration 2)
+
+```ts
+  `
+  ALTER TABLE projects ADD COLUMN business_pm_name TEXT;
+  ALTER TABLE projects ADD COLUMN business_pm_phone TEXT;
+  ALTER TABLE projects ADD COLUMN business_pm_email TEXT;
+  `,
+```
+
+- [ ] **Step 6: Store and read the fields in `server/projects/repo.ts`**
+
+- In `interface ProjectRow`, add after `summary: string;`:
+
+```ts
+  business_pm_name: string | null;
+  business_pm_phone: string | null;
+  business_pm_email: string | null;
+```
+
+- In `DETAIL_COLUMNS`, append `'business_pm_name', 'business_pm_phone', 'business_pm_email'` after `'summary'`.
+- In `detailValues`, append `d.businessPmName, d.businessPmPhone, d.businessPmEmail` after `d.summary`, in that order. The two lists must line up one to one.
+- In `toProject`, add after `businessOwner: row.business_owner,`:
+
+```ts
+    businessPmName: row.business_pm_name,
+    businessPmPhone: row.business_pm_phone,
+    businessPmEmail: row.business_pm_email,
+```
+
+- [ ] **Step 7: Carry the fields through the form state in `client/pages/manage/projectDraft.ts`**
+
+- In `interface DetailsDraft`, add after `businessOwner: string;`:
+
+```ts
+  businessPmName: string;
+  businessPmPhone: string;
+  businessPmEmail: string;
+```
+
+- In `emptyDetails()`, add after `businessOwner: '',`:
+
+```ts
+    businessPmName: '',
+    businessPmPhone: '',
+    businessPmEmail: '',
+```
+
+- In `detailsFromProject()`, add after `businessOwner: p.businessOwner ?? '',`:
+
+```ts
+    businessPmName: p.businessPmName ?? '',
+    businessPmPhone: p.businessPmPhone ?? '',
+    businessPmEmail: p.businessPmEmail ?? '',
+```
+
+- In `STEP_FIELDS`, add `'businessPmName', 'businessPmPhone', 'businessPmEmail'` to the first (Step 1) array.
+
+In `client/testing/mockFetch.ts`, in `sampleProject`, add after `businessOwner: null,`:
+
+```ts
+    businessPmName: null,
+    businessPmPhone: null,
+    businessPmEmail: null,
+```
+
+- [ ] **Step 8: Replace `client/pages/manage/DetailsFields.tsx`** (Basic info is split, and the people fields move to a new "People" card)
+
+```tsx
+import type { Category, ListValue, Lists, Priority } from '../../../shared/types';
+import { OptionPicker } from '../../components/OptionPicker';
+import { CATEGORY_LABEL, PRIORITY_LABEL } from './labels';
+import type { DetailsDraft } from './projectDraft';
+
+interface DetailsFieldsProps {
+  value: DetailsDraft;
+  onChange: (patch: Partial<DetailsDraft>) => void;
+  lists: Lists;
+  onListAdded: (value: ListValue) => void;
+}
+
+/** Wizard Step 1: basic info, people and classification. Also used on the Edit details page. */
+export function DetailsFields({ value, onChange, lists, onListAdded }: DetailsFieldsProps) {
+  return (
+    <>
+      <section className="card">
+        <h2>Basic info</h2>
+        <div className="form-grid">
+          <label>
+            Project name
+            <input value={value.name} onChange={(e) => onChange({ name: e.target.value })} />
+          </label>
+          <label>
+            Jira key
+            <input value={value.jiraKey} onChange={(e) => onChange({ jiraKey: e.target.value })} placeholder="PRJ-123" />
+          </label>
+          <label>
+            Priority
+            <select value={value.priority} onChange={(e) => onChange({ priority: e.target.value as Priority })}>
+              {Object.entries(PRIORITY_LABEL).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Colour
+            <input type="color" value={value.color} onChange={(e) => onChange({ color: e.target.value })} />
+          </label>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>People</h2>
+        <div className="form-grid">
+          <label>
+            Project manager (tech)
+            <input value={value.projectManager} onChange={(e) => onChange({ projectManager: e.target.value })} />
+          </label>
+          <label>
+            Business owner
+            <input value={value.businessOwner} onChange={(e) => onChange({ businessOwner: e.target.value })} />
+          </label>
+          <label>
+            Business project manager
+            <input value={value.businessPmName} onChange={(e) => onChange({ businessPmName: e.target.value })} />
+          </label>
+          <label>
+            Business PM phone (UAE mobile)
+            <input
+              type="tel"
+              value={value.businessPmPhone}
+              onChange={(e) => onChange({ businessPmPhone: e.target.value })}
+              placeholder="+971 50 123 4567"
+            />
+          </label>
+          <label>
+            Business PM email
+            <input
+              type="email"
+              value={value.businessPmEmail}
+              onChange={(e) => onChange({ businessPmEmail: e.target.value })}
+              placeholder="name@example.com"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Classification</h2>
+        <div className="form-grid">
+          <OptionPicker
+            label="Main project"
+            list="mainProject"
+            options={lists.mainProject}
+            value={value.mainProjectId}
+            onChange={(id) => onChange({ mainProjectId: id })}
+            onAdded={onListAdded}
+            noneLabel="Standalone (no main project)"
+            addLabel="+ Add new main project…"
+          />
+          <label>
+            Categorisation
+            <select
+              value={value.category ?? ''}
+              onChange={(e) => onChange({ category: e.target.value === '' ? null : (e.target.value as Category) })}
+            >
+              <option value="">Not set</option>
+              {Object.entries(CATEGORY_LABEL).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </label>
+          <OptionPicker
+            label="Project type"
+            list="projectType"
+            options={lists.projectType}
+            value={value.projectTypeId}
+            onChange={(id) => onChange({ projectTypeId: id })}
+            onAdded={onListAdded}
+            noneLabel="Not set"
+            addLabel="Other…"
+          />
+          <OptionPicker
+            label="Goal"
+            list="goal"
+            options={lists.goal}
+            value={value.goalId}
+            onChange={(id) => onChange({ goalId: id })}
+            onAdded={onListAdded}
+            noneLabel="Not set"
+            addLabel="Other…"
+          />
+          <OptionPicker
+            label="Business user (department)"
+            list="department"
+            options={lists.department}
+            value={value.departmentId}
+            onChange={(id) => onChange({ departmentId: id })}
+            onAdded={onListAdded}
+            noneLabel="Not set"
+            addLabel="+ Add new department…"
+          />
+        </div>
+
+        <div className="check-groups">
+          <fieldset className="check-group">
+            <legend>Requester</legend>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={value.requester.internal}
+                onChange={(e) => onChange({ requester: { ...value.requester, internal: e.target.checked } })}
+              />
+              Internal
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={value.requester.external}
+                onChange={(e) => onChange({ requester: { ...value.requester, external: e.target.checked } })}
+              />
+              External
+            </label>
+          </fieldset>
+          <fieldset className="check-group">
+            <legend>Beneficiary</legend>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={value.beneficiary.employees}
+                onChange={(e) => onChange({ beneficiary: { ...value.beneficiary, employees: e.target.checked } })}
+              />
+              Employees
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={value.beneficiary.customers}
+                onChange={(e) => onChange({ beneficiary: { ...value.beneficiary, customers: e.target.checked } })}
+              />
+              Customers
+            </label>
+          </fieldset>
+        </div>
+      </section>
+    </>
+  );
+}
+```
+
+- [ ] **Step 9: Show both managers on the project page (`client/pages/manage/ProjectPage.tsx`)**
+
+Replace:
+
+```tsx
+          <Detail label="Project manager">{p.projectManager ?? '—'}</Detail>
+          <Detail label="Business owner">{p.businessOwner ?? '—'}</Detail>
+```
+
+with:
+
+```tsx
+          <Detail label="Project manager (tech)">{p.projectManager ?? '—'}</Detail>
+          <Detail label="Business owner">{p.businessOwner ?? '—'}</Detail>
+          <Detail label="Business project manager">
+            <span>{p.businessPmName ?? '—'}</span>
+            {p.businessPmPhone ? (
+              <a className="detail-line" href={`tel:${p.businessPmPhone.replace(/\s/g, '')}`}>{p.businessPmPhone}</a>
+            ) : null}
+            {p.businessPmEmail ? (
+              <a className="detail-line" href={`mailto:${p.businessPmEmail}`}>{p.businessPmEmail}</a>
+            ) : null}
+          </Detail>
+```
+
+Append to `client/styles.css` after the `.details-grid dd` rule:
+
+```css
+.detail-line { display: block; overflow-wrap: anywhere; }
+```
+
+- [ ] **Step 10: Give the demo projects business PMs (`server/demoData.ts`)**
+
+In each `DEMO_PROJECTS` entry, add the matching line directly after its `businessOwner: …` property:
+
+| Project | Add after `businessOwner` |
+|---|---|
+| Legacy Archive Migration | `businessPmName: 'Khalid Al Mansoori',` |
+| Customer Portal Revamp | `businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '+971 50 123 4567', businessPmEmail: 'mariam.alsuwaidi@example.com',` |
+| HR Self-Service | `businessPmName: 'Noura Al Hammadi', businessPmPhone: '055 234 5678',` |
+| Case Management System | `businessPmName: 'Ahmed Al Zaabi', businessPmEmail: 'ahmed.alzaabi@example.com',` |
+| Internal Reporting Dashboard | nothing (its business PM is left empty on purpose) |
+| E-Services Mobile App | `businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '+971 50 123 4567', businessPmEmail: 'mariam.alsuwaidi@example.com',` |
+
+- [ ] **Step 11: Run the tests to verify they pass**
+
+Run: `npx vitest run shared/schemas.test.ts server/projects/details.test.ts server/demoData.test.ts client/pages/manage`
+Expected: PASS.
+
+- [ ] **Step 12: Run the whole suite and the type check**
+
+Run: `npm test` → Expected: PASS (all tests).
+Run: `npm run typecheck` → Expected: exit code 0.
+
+- [ ] **Step 13: Commit**
+
+```bash
+git add -A
+git commit -m "feat: business project manager with optional UAE mobile and email"
+```
+
+---
+
+### Task 10: Phase names from an editable dropdown, new default phases (M3 demo feedback, 2026-09-25)
+
+This task makes three changes:
+- Phase names are **chosen from a dropdown** over a new editable **Phases** list, instead of typed as free text. "Other…" adds a new name to the list, the same way project types and goals work. The Phases list is managed in Settings like the other four lists.
+- New projects start with the user's nine phases:
+  1. Requirements gathering
+  2. Business analysis
+  3. Development plan
+  4. Development
+  5. QA
+  6. UAT
+  7. Security testing
+  8. Deployment
+  9. Launch
+- "Design" stays in the list, but it is not a default.
+
+Phases keep storing their **name**, not a list id, because the Gantt colours, the scheduler and every M1/M2 screen key off the name. So a Phases list value works differently from the other lists:
+- It counts as "in use" when any project has a phase with that name, ignoring case.
+- Renaming it in Settings also renames the matching phases on every project.
+
+The phase colour palette grows from 8 to 10 colours, so every standard phase, plus Design, gets its own colour. Neighbouring lifecycle phases get clearly different hues.
+
+**Files:**
+- Modify: `shared/types.ts` (`LIST_NAMES` gains `'phase'`), `server/db.ts` (append migration 4)
+- Modify (replace whole file): `server/lists/repo.ts`, `client/pages/manage/PhasesFields.tsx`, `client/pages/manage/CreateProjectPage.test.tsx`
+- Modify: `client/useLists.ts`, `client/testing/mockFetch.ts` (`sampleLists`), `client/gantt/rows.ts`, `client/components/OptionPicker.tsx`, `client/pages/manage/CreateProjectPage.tsx`, `client/pages/manage/SettingsPage.tsx`, `client/styles.css`, `server/demoData.ts`
+- Test: `server/lists/lists.test.ts`, `client/gantt/rows.test.ts`, `client/pages/manage/CreateProjectPage.test.tsx`, `server/demoData.test.ts`
+
+**Interfaces:**
+- Consumes: `OptionPicker` (Task 4); `useLists` (Task 3); `useReorder`, `moveItem` (Task 3); `ListEditor` (Task 7); `transaction` (Task 8); `seedDemo` (Task 8); the business PM fields (Task 9, which already sit in this test file).
+- Produces:
+  - `LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department', 'phase']`. Every `Lists` value now has a `phase` array.
+  - Migration 4 seeds the `phase` list in this order: Requirements gathering, Business analysis, Development plan, Development, QA, UAT, Security testing, Deployment, Launch, Design.
+  - Phases list values:
+    - **In use:** `DELETE /api/lists/phase/:id` → 409 `"<name>" is used by N project(s)`, where N counts the distinct projects with a phase of that name.
+    - **Rename:** `PUT /api/lists/phase/:id` renames the list value and every project phase with that name, in one transaction.
+  - `OptionPicker` gains `hideLabel?: boolean`. The label stays in the accessible name but is visually hidden, using a new `.visually-hidden` class.
+  - `PhasesFields` gains the props `phaseOptions: ListValue[]` and `onListAdded(value)`.
+    - Each row's name is an `OptionPicker` with label "Phase N name" (hidden), empty choice "Choose a phase…", and add choice "Other…".
+    - The inline add input's label is "New phase N name".
+  - `DEFAULT_PHASES` is the nine phases, with these working days: 10, 10, 5, 40, 15, 10, 5, 2, 1.
+  - `PHASE_PALETTE` has 10 colours. The standard names are Requirements, Analysis, Design, Development plan, Development, QA, UAT, Security testing, Deployment and Launch. "Go-live" is an alias of Launch. Each standard name gets its own colour.
+  - Settings shows a fifth editor: "Phases", singular "Phase".
+  - Demo project phases use only names from the Phases list, so none shows "Choose a phase…".
+
+- [ ] **Step 1: Write the failing tests**
+
+Append inside `describe('lists API', ...)` in `server/lists/lists.test.ts`:
+
+```ts
+  it('starts with the default phases, Design last', async () => {
+    const lists = (await buildApp(db).inject({ method: 'GET', url: '/api/lists' })).json();
+    expect(names(lists.phase)).toEqual([
+      'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
+      'Security testing', 'Deployment', 'Launch', 'Design',
+    ]);
+  });
+
+  it('treats a phase as in use when a project has a phase with that name, and renames it on projects too', async () => {
+    const app = buildApp(db);
+    await app.inject({
+      method: 'POST', url: '/api/projects',
+      payload: { name: 'P', color: '#000000', startDate: '2026-01-05', phases: [{ name: 'development', durationDays: 5 }] },
+    });
+    const development = (await app.inject({ method: 'GET', url: '/api/lists' })).json()
+      .phase.find((v: { name: string }) => v.name === 'Development');
+
+    const refused = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${development.id}` });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toEqual({ error: '"Development" is used by 1 project' });
+
+    const renamed = await app.inject({ method: 'PUT', url: `/api/lists/phase/${development.id}`, payload: { name: 'Build' } });
+    expect(renamed.statusCode).toBe(200);
+    const project = (await app.inject({ method: 'GET', url: '/api/projects' })).json()[0];
+    expect(project.phases[0].name).toBe('Build');
+  });
+```
+
+Append inside `describe('phaseColorFor', ...)` in `client/gantt/rows.test.ts`:
+
+```ts
+    it('gives every standard phase its own colour, with Go-live the same as Launch', () => {
+      const standard = [
+        'Requirements gathering', 'Business analysis', 'Design', 'Development plan', 'Development', 'QA', 'UAT',
+        'Security testing', 'Deployment', 'Launch',
+      ];
+      expect(new Set(standard.map((name) => phaseColorFor(name))).size).toBe(standard.length);
+      expect(phaseColorFor('Go-live')).toBe(phaseColorFor('Launch'));
+    });
+```
+
+Append inside the `seedDemo` test in `server/demoData.test.ts`, before its last assertion:
+
+```ts
+    // Every demo phase is a name from the Phases list, so the phase dropdowns show it.
+    const phaseNames = new Set(getLists(db).phase.map((v) => v.name));
+    for (const p of projects) for (const ph of p.phases) expect(phaseNames).toContain(ph.name);
+    // Legacy Archive Migration still sits entirely in 2025.
+    const legacy = projects.find((p) => p.name === 'Legacy Archive Migration')!;
+    expect(legacy.phases[legacy.phases.length - 1].end < '2026-01-01').toBe(true);
+```
+
+Replace `client/pages/manage/CreateProjectPage.test.tsx` with the file below. It keeps every Task 5 and Task 9 test, and the phase tests now use the dropdowns.
+
+```tsx
+// @vitest-environment jsdom
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes, useParams } from 'react-router';
+import { describe, expect, it } from 'vitest';
+import { mockFetch, sampleLists, sampleProject, type MockHandler } from '../../testing/mockFetch';
+import { CreateProjectPage } from './CreateProjectPage';
+
+function ProjectStub() {
+  const { id } = useParams();
+  return <div>Project page {id}</div>;
+}
+
+function renderPage() {
+  return render(
+    <MemoryRouter initialEntries={['/manage/projects/new']}>
+      <Routes>
+        <Route path="/manage/projects/new" element={<CreateProjectPage />} />
+        <Route path="/manage/projects/:id" element={<ProjectStub />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+const baseRoutes: Record<string, MockHandler> = {
+  'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+  'GET /api/lists': () => ({ body: sampleLists() }),
+};
+
+type User = ReturnType<typeof userEvent.setup>;
+
+async function openPhasesStep(user: User) {
+  await user.type(screen.getByLabelText('Project name'), 'Portal');
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+}
+
+/** The phase dropdowns show their names once the lists have loaded. */
+async function phasesLoaded() {
+  await waitFor(() => expect(screen.getByLabelText('Phase 1 name')).toHaveDisplayValue('Requirements gathering'));
+}
+
+describe('CreateProjectPage wizard', () => {
+  it('starts on Basic info and will not move on without a project name', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText('Project name is required')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
+  });
+
+  it('will not move on with a business PM phone that is not a UAE mobile', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByLabelText('Project name'), 'Portal');
+    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '04 123 4567');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText('Enter a UAE mobile number, e.g. +971 50 123 4567')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
+  });
+
+  it('keeps what was typed when going back', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByLabelText('Project name'), 'Portal');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('heading', { name: 'Description' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByLabelText('Project name')).toHaveValue('Portal');
+  });
+
+  it('creates a project with its details, scope and phases', async () => {
+    const fetchMock = mockFetch({
+      ...baseRoutes,
+      'POST /api/projects': () => ({ status: 201, body: sampleProject({ id: 7 }) }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.type(screen.getByLabelText('Project name'), 'Portal');
+    await user.type(screen.getByLabelText('Project manager (tech)'), 'Sara Ahmed');
+    await user.type(screen.getByLabelText('Business project manager'), 'Mariam Al Suwaidi');
+    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '050 123 4567');
+    await user.type(screen.getByLabelText('Business PM email'), 'mariam@example.com');
+    await screen.findByRole('option', { name: 'Customer' });
+    await user.selectOptions(screen.getByLabelText('Project type'), 'Customer');
+    await user.selectOptions(screen.getByLabelText('Main project'), 'Digital Services');
+    await user.click(screen.getByRole('checkbox', { name: 'Internal' }));
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    await user.type(screen.getByLabelText('Background'), 'The portal is slow.');
+    await user.type(screen.getByLabelText('New scope item'), 'Online payments{Enter}');
+    expect(screen.getByLabelText('Scope item 1')).toHaveValue('Online payments');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.getByRole('heading', { name: 'Phases' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Create project' }));
+
+    expect(await screen.findByText('Project page 7')).toBeInTheDocument();
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
+    const sent = JSON.parse(post![1]!.body as string);
+    expect(sent).toMatchObject({
+      name: 'Portal',
+      projectManager: 'Sara Ahmed',
+      businessPmName: 'Mariam Al Suwaidi',
+      businessPmPhone: '050 123 4567',
+      businessPmEmail: 'mariam@example.com',
+      projectTypeId: 2,
+      mainProjectId: 20,
+      requester: { internal: true, external: false },
+      background: 'The portal is slow.',
+      scopeItems: [{ kind: 'scope', text: 'Online payments' }],
+      color: '#3b82f6',
+    });
+    expect(sent.phases.map((p: { name: string }) => p.name)).toEqual([
+      'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
+      'Security testing', 'Deployment', 'Launch',
+    ]);
+  });
+
+  it('adds a new department from the dropdown and selects it', async () => {
+    mockFetch({
+      ...baseRoutes,
+      'POST /api/lists/department': () => ({ status: 201, body: { id: 31, list: 'department', name: 'Legal', order: 1 } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('option', { name: 'Finance' });
+    await user.selectOptions(screen.getByLabelText('Business user (department)'), '+ Add new department…');
+    await user.type(screen.getByLabelText('New business user (department)'), 'Legal');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(await screen.findByRole('option', { name: 'Legal' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Business user (department)')).toHaveValue('31');
+  });
+
+  it('sends the user back to the step with a server-side error', async () => {
+    mockFetch({
+      ...baseRoutes,
+      'POST /api/projects': () => ({
+        status: 400,
+        body: { error: 'Invalid project', issues: [{ path: 'projectTypeId', message: 'Unknown project type' }] },
+      }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    await user.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByText('Unknown project type')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
+  });
+
+  it('starts with the nine standard phases, shown in dropdowns, and previews them', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    await phasesLoaded();
+    const shown = Array.from({ length: 9 }, (_, i) =>
+      (screen.getByLabelText(`Phase ${i + 1} name`) as HTMLSelectElement).selectedOptions[0].textContent);
+    expect(shown).toEqual([
+      'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
+      'Security testing', 'Deployment', 'Launch',
+    ]);
+    expect(screen.queryByLabelText('Phase 10 name')).toBeNull();
+    expect(await screen.findByTestId('gantt-row-8')).toBeInTheDocument();
+  });
+
+  it('picks a phase from the list, and adds a new one with Other…', async () => {
+    mockFetch({
+      ...baseRoutes,
+      'POST /api/lists/phase': () => ({ status: 201, body: { id: 60, list: 'phase', name: 'Data migration', order: 10 } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    await phasesLoaded();
+
+    await user.selectOptions(screen.getByLabelText('Phase 3 name'), 'Design');
+    expect(screen.getByLabelText('Phase 3 name')).toHaveDisplayValue('Design');
+
+    await user.selectOptions(screen.getByLabelText('Phase 1 name'), 'Other…');
+    await user.type(screen.getByLabelText('New phase 1 name'), 'Data migration');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(screen.getByLabelText('Phase 1 name')).toHaveDisplayValue('Data migration'));
+    expect(await screen.findByTestId('gantt-row-0')).toHaveTextContent('Data migration');
+  });
+
+  it('adds and removes phases', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    await phasesLoaded();
+    await user.click(screen.getByRole('button', { name: 'Add phase' }));
+    expect(screen.getByLabelText('Phase 10 name')).toHaveDisplayValue('Choose a phase…');
+    await user.click(screen.getByRole('button', { name: 'Remove phase 10' }));
+    expect(screen.queryByLabelText('Phase 10 name')).toBeNull();
+  });
+
+  it('reorders phases via drag-and-drop, updating the preview order', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    await phasesLoaded();
+
+    const row1 = screen.getByLabelText('Reorder phase 1').closest('.phase-row') as HTMLElement;
+    const dataTransfer = { setData: () => {}, getData: () => '', effectAllowed: '' };
+    fireEvent.dragStart(screen.getByLabelText('Reorder phase 2'), { dataTransfer });
+    fireEvent.dragOver(row1, { dataTransfer });
+    fireEvent.drop(row1, { dataTransfer });
+
+    expect(screen.getByLabelText('Phase 1 name')).toHaveDisplayValue('Business analysis');
+    expect(screen.getByLabelText('Phase 2 name')).toHaveDisplayValue('Requirements gathering');
+    expect(await screen.findByTestId('gantt-row-0')).toHaveTextContent('Business analysis');
+  });
+
+  it('reorders phases via keyboard, moving focus with the phase', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    await phasesLoaded();
+
+    const handle2 = screen.getByLabelText('Reorder phase 2');
+    handle2.focus();
+    fireEvent.keyDown(handle2, { key: 'ArrowUp' });
+
+    expect(screen.getByLabelText('Phase 1 name')).toHaveDisplayValue('Business analysis');
+    expect(await screen.findByTestId('gantt-row-0')).toHaveTextContent('Business analysis');
+    expect(screen.getByLabelText('Reorder phase 1')).toHaveFocus();
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `npx vitest run server/lists client/gantt/rows.test.ts server/demoData.test.ts client/pages/manage/CreateProjectPage.test.tsx`
+Expected: FAIL.
+- `lists.phase` is undefined.
+- "Development plan" and "Launch" fall back to hashed colours, and some of those collide.
+- The demo phase "Go-live" is not in the list.
+- The phase names are still text inputs, so `toHaveDisplayValue` does not match.
+
+- [ ] **Step 3: Add `'phase'` to the lists (`shared/types.ts`, `server/db.ts`, `client/useLists.ts`, `client/testing/mockFetch.ts`)**
+
+In `shared/types.ts`, change `LIST_NAMES` to:
+
+```ts
+export const LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department', 'phase'] as const;
+```
+
+Append migration 4 to `MIGRATIONS` in `server/db.ts`, after migration 3:
+
+```ts
+  `
+  INSERT INTO list_values (list, name, sort_order) VALUES
+    ('phase', 'Requirements gathering', 0),
+    ('phase', 'Business analysis', 1),
+    ('phase', 'Development plan', 2),
+    ('phase', 'Development', 3),
+    ('phase', 'QA', 4),
+    ('phase', 'UAT', 5),
+    ('phase', 'Security testing', 6),
+    ('phase', 'Deployment', 7),
+    ('phase', 'Launch', 8),
+    ('phase', 'Design', 9);
+  `,
+```
+
+In `client/useLists.ts`, change `EMPTY` to:
+
+```ts
+const EMPTY: Lists = { mainProject: [], projectType: [], goal: [], department: [], phase: [] };
+```
+
+In `client/testing/mockFetch.ts`, add this property to the object returned by `sampleLists()`, after `department`:
+
+```ts
+    phase: [
+      'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
+      'Security testing', 'Deployment', 'Launch', 'Design',
+    ].map((name, i) => ({ id: 50 + i, list: 'phase' as const, name, order: i })),
+```
+
+- [ ] **Step 4: Replace `server/lists/repo.ts`**
+
+```ts
+import type { DatabaseSync } from 'node:sqlite';
+import { LIST_NAMES, type ListName, type ListValue, type Lists } from '../../shared/types';
+import { transaction } from '../db';
+
+interface ListRow {
+  id: number;
+  list: ListName;
+  name: string;
+  sort_order: number;
+}
+
+/**
+ * How many projects use a list value. Most lists are referenced by id from a projects column. Phases store their
+ * name on each project's phase rows, so a phase value is matched by name (ignoring case).
+ */
+const USAGE_SQL: Record<ListName, string> = {
+  mainProject: 'SELECT COUNT(*) AS n FROM projects WHERE main_project_id = ?',
+  projectType: 'SELECT COUNT(*) AS n FROM projects WHERE project_type_id = ?',
+  goal: 'SELECT COUNT(*) AS n FROM projects WHERE goal_id = ?',
+  department: 'SELECT COUNT(*) AS n FROM projects WHERE department_id = ?',
+  phase: 'SELECT COUNT(DISTINCT project_id) AS n FROM phases WHERE name = ? COLLATE NOCASE',
+};
+
+export type ListChange = { ok: true; value?: ListValue } | { ok: false; status: 404 | 409; error: string };
+
+function toValue(row: ListRow): ListValue {
+  return { id: row.id, list: row.list, name: row.name, order: row.sort_order };
+}
+
+function findByName(db: DatabaseSync, list: ListName, name: string): ListRow | undefined {
+  return db
+    .prepare('SELECT * FROM list_values WHERE list = ? AND name = ? COLLATE NOCASE')
+    .get(list, name) as unknown as ListRow | undefined;
+}
+
+export function isListName(value: string): value is ListName {
+  return (LIST_NAMES as readonly string[]).includes(value);
+}
+
+export function getLists(db: DatabaseSync): Lists {
+  const lists: Lists = { mainProject: [], projectType: [], goal: [], department: [], phase: [] };
+  const rows = db.prepare('SELECT * FROM list_values ORDER BY sort_order, id').all() as unknown as ListRow[];
+  for (const row of rows) lists[row.list].push(toValue(row));
+  return lists;
+}
+
+export function getListValue(db: DatabaseSync, id: number): ListValue | undefined {
+  const row = db.prepare('SELECT * FROM list_values WHERE id = ?').get(id) as unknown as ListRow | undefined;
+  return row ? toValue(row) : undefined;
+}
+
+/** Adds a value at the end of a list, or returns the existing value with the same name (ignoring case). */
+export function addListValue(db: DatabaseSync, list: ListName, name: string): { value: ListValue; created: boolean } {
+  const existing = findByName(db, list, name);
+  if (existing) return { value: toValue(existing), created: false };
+  const { next } = db
+    .prepare('SELECT COALESCE(MAX(sort_order) + 1, 0) AS next FROM list_values WHERE list = ?')
+    .get(list) as unknown as { next: number };
+  const res = db.prepare('INSERT INTO list_values (list, name, sort_order) VALUES (?, ?, ?)').run(list, name, next);
+  return { value: getListValue(db, Number(res.lastInsertRowid))!, created: true };
+}
+
+export function renameListValue(db: DatabaseSync, list: ListName, id: number, name: string): ListChange {
+  const current = getListValue(db, id);
+  if (!current || current.list !== list) return { ok: false, status: 404, error: 'Value not found' };
+  const clash = findByName(db, list, name);
+  if (clash && clash.id !== id) return { ok: false, status: 409, error: `"${clash.name}" already exists` };
+  transaction(db, () => {
+    db.prepare('UPDATE list_values SET name = ? WHERE id = ?').run(name, id);
+    // Phase names live on each project's phases, so a renamed phase is renamed there too.
+    if (list === 'phase') db.prepare('UPDATE phases SET name = ? WHERE name = ? COLLATE NOCASE').run(name, current.name);
+  });
+  return { ok: true, value: getListValue(db, id) };
+}
+
+export function deleteListValue(db: DatabaseSync, list: ListName, id: number): ListChange {
+  const current = getListValue(db, id);
+  if (!current || current.list !== list) return { ok: false, status: 404, error: 'Value not found' };
+  const { n } = db.prepare(USAGE_SQL[list]).get(list === 'phase' ? current.name : id) as unknown as { n: number };
+  if (n > 0) return { ok: false, status: 409, error: `"${current.name}" is used by ${n} project${n === 1 ? '' : 's'}` };
+  db.prepare('DELETE FROM list_values WHERE id = ?').run(id);
+  return { ok: true };
+}
+```
+
+- [ ] **Step 5: Ten phase colours in `client/gantt/rows.ts`**
+
+Replace the whole block from the `/**` comment above `export const PHASE_PALETTE` down to and including the closing `};` of `KNOWN_PHASE_COLORS` with:
+
+```ts
+/**
+ * A fixed, project-independent colour palette for phase bars, assigned by phase *name* (via phaseColorFor), so e.g.
+ * "Development" is the same colour on every project's Gantt chart. 10 OKLCH colours sharing the app's lightness and
+ * chroma (L 0.62 C 0.12), hues spread evenly across 95–330° — clear of the red/amber hues used for --danger and
+ * --warning (see styles.css).
+ */
+export const PHASE_PALETTE: string[] = [95, 121, 147, 173, 199, 225, 252, 278, 304, 330].map((h) => `oklch(0.62 0.12 ${h})`);
+
+/**
+ * The standard phases in lifecycle order, each with the normalised (trimmed, lower-cased) names it goes by.
+ * Consecutive phases take palette slots three apart (0, 3, 6, 9, 2, 5, …), so neighbouring bars get clearly
+ * different hues.
+ */
+const STANDARD_PHASES: string[][] = [
+  ['requirements', 'requirements gathering', 'gathering requirements'],
+  ['analysis', 'business analysis'],
+  ['design'],
+  ['development plan'],
+  ['development', 'dev'],
+  ['qa', 'testing'],
+  ['uat', 'user acceptance testing'],
+  ['security testing', 'security'],
+  ['deployment', 'deploy'],
+  ['launch', 'go-live', 'golive'],
+];
+
+const KNOWN_PHASE_COLORS: Record<string, string> = Object.fromEntries(
+  STANDARD_PHASES.flatMap((names, i) => names.map((name) => [name, PHASE_PALETTE[(i * 3) % PHASE_PALETTE.length]])),
+);
+```
+
+- [ ] **Step 6: Let `OptionPicker` hide its label visually (`client/components/OptionPicker.tsx`)**
+
+- In `interface OptionPickerProps`, add:
+
+```ts
+  /** Keep the label for screen readers and tests but don't show it (e.g. inside a table-like row). */
+  hideLabel?: boolean;
+```
+
+- Add `hideLabel = false` to the destructured props.
+- Directly after the `useState` lines, add:
+
+```tsx
+  const labelText = hideLabel ? <span className="visually-hidden">{label}</span> : label;
+```
+
+- In both returned `<label>` elements, replace the bare `{label}` child with `{labelText}`. The `aria-label` of the inline add input keeps using `label` as it is.
+
+Append to `client/styles.css` after the `.field-error` rule:
+
+```css
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+```
+
+- [ ] **Step 7: Replace `client/pages/manage/PhasesFields.tsx`**
+
+```tsx
+import { DEFAULT_CALENDAR, isISODate, todayLocal } from '../../../shared/calendar';
+import { schedulePhases, type PhaseInput } from '../../../shared/scheduler';
+import type { ListValue } from '../../../shared/types';
+import { OptionPicker } from '../../components/OptionPicker';
+import { GripIcon, PlusIcon, TrashIcon } from '../../icons';
+import { api } from '../../api';
+import { Gantt } from '../../gantt/Gantt';
+import { phaseRows, rangeFor } from '../../gantt/rows';
+import { useElementWidth } from '../../gantt/useElementWidth';
+import { useAsync } from '../../useAsync';
+import { moveItem, useReorder } from '../../useReorder';
+
+/** New projects start with these phases; each name is also in the default Phases list (migration 4). */
+export const DEFAULT_PHASES: PhaseInput[] = [
+  { name: 'Requirements gathering', durationDays: 10 },
+  { name: 'Business analysis', durationDays: 10 },
+  { name: 'Development plan', durationDays: 5 },
+  { name: 'Development', durationDays: 40 },
+  { name: 'QA', durationDays: 15 },
+  { name: 'UAT', durationDays: 10 },
+  { name: 'Security testing', durationDays: 5 },
+  { name: 'Deployment', durationDays: 2 },
+  { name: 'Launch', durationDays: 1 },
+];
+
+interface PhasesFieldsProps {
+  startDate: string;
+  onStartDate: (date: string) => void;
+  phases: PhaseInput[];
+  onPhases: (phases: PhaseInput[]) => void;
+  /** The editable Phases list, for the name dropdowns. */
+  phaseOptions: ListValue[];
+  /** Called with a phase name created inline with "Other…", so every dropdown shows it straight away. */
+  onListAdded: (value: ListValue) => void;
+}
+
+/** Wizard Step 3: start date, ordered phases chosen from the Phases list, working-day durations, and a live Gantt preview. */
+export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOptions, onListAdded }: PhasesFieldsProps) {
+  const calendar = useAsync(() => api.getCalendar(), []);
+  const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
+  const { handleProps, rowProps } = useReorder(phases.length, (from, to) => onPhases(moveItem(phases, from, to)));
+
+  const cal = calendar.data ?? DEFAULT_CALENDAR;
+  const previewPhases = phases.filter((p) => p.name.trim() !== '' && Number.isInteger(p.durationDays) && p.durationDays >= 1);
+  const scheduled = isISODate(startDate) ? schedulePhases(startDate, previewPhases, cal) : [];
+  const rows = phaseRows({ phases: scheduled });
+  const range = rangeFor(rows, isISODate(startDate) ? startDate : todayLocal());
+
+  function update(index: number, patch: Partial<PhaseInput>) {
+    onPhases(phases.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  }
+
+  /** The list value a phase name matches (ignoring case), so its dropdown shows it. */
+  function idForName(name: string): number | null {
+    const key = name.trim().toLowerCase();
+    return phaseOptions.find((o) => o.name.toLowerCase() === key)?.id ?? null;
+  }
+
+  return (
+    <>
+      <section className="card">
+        <h2>Phases</h2>
+        <p className="field-hint">Durations are in working days. Dates are calculated from the working calendar.</p>
+        <div className="phase-start">
+          <label>
+            Start date
+            <input type="date" value={startDate} onChange={(e) => onStartDate(e.target.value)} />
+          </label>
+        </div>
+        {phases.map((phase, i) => (
+          <div className="phase-row" key={i} {...rowProps(i)}>
+            <button {...handleProps(i, `Reorder phase ${i + 1}`)}>
+              <GripIcon />
+            </button>
+            <OptionPicker
+              label={`Phase ${i + 1} name`}
+              hideLabel
+              list="phase"
+              options={phaseOptions}
+              value={idForName(phase.name)}
+              onChange={(id) => {
+                if (id === null) {
+                  update(i, { name: '' });
+                  return;
+                }
+                // A name just created with "Other…" is not in phaseOptions yet; onAdded below has already set it.
+                const chosen = phaseOptions.find((o) => o.id === id);
+                if (chosen) update(i, { name: chosen.name });
+              }}
+              onAdded={(value) => {
+                onListAdded(value);
+                update(i, { name: value.name });
+              }}
+              noneLabel="Choose a phase…"
+              addLabel="Other…"
+            />
+            <input
+              aria-label={`Phase ${i + 1} working days`}
+              type="number"
+              min={1}
+              value={Number.isNaN(phase.durationDays) ? '' : phase.durationDays}
+              onChange={(e) => update(i, { durationDays: e.target.valueAsNumber })}
+            />
+            <button
+              type="button"
+              className="button ghost-icon"
+              aria-label={`Remove phase ${i + 1}`}
+              onClick={() => onPhases(phases.filter((_, j) => j !== i))}
+            >
+              <TrashIcon />
+            </button>
+          </div>
+        ))}
+        <button type="button" className="button secondary" onClick={() => onPhases([...phases, { name: '', durationDays: 5 }])}>
+          <PlusIcon />Add phase
+        </button>
+      </section>
+
+      <section className="card">
+        <h2>Preview</h2>
+        <div className="chart-scroll" ref={chartRef}>
+          <Gantt rows={rows} range={range} width={chartWidth} />
+        </div>
+      </section>
+    </>
+  );
+}
+```
+
+- [ ] **Step 8: Wire the Phases list into the wizard and Settings**
+
+In `client/pages/manage/CreateProjectPage.tsx`, replace the `<PhasesFields … />` element with:
+
+```tsx
+          <PhasesFields
+            startDate={startDate}
+            onStartDate={setStartDate}
+            phases={phases}
+            onPhases={setPhases}
+            phaseOptions={lists.phase}
+            onListAdded={remember}
+          />
+```
+
+In `client/pages/manage/SettingsPage.tsx`, append to `EDITORS`:
+
+```ts
+  { list: 'phase', title: 'Phases', singular: 'Phase' },
+```
+
+- [ ] **Step 9: Put the demo projects on the new phase names (`server/demoData.ts`)**
+
+Replace each project's `phases` array. Legacy Archive Migration still totals 72 working days from 2025-09-07, so it still ends in December 2025.
+
+```ts
+// Legacy Archive Migration
+    phases: [
+      { name: 'Requirements gathering', durationDays: 10 },
+      { name: 'Development', durationDays: 45 },
+      { name: 'QA', durationDays: 10 },
+      { name: 'Security testing', durationDays: 5 },
+      { name: 'Launch', durationDays: 2 },
+    ],
+// Customer Portal Revamp
+    phases: [
+      { name: 'Requirements gathering', durationDays: 10 },
+      { name: 'Business analysis', durationDays: 10 },
+      { name: 'Development plan', durationDays: 5 },
+      { name: 'Design', durationDays: 10 },
+      { name: 'Development', durationDays: 45 },
+      { name: 'QA', durationDays: 15 },
+      { name: 'UAT', durationDays: 10 },
+      { name: 'Security testing', durationDays: 5 },
+      { name: 'Deployment', durationDays: 2 },
+      { name: 'Launch', durationDays: 1 },
+    ],
+// HR Self-Service
+    phases: [
+      { name: 'Requirements gathering', durationDays: 8 },
+      { name: 'Business analysis', durationDays: 8 },
+      { name: 'Development plan', durationDays: 3 },
+      { name: 'Development', durationDays: 37 },
+      { name: 'QA', durationDays: 10 },
+      { name: 'UAT', durationDays: 5 },
+      { name: 'Launch', durationDays: 1 },
+    ],
+// Case Management System
+    phases: [
+      { name: 'Requirements gathering', durationDays: 15 },
+      { name: 'Business analysis', durationDays: 15 },
+      { name: 'Development plan', durationDays: 5 },
+      { name: 'Design', durationDays: 10 },
+      { name: 'Development', durationDays: 75 },
+      { name: 'QA', durationDays: 20 },
+      { name: 'UAT', durationDays: 10 },
+      { name: 'Security testing', durationDays: 10 },
+      { name: 'Deployment', durationDays: 3 },
+      { name: 'Launch', durationDays: 1 },
+    ],
+// Internal Reporting Dashboard
+    phases: [
+      { name: 'Requirements gathering', durationDays: 5 },
+      { name: 'Development', durationDays: 25 },
+      { name: 'QA', durationDays: 8 },
+      { name: 'UAT', durationDays: 5 },
+      { name: 'Deployment', durationDays: 1 },
+    ],
+// E-Services Mobile App
+    phases: [
+      { name: 'Requirements gathering', durationDays: 10 },
+      { name: 'Business analysis', durationDays: 10 },
+      { name: 'Development plan', durationDays: 5 },
+      { name: 'Design', durationDays: 15 },
+      { name: 'Development', durationDays: 60 },
+      { name: 'QA', durationDays: 15 },
+      { name: 'UAT', durationDays: 10 },
+      { name: 'Security testing', durationDays: 5 },
+    ],
+```
+
+- [ ] **Step 10: Run the tests to verify they pass**
+
+Run: `npx vitest run server/lists client/gantt/rows.test.ts server/demoData.test.ts client/pages/manage client/components`
+Expected: PASS.
+
+- [ ] **Step 11: Run the whole suite and the type check**
+
+Run: `npm test` → Expected: PASS (all tests).
+Run: `npm run typecheck` → Expected: exit code 0.
+
+- [ ] **Step 12: Commit**
+
+```bash
+git add -A
+git commit -m "feat: phase names from an editable dropdown, new default phases, ten phase colours"
+```
+
+---
+
 ### ✅ M3 checkpoint: stop and demo to the user
 
 Start from a fresh demo database. An existing `data/pm.db` upgrades automatically to the new schema, but a fresh one shows the demo grouping.
@@ -4484,18 +5819,20 @@ The user should be able to:
 1. Open **Project Management → New project** and walk through **Basic info → Description & scope → Phases**.
    - **Next** refuses to move on without a project name.
    - **Back** keeps what was typed.
-2. In Basic info:
+2. In Basic info and People:
+   - Fill in the tech PM and the business PM. The phone refuses a non-UAE-mobile number such as 04 123 4567, and accepts 050 123 4567 and saves it as +971 50 123 4567.
    - Choose a **Main project**, or add one with "+ Add new main project…".
    - Choose a **Project type** or **Goal**, or add one with "Other…".
    - Add a **Business user (department)** inline.
    - Tick the Requester and Beneficiary boxes.
 3. In Description & scope, add items to all four tables. Items are numbered. You can edit them in place, remove them, and reorder them by dragging the handle or with the arrow keys on it.
-4. Create the project. The project page shows the **Details**, **Description** and **Scope and goals** cards.
-5. Click **Edit details**, change something, and **Save changes**. The phases are untouched.
-6. Open **Projects → Settings**:
+4. On Phases, the nine default phases appear in dropdowns. Pick "Design" for one row, and add a new phase name with "Other…".
+5. Create the project. The project page shows the **Details**, **Description** and **Scope and goals** cards.
+6. Click **Edit details**, change something, and **Save changes**. The phases are untouched.
+7. Open **Projects → Settings** (it now also has a **Phases** list):
    - Rename a value, add one and delete an unused one.
    - Try deleting a value a project uses, e.g. project type "Customer". It explains why it can't be deleted.
-7. Open **Project Presentation**:
+8. Open **Project Presentation**:
    - 2026 shows **Digital Services** and **Records Modernisation** as group rows with summary bars, their projects indented under them, and standalone projects last.
    - Clicking a group row does nothing, and clicking a project opens its focus view.
    - 2025 shows Legacy Archive Migration under Records Modernisation.
