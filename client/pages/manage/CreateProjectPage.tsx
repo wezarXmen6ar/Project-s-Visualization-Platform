@@ -67,8 +67,10 @@ export function CreateProjectPage() {
   }
 
   function onPhaseDragStart(index: number) {
-    return () => {
+    return (e: DragEvent<HTMLDivElement>) => {
       dragIndexRef.current = index;
+      e.dataTransfer.setData('text/plain', String(index));
+      e.dataTransfer.effectAllowed = 'move';
     };
   }
 
