@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { ProjectRecord } from '../../shared/types';
+import type { Lists, ProjectRecord } from '../../shared/types';
 
 export type MockHandler = (init?: RequestInit) => { status?: number; body: unknown };
 
@@ -13,7 +13,11 @@ export function mockFetch(routes: Record<string, MockHandler>) {
       return new Response(JSON.stringify({ error: `No mock for ${method} ${url}` }), { status: 500 });
     }
     const { status = 200, body } = handler(init);
-    return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+    // A 204 response must not have a body.
+    return new Response(status === 204 ? null : JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
   });
   vi.stubGlobal('fetch', fn);
   return fn;
@@ -44,5 +48,18 @@ export function sampleProject(overrides: Partial<ProjectRecord> = {}): ProjectRe
       { id: 12, name: 'Development', order: 1, durationDays: 3, start: '2026-09-28', end: '2026-09-30' },
     ],
     ...overrides,
+  };
+}
+
+export function sampleLists(): Lists {
+  return {
+    mainProject: [{ id: 20, list: 'mainProject', name: 'Digital Services', order: 0 }],
+    projectType: [
+      { id: 1, list: 'projectType', name: 'Criminal', order: 0 },
+      { id: 2, list: 'projectType', name: 'Customer', order: 1 },
+      { id: 3, list: 'projectType', name: 'Management', order: 2 },
+    ],
+    goal: [{ id: 4, list: 'goal', name: 'Digitalisation of internal operations', order: 0 }],
+    department: [{ id: 30, list: 'department', name: 'Finance', order: 0 }],
   };
 }
