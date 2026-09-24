@@ -33,9 +33,10 @@ export const DEMO_PROJECTS: DemoProject[] = [
     ],
     phases: [
       { name: 'Requirements gathering', durationDays: 10 },
-      { name: 'Development', durationDays: 50 },
+      { name: 'Development', durationDays: 45 },
       { name: 'QA', durationDays: 10 },
-      { name: 'Go-live', durationDays: 2 },
+      { name: 'Security testing', durationDays: 5 },
+      { name: 'Launch', durationDays: 2 },
     ],
   },
   {
@@ -60,11 +61,14 @@ export const DEMO_PROJECTS: DemoProject[] = [
     phases: [
       { name: 'Requirements gathering', durationDays: 10 },
       { name: 'Business analysis', durationDays: 10 },
+      { name: 'Development plan', durationDays: 5 },
       { name: 'Design', durationDays: 10 },
-      { name: 'Development', durationDays: 50 },
+      { name: 'Development', durationDays: 45 },
       { name: 'QA', durationDays: 15 },
       { name: 'UAT', durationDays: 10 },
-      { name: 'Go-live', durationDays: 2 },
+      { name: 'Security testing', durationDays: 5 },
+      { name: 'Deployment', durationDays: 2 },
+      { name: 'Launch', durationDays: 1 },
     ],
   },
   {
@@ -83,9 +87,11 @@ export const DEMO_PROJECTS: DemoProject[] = [
     phases: [
       { name: 'Requirements gathering', durationDays: 8 },
       { name: 'Business analysis', durationDays: 8 },
-      { name: 'Development', durationDays: 40 },
+      { name: 'Development plan', durationDays: 3 },
+      { name: 'Development', durationDays: 37 },
       { name: 'QA', durationDays: 10 },
       { name: 'UAT', durationDays: 5 },
+      { name: 'Launch', durationDays: 1 },
     ],
   },
   {
@@ -106,11 +112,14 @@ export const DEMO_PROJECTS: DemoProject[] = [
     phases: [
       { name: 'Requirements gathering', durationDays: 15 },
       { name: 'Business analysis', durationDays: 15 },
+      { name: 'Development plan', durationDays: 5 },
       { name: 'Design', durationDays: 10 },
-      { name: 'Development', durationDays: 80 },
+      { name: 'Development', durationDays: 75 },
       { name: 'QA', durationDays: 20 },
       { name: 'UAT', durationDays: 10 },
-      { name: 'Go-live', durationDays: 3 },
+      { name: 'Security testing', durationDays: 10 },
+      { name: 'Deployment', durationDays: 3 },
+      { name: 'Launch', durationDays: 1 },
     ],
   },
   {
@@ -129,6 +138,7 @@ export const DEMO_PROJECTS: DemoProject[] = [
       { name: 'Development', durationDays: 25 },
       { name: 'QA', durationDays: 8 },
       { name: 'UAT', durationDays: 5 },
+      { name: 'Deployment', durationDays: 1 },
     ],
   },
   {
@@ -149,10 +159,12 @@ export const DEMO_PROJECTS: DemoProject[] = [
     phases: [
       { name: 'Requirements gathering', durationDays: 10 },
       { name: 'Business analysis', durationDays: 10 },
+      { name: 'Development plan', durationDays: 5 },
       { name: 'Design', durationDays: 15 },
       { name: 'Development', durationDays: 60 },
       { name: 'QA', durationDays: 15 },
       { name: 'UAT', durationDays: 10 },
+      { name: 'Security testing', durationDays: 5 },
     ],
   },
 ];

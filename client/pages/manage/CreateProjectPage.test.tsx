@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router';
 import { describe, expect, it } from 'vitest';
@@ -35,6 +35,11 @@ async function openPhasesStep(user: User) {
   await user.click(screen.getByRole('button', { name: 'Next' }));
 }
 
+/** The phase dropdowns show their names once the lists have loaded. */
+async function phasesLoaded() {
+  await waitFor(() => expect(screen.getByLabelText('Phase 1 name')).toHaveDisplayValue('Requirements gathering'));
+}
+
 describe('CreateProjectPage wizard', () => {
   it('starts on Basic info and will not move on without a project name', async () => {
     mockFetch(baseRoutes);
@@ -43,6 +48,17 @@ describe('CreateProjectPage wizard', () => {
     expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Next' }));
     expect(await screen.findByText('Project name is required')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
+  });
+
+  it('will not move on with a business PM phone that is not a UAE mobile', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByLabelText('Project name'), 'Portal');
+    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '04 123 4567');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText('Enter a UAE mobile number, e.g. +971 50 123 4567')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
   });
 
@@ -100,18 +116,10 @@ describe('CreateProjectPage wizard', () => {
       scopeItems: [{ kind: 'scope', text: 'Online payments' }],
       color: '#3b82f6',
     });
-    expect(sent.phases).toHaveLength(7);
-  });
-
-  it('will not move on with a business PM phone that is not a UAE mobile', async () => {
-    mockFetch(baseRoutes);
-    const user = userEvent.setup();
-    renderPage();
-    await user.type(screen.getByLabelText('Project name'), 'Portal');
-    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '04 123 4567');
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText('Enter a UAE mobile number, e.g. +971 50 123 4567')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
+    expect(sent.phases.map((p: { name: string }) => p.name)).toEqual([
+      'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
+      'Security testing', 'Deployment', 'Launch',
+    ]);
   });
 
   it('adds a new department from the dropdown and selects it', async () => {
@@ -145,13 +153,40 @@ describe('CreateProjectPage wizard', () => {
     expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
   });
 
-  it('starts with standard phases and previews them on a Gantt chart', async () => {
+  it('starts with the nine standard phases, shown in dropdowns, and previews them', async () => {
     mockFetch(baseRoutes);
     const user = userEvent.setup();
     renderPage();
     await openPhasesStep(user);
-    expect(screen.getByLabelText('Phase 4 name')).toHaveValue('Development');
-    expect(await screen.findByTestId('gantt-row-3')).toBeInTheDocument();
+    await phasesLoaded();
+    const shown = Array.from({ length: 9 }, (_, i) =>
+      (screen.getByLabelText(`Phase ${i + 1} name`) as HTMLSelectElement).selectedOptions[0].textContent);
+    expect(shown).toEqual([
+      'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
+      'Security testing', 'Deployment', 'Launch',
+    ]);
+    expect(screen.queryByLabelText('Phase 10 name')).toBeNull();
+    expect(await screen.findByTestId('gantt-row-8')).toBeInTheDocument();
+  });
+
+  it('picks a phase from the list, and adds a new one with Other…', async () => {
+    mockFetch({
+      ...baseRoutes,
+      'POST /api/lists/phase': () => ({ status: 201, body: { id: 60, list: 'phase', name: 'Data migration', order: 10 } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    await phasesLoaded();
+
+    await user.selectOptions(screen.getByLabelText('Phase 3 name'), 'Design');
+    expect(screen.getByLabelText('Phase 3 name')).toHaveDisplayValue('Design');
+
+    await user.selectOptions(screen.getByLabelText('Phase 1 name'), 'Other…');
+    await user.type(screen.getByLabelText('New phase 1 name'), 'Data migration');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(screen.getByLabelText('Phase 1 name')).toHaveDisplayValue('Data migration'));
+    expect(await screen.findByTestId('gantt-row-0')).toHaveTextContent('Data migration');
   });
 
   it('adds and removes phases', async () => {
@@ -159,10 +194,11 @@ describe('CreateProjectPage wizard', () => {
     const user = userEvent.setup();
     renderPage();
     await openPhasesStep(user);
+    await phasesLoaded();
     await user.click(screen.getByRole('button', { name: 'Add phase' }));
-    expect(screen.getByLabelText('Phase 8 name')).toHaveValue('');
-    await user.click(screen.getByRole('button', { name: 'Remove phase 8' }));
-    expect(screen.queryByLabelText('Phase 8 name')).toBeNull();
+    expect(screen.getByLabelText('Phase 10 name')).toHaveDisplayValue('Choose a phase…');
+    await user.click(screen.getByRole('button', { name: 'Remove phase 10' }));
+    expect(screen.queryByLabelText('Phase 10 name')).toBeNull();
   });
 
   it('reorders phases via drag-and-drop, updating the preview order', async () => {
@@ -170,6 +206,7 @@ describe('CreateProjectPage wizard', () => {
     const user = userEvent.setup();
     renderPage();
     await openPhasesStep(user);
+    await phasesLoaded();
 
     const row1 = screen.getByLabelText('Reorder phase 1').closest('.phase-row') as HTMLElement;
     const dataTransfer = { setData: () => {}, getData: () => '', effectAllowed: '' };
@@ -177,8 +214,8 @@ describe('CreateProjectPage wizard', () => {
     fireEvent.dragOver(row1, { dataTransfer });
     fireEvent.drop(row1, { dataTransfer });
 
-    expect(screen.getByLabelText('Phase 1 name')).toHaveValue('Business analysis');
-    expect(screen.getByLabelText('Phase 2 name')).toHaveValue('Requirements gathering');
+    expect(screen.getByLabelText('Phase 1 name')).toHaveDisplayValue('Business analysis');
+    expect(screen.getByLabelText('Phase 2 name')).toHaveDisplayValue('Requirements gathering');
     expect(await screen.findByTestId('gantt-row-0')).toHaveTextContent('Business analysis');
   });
 
@@ -187,12 +224,13 @@ describe('CreateProjectPage wizard', () => {
     const user = userEvent.setup();
     renderPage();
     await openPhasesStep(user);
+    await phasesLoaded();
 
     const handle2 = screen.getByLabelText('Reorder phase 2');
     handle2.focus();
     fireEvent.keyDown(handle2, { key: 'ArrowUp' });
 
-    expect(screen.getByLabelText('Phase 1 name')).toHaveValue('Business analysis');
+    expect(screen.getByLabelText('Phase 1 name')).toHaveDisplayValue('Business analysis');
     expect(await screen.findByTestId('gantt-row-0')).toHaveTextContent('Business analysis');
     expect(screen.getByLabelText('Reorder phase 1')).toHaveFocus();
   });

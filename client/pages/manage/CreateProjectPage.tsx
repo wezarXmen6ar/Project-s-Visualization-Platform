@@ -108,7 +108,14 @@ export function CreateProjectPage() {
         {step === 0 ? <DetailsFields value={details} onChange={patchDetails} lists={lists} onListAdded={remember} /> : null}
         {step === 1 ? <ScopeFields value={details} onChange={patchDetails} /> : null}
         {step === 2 ? (
-          <PhasesFields startDate={startDate} onStartDate={setStartDate} phases={phases} onPhases={setPhases} />
+          <PhasesFields
+            startDate={startDate}
+            onStartDate={setStartDate}
+            phases={phases}
+            onPhases={setPhases}
+            phaseOptions={lists.phase}
+            onListAdded={remember}
+          />
         ) : null}
 
         <div className="wizard-actions">

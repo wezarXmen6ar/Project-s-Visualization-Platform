@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { LIST_NAMES, type ListName, type ListValue, type Lists } from '../../shared/types';
+import { transaction } from '../db';
 
 interface ListRow {
   id: number;
@@ -8,12 +9,16 @@ interface ListRow {
   sort_order: number;
 }
 
-/** The projects column that points at each list, used to refuse deleting a value that is in use. */
-const USAGE_COLUMN: Record<ListName, string> = {
-  mainProject: 'main_project_id',
-  projectType: 'project_type_id',
-  goal: 'goal_id',
-  department: 'department_id',
+/**
+ * How many projects use a list value. Most lists are referenced by id from a projects column. Phases store their
+ * name on each project's phase rows, so a phase value is matched by name (ignoring case).
+ */
+const USAGE_SQL: Record<ListName, string> = {
+  mainProject: 'SELECT COUNT(*) AS n FROM projects WHERE main_project_id = ?',
+  projectType: 'SELECT COUNT(*) AS n FROM projects WHERE project_type_id = ?',
+  goal: 'SELECT COUNT(*) AS n FROM projects WHERE goal_id = ?',
+  department: 'SELECT COUNT(*) AS n FROM projects WHERE department_id = ?',
+  phase: 'SELECT COUNT(DISTINCT project_id) AS n FROM phases WHERE name = ? COLLATE NOCASE',
 };
 
 export type ListChange = { ok: true; value?: ListValue } | { ok: false; status: 404 | 409; error: string };
@@ -33,7 +38,7 @@ export function isListName(value: string): value is ListName {
 }
 
 export function getLists(db: DatabaseSync): Lists {
-  const lists: Lists = { mainProject: [], projectType: [], goal: [], department: [] };
+  const lists: Lists = { mainProject: [], projectType: [], goal: [], department: [], phase: [] };
   const rows = db.prepare('SELECT * FROM list_values ORDER BY sort_order, id').all() as unknown as ListRow[];
   for (const row of rows) lists[row.list].push(toValue(row));
   return lists;
@@ -60,16 +65,18 @@ export function renameListValue(db: DatabaseSync, list: ListName, id: number, na
   if (!current || current.list !== list) return { ok: false, status: 404, error: 'Value not found' };
   const clash = findByName(db, list, name);
   if (clash && clash.id !== id) return { ok: false, status: 409, error: `"${clash.name}" already exists` };
-  db.prepare('UPDATE list_values SET name = ? WHERE id = ?').run(name, id);
+  transaction(db, () => {
+    db.prepare('UPDATE list_values SET name = ? WHERE id = ?').run(name, id);
+    // Phase names live on each project's phases, so a renamed phase is renamed there too.
+    if (list === 'phase') db.prepare('UPDATE phases SET name = ? WHERE name = ? COLLATE NOCASE').run(name, current.name);
+  });
   return { ok: true, value: getListValue(db, id) };
 }
 
 export function deleteListValue(db: DatabaseSync, list: ListName, id: number): ListChange {
   const current = getListValue(db, id);
   if (!current || current.list !== list) return { ok: false, status: 404, error: 'Value not found' };
-  const { n } = db
-    .prepare(`SELECT COUNT(*) AS n FROM projects WHERE ${USAGE_COLUMN[list]} = ?`)
-    .get(id) as unknown as { n: number };
+  const { n } = db.prepare(USAGE_SQL[list]).get(list === 'phase' ? current.name : id) as unknown as { n: number };
   if (n > 0) return { ok: false, status: 409, error: `"${current.name}" is used by ${n} project${n === 1 ? '' : 's'}` };
   db.prepare('DELETE FROM list_values WHERE id = ?').run(id);
   return { ok: true };

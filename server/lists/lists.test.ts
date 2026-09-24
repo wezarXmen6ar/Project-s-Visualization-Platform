@@ -80,4 +80,31 @@ describe('lists API', () => {
     const lists = (await app.inject({ method: 'GET', url: '/api/lists' })).json();
     expect(names(lists.projectType)).toEqual(['Criminal', 'Management']);
   });
+
+  it('starts with the default phases, Design last', async () => {
+    const lists = (await buildApp(db).inject({ method: 'GET', url: '/api/lists' })).json();
+    expect(names(lists.phase)).toEqual([
+      'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
+      'Security testing', 'Deployment', 'Launch', 'Design',
+    ]);
+  });
+
+  it('treats a phase as in use when a project has a phase with that name, and renames it on projects too', async () => {
+    const app = buildApp(db);
+    await app.inject({
+      method: 'POST', url: '/api/projects',
+      payload: { name: 'P', color: '#000000', startDate: '2026-01-05', phases: [{ name: 'development', durationDays: 5 }] },
+    });
+    const development = (await app.inject({ method: 'GET', url: '/api/lists' })).json()
+      .phase.find((v: { name: string }) => v.name === 'Development');
+
+    const refused = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${development.id}` });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toEqual({ error: '"Development" is used by 1 project' });
+
+    const renamed = await app.inject({ method: 'PUT', url: `/api/lists/phase/${development.id}`, payload: { name: 'Build' } });
+    expect(renamed.statusCode).toBe(200);
+    const project = (await app.inject({ method: 'GET', url: '/api/projects' })).json()[0];
+    expect(project.phases[0].name).toBe('Build');
+  });
 });

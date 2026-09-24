@@ -39,5 +39,12 @@ describe('seedDemo', () => {
 
     // The default project types are reused, not duplicated.
     expect(getLists(db).projectType.map((v) => v.name)).toEqual(['Criminal', 'Customer', 'Management']);
+
+    // Every demo phase is a name from the Phases list, so the phase dropdowns show it.
+    const phaseNames = new Set(getLists(db).phase.map((v) => v.name));
+    for (const p of projects) for (const ph of p.phases) expect(phaseNames).toContain(ph.name);
+    // Legacy Archive Migration still sits entirely in 2025.
+    const legacy = projects.find((p) => p.name === 'Legacy Archive Migration')!;
+    expect(legacy.phases[legacy.phases.length - 1].end < '2026-01-01').toBe(true);
   });
 });

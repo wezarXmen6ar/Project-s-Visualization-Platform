@@ -71,6 +71,19 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE projects ADD COLUMN business_pm_email TEXT;
   ALTER TABLE projects DROP COLUMN business_owner;
   `,
+  `
+  INSERT INTO list_values (list, name, sort_order) VALUES
+    ('phase', 'Requirements gathering', 0),
+    ('phase', 'Business analysis', 1),
+    ('phase', 'Development plan', 2),
+    ('phase', 'Development', 3),
+    ('phase', 'QA', 4),
+    ('phase', 'UAT', 5),
+    ('phase', 'Security testing', 6),
+    ('phase', 'Deployment', 7),
+    ('phase', 'Launch', 8),
+    ('phase', 'Design', 9);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

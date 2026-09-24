@@ -63,5 +63,9 @@ export function sampleLists(): Lists {
     ],
     goal: [{ id: 4, list: 'goal', name: 'Digitalisation of internal operations', order: 0 }],
     department: [{ id: 30, list: 'department', name: 'Finance', order: 0 }],
+    phase: [
+      'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
+      'Security testing', 'Deployment', 'Launch', 'Design',
+    ].map((name, i) => ({ id: 50 + i, list: 'phase' as const, name, order: i })),
   };
 }

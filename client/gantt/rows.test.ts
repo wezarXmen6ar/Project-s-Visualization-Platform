@@ -57,6 +57,14 @@ describe('rows', () => {
       expect(PHASE_PALETTE).toContain(a);
       expect(PHASE_PALETTE).toContain(b);
     });
+    it('gives every standard phase its own colour, with Go-live the same as Launch', () => {
+      const standard = [
+        'Requirements gathering', 'Business analysis', 'Design', 'Development plan', 'Development', 'QA', 'UAT',
+        'Security testing', 'Deployment', 'Launch',
+      ];
+      expect(new Set(standard.map((name) => phaseColorFor(name))).size).toBe(standard.length);
+      expect(phaseColorFor('Go-live')).toBe(phaseColorFor('Launch'));
+    });
   });
 
   it('groups projects under their main project with a summary bar, standalone projects last', () => {

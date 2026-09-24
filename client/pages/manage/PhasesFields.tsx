@@ -1,5 +1,7 @@
 import { DEFAULT_CALENDAR, isISODate, todayLocal } from '../../../shared/calendar';
 import { schedulePhases, type PhaseInput } from '../../../shared/scheduler';
+import type { ListValue } from '../../../shared/types';
+import { OptionPicker } from '../../components/OptionPicker';
 import { GripIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
 import { Gantt } from '../../gantt/Gantt';
@@ -8,14 +10,17 @@ import { useElementWidth } from '../../gantt/useElementWidth';
 import { useAsync } from '../../useAsync';
 import { moveItem, useReorder } from '../../useReorder';
 
+/** New projects start with these phases; each name is also in the default Phases list (migration 4). */
 export const DEFAULT_PHASES: PhaseInput[] = [
   { name: 'Requirements gathering', durationDays: 10 },
   { name: 'Business analysis', durationDays: 10 },
-  { name: 'Design', durationDays: 10 },
+  { name: 'Development plan', durationDays: 5 },
   { name: 'Development', durationDays: 40 },
   { name: 'QA', durationDays: 15 },
   { name: 'UAT', durationDays: 10 },
-  { name: 'Go-live', durationDays: 2 },
+  { name: 'Security testing', durationDays: 5 },
+  { name: 'Deployment', durationDays: 2 },
+  { name: 'Launch', durationDays: 1 },
 ];
 
 interface PhasesFieldsProps {
@@ -23,10 +28,14 @@ interface PhasesFieldsProps {
   onStartDate: (date: string) => void;
   phases: PhaseInput[];
   onPhases: (phases: PhaseInput[]) => void;
+  /** The editable Phases list, for the name dropdowns. */
+  phaseOptions: ListValue[];
+  /** Called with a phase name created inline with "Other…", so every dropdown shows it straight away. */
+  onListAdded: (value: ListValue) => void;
 }
 
-/** Wizard Step 3: start date, ordered phases with working-day durations, and a live Gantt preview. */
-export function PhasesFields({ startDate, onStartDate, phases, onPhases }: PhasesFieldsProps) {
+/** Wizard Step 3: start date, ordered phases chosen from the Phases list, working-day durations, and a live Gantt preview. */
+export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOptions, onListAdded }: PhasesFieldsProps) {
   const calendar = useAsync(() => api.getCalendar(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
   const { handleProps, rowProps } = useReorder(phases.length, (from, to) => onPhases(moveItem(phases, from, to)));
@@ -39,6 +48,12 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases }: Phase
 
   function update(index: number, patch: Partial<PhaseInput>) {
     onPhases(phases.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  }
+
+  /** The list value a phase name matches (ignoring case), so its dropdown shows it. */
+  function idForName(name: string): number | null {
+    const key = name.trim().toLowerCase();
+    return phaseOptions.find((o) => o.name.toLowerCase() === key)?.id ?? null;
   }
 
   return (
@@ -57,11 +72,27 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases }: Phase
             <button {...handleProps(i, `Reorder phase ${i + 1}`)}>
               <GripIcon />
             </button>
-            <input
-              aria-label={`Phase ${i + 1} name`}
-              placeholder="Phase name"
-              value={phase.name}
-              onChange={(e) => update(i, { name: e.target.value })}
+            <OptionPicker
+              label={`Phase ${i + 1} name`}
+              hideLabel
+              list="phase"
+              options={phaseOptions}
+              value={idForName(phase.name)}
+              onChange={(id) => {
+                if (id === null) {
+                  update(i, { name: '' });
+                  return;
+                }
+                // A name just created with "Other…" is not in phaseOptions yet; onAdded below has already set it.
+                const chosen = phaseOptions.find((o) => o.id === id);
+                if (chosen) update(i, { name: chosen.name });
+              }}
+              onAdded={(value) => {
+                onListAdded(value);
+                update(i, { name: value.name });
+              }}
+              noneLabel="Choose a phase…"
+              addLabel="Other…"
             />
             <input
               aria-label={`Phase ${i + 1} working days`}

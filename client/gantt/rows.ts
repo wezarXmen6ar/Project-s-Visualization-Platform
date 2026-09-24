@@ -13,48 +13,34 @@ interface PhaseLike {
 }
 
 /**
- * A fixed, project-independent colour palette for phase bars. Colours are
- * assigned by phase *name* (via phaseColorFor), not by project or slot
- * position, so e.g. "Development" renders the same colour on every
- * project's Gantt chart. 8 OKLCH colours sharing the app's lightness/chroma
- * token (L 0.62 C 0.12), hues spread across 95-330deg - clear of the
- * red/amber hues already used for --danger/--warning (see styles.css).
+ * A fixed, project-independent colour palette for phase bars, assigned by phase *name* (via phaseColorFor), so e.g.
+ * "Development" is the same colour on every project's Gantt chart. 10 OKLCH colours sharing the app's lightness and
+ * chroma (L 0.62 C 0.12), hues spread evenly across 95–330° — clear of the red/amber hues used for --danger and
+ * --warning (see styles.css).
  */
-export const PHASE_PALETTE: string[] = [
-  'oklch(0.62 0.12 95)',
-  'oklch(0.62 0.12 129)',
-  'oklch(0.62 0.12 162)',
-  'oklch(0.62 0.12 196)',
-  'oklch(0.62 0.12 229)',
-  'oklch(0.62 0.12 263)',
-  'oklch(0.62 0.12 296)',
-  'oklch(0.62 0.12 330)',
+export const PHASE_PALETTE: string[] = [95, 121, 147, 173, 199, 225, 252, 278, 304, 330].map((h) => `oklch(0.62 0.12 ${h})`);
+
+/**
+ * The standard phases in lifecycle order, each with the normalised (trimmed, lower-cased) names it goes by.
+ * Consecutive phases take palette slots three apart (0, 3, 6, 9, 2, 5, …), so neighbouring bars get clearly
+ * different hues.
+ */
+const STANDARD_PHASES: string[][] = [
+  ['requirements', 'requirements gathering', 'gathering requirements'],
+  ['analysis', 'business analysis'],
+  ['design'],
+  ['development plan'],
+  ['development', 'dev'],
+  ['qa', 'testing'],
+  ['uat', 'user acceptance testing'],
+  ['security testing', 'security'],
+  ['deployment', 'deploy'],
+  ['launch', 'go-live', 'golive'],
 ];
 
-// Normalised (trimmed, lower-cased) common phase names mapped one-to-one
-// onto PHASE_PALETTE, in typical lifecycle order, plus a short alias list
-// for obvious variants (e.g. the wording CreateProjectPage's default phases
-// use).
-const KNOWN_PHASE_COLORS: Record<string, string> = {
-  requirements: PHASE_PALETTE[0],
-  'gathering requirements': PHASE_PALETTE[0],
-  'requirements gathering': PHASE_PALETTE[0],
-  analysis: PHASE_PALETTE[1],
-  'business analysis': PHASE_PALETTE[1],
-  design: PHASE_PALETTE[2],
-  development: PHASE_PALETTE[3],
-  dev: PHASE_PALETTE[3],
-  testing: PHASE_PALETTE[4],
-  qa: PHASE_PALETTE[4],
-  uat: PHASE_PALETTE[5],
-  'user acceptance testing': PHASE_PALETTE[5],
-  'security testing': PHASE_PALETTE[6],
-  security: PHASE_PALETTE[6],
-  deployment: PHASE_PALETTE[7],
-  'go-live': PHASE_PALETTE[7],
-  golive: PHASE_PALETTE[7],
-  deploy: PHASE_PALETTE[7],
-};
+const KNOWN_PHASE_COLORS: Record<string, string> = Object.fromEntries(
+  STANDARD_PHASES.flatMap((names, i) => names.map((name) => [name, PHASE_PALETTE[(i * 3) % PHASE_PALETTE.length]])),
+);
 
 function hashString(s: string): number {
   let hash = 0;

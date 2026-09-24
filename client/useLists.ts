@@ -3,7 +3,7 @@ import type { ListValue, Lists } from '../shared/types';
 import { api } from './api';
 import { useAsync } from './useAsync';
 
-const EMPTY: Lists = { mainProject: [], projectType: [], goal: [], department: [] };
+const EMPTY: Lists = { mainProject: [], projectType: [], goal: [], department: [], phase: [] };
 
 /** Loads the dropdown lists. `remember` adds a value that was just created inline, so it shows without a reload. */
 export function useLists() {

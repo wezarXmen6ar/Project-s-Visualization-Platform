@@ -17,14 +17,20 @@ interface OptionPickerProps {
   noneLabel: string;
   /** Text of the choice that opens the inline add, e.g. "+ Add new department…" or "Other…". */
   addLabel: string;
+  /** Keep the label for screen readers and tests but don't show it (e.g. inside a table-like row). */
+  hideLabel?: boolean;
 }
 
 /** A dropdown over one of the editable lists, with an inline way to add a new value. */
-export function OptionPicker({ label, list, options, value, onChange, onAdded, noneLabel, addLabel }: OptionPickerProps) {
+export function OptionPicker({
+  label, list, options, value, onChange, onAdded, noneLabel, addLabel, hideLabel = false,
+}: OptionPickerProps) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const labelText = hideLabel ? <span className="visually-hidden">{label}</span> : label;
 
   function closeAdd() {
     setAdding(false);
@@ -53,7 +59,7 @@ export function OptionPicker({ label, list, options, value, onChange, onAdded, n
     return (
       <div className="option-add">
         <label>
-          {label}
+          {labelText}
           <input
             autoFocus
             aria-label={`New ${label.toLowerCase()}`}
@@ -84,7 +90,7 @@ export function OptionPicker({ label, list, options, value, onChange, onAdded, n
 
   return (
     <label>
-      {label}
+      {labelText}
       <select
         value={value === null ? NONE : String(value)}
         onChange={(e) => {
