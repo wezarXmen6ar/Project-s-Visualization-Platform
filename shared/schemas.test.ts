@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { newProjectSchema, toIssues } from './schemas';
+import { newProjectSchema, normalizeUaeMobile, toIssues } from './schemas';
 
 const valid = {
   name: '  Customer Portal  ',
@@ -30,5 +30,19 @@ describe('newProjectSchema', () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(toIssues(result.error)).toContainEqual({ path: 'phases', message: 'Add at least one phase' });
+  });
+});
+
+describe('normalizeUaeMobile', () => {
+  it('accepts the usual ways of writing a UAE mobile and stores one format', () => {
+    for (const input of ['+971 50 123 4567', '+971501234567', '00971 50 123 4567', '971-50-123-4567', '050 123 4567', '0501234567']) {
+      expect(normalizeUaeMobile(input)).toBe('+971 50 123 4567');
+    }
+  });
+
+  it('rejects landlines, short numbers and other countries', () => {
+    for (const input of ['04 123 4567', '+971 4 123 4567', '050 123 456', '+44 7700 900123', 'abc']) {
+      expect(normalizeUaeMobile(input)).toBeNull();
+    }
   });
 });

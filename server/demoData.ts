@@ -20,7 +20,7 @@ const CUSTOMER_EXPERIENCE = 'Improve customer experience';
 export const DEMO_PROJECTS: DemoProject[] = [
   {
     name: 'Legacy Archive Migration', jiraKey: 'PRJ-099', color: '#64748b', startDate: '2025-09-07',
-    priority: 'low', projectManager: 'Omar Haddad', businessOwner: 'Records Office Manager',
+    priority: 'low', projectManager: 'Omar Haddad', businessPmName: 'Khalid Al Mansoori',
     mainProject: 'Records Modernisation', category: 'operational', projectType: 'Management',
     goal: DIGITALISATION, department: 'Records Office',
     requester: { internal: true, external: false }, beneficiary: { employees: true, customers: false },
@@ -40,7 +40,8 @@ export const DEMO_PROJECTS: DemoProject[] = [
   },
   {
     name: 'Customer Portal Revamp', jiraKey: 'PRJ-101', color: '#2563eb', startDate: '2026-01-11',
-    priority: 'high', projectManager: 'Sara Ahmed', businessOwner: 'Head of Customer Service',
+    priority: 'high', projectManager: 'Sara Ahmed',
+    businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '+971 50 123 4567', businessPmEmail: 'mariam.alsuwaidi@example.com',
     mainProject: 'Digital Services', category: 'strategic', projectType: 'Customer',
     goal: CUSTOMER_EXPERIENCE, department: 'Customer Service',
     requester: { internal: true, external: true }, beneficiary: { employees: false, customers: true },
@@ -68,7 +69,8 @@ export const DEMO_PROJECTS: DemoProject[] = [
   },
   {
     name: 'HR Self-Service', jiraKey: 'PRJ-102', color: '#16a34a', startDate: '2026-02-01',
-    priority: 'medium', projectManager: 'Lina Karim', businessOwner: 'HR Director',
+    priority: 'medium', projectManager: 'Lina Karim',
+    businessPmName: 'Noura Al Hammadi', businessPmPhone: '055 234 5678',
     category: 'operational', projectType: 'Management', goal: DIGITALISATION, department: 'Human Resources',
     requester: { internal: true, external: false }, beneficiary: { employees: true, customers: false },
     background: 'Leave requests and certificates are handled by email and paper forms.',
@@ -88,7 +90,8 @@ export const DEMO_PROJECTS: DemoProject[] = [
   },
   {
     name: 'Case Management System', jiraKey: 'PRJ-103', color: '#9333ea', startDate: '2026-03-15',
-    priority: 'high', projectManager: 'Yusuf Nasser', businessOwner: 'Legal Affairs Director',
+    priority: 'high', projectManager: 'Yusuf Nasser',
+    businessPmName: 'Ahmed Al Zaabi', businessPmEmail: 'ahmed.alzaabi@example.com',
     mainProject: 'Records Modernisation', category: 'strategic', projectType: 'Criminal',
     goal: DIGITALISATION, department: 'Legal Affairs',
     requester: { internal: true, external: false }, beneficiary: { employees: true, customers: false },
@@ -112,7 +115,7 @@ export const DEMO_PROJECTS: DemoProject[] = [
   },
   {
     name: 'Internal Reporting Dashboard', jiraKey: 'PRJ-104', color: '#ea580c', startDate: '2026-06-01',
-    priority: 'low', projectManager: 'Lina Karim', businessOwner: 'Finance Director',
+    priority: 'low', projectManager: 'Lina Karim',
     category: 'operational', projectType: 'Management', goal: DIGITALISATION, department: 'Finance',
     requester: { internal: true, external: false }, beneficiary: { employees: true, customers: false },
     background: 'Monthly reports are assembled by hand from four systems.',
@@ -130,7 +133,8 @@ export const DEMO_PROJECTS: DemoProject[] = [
   },
   {
     name: 'E-Services Mobile App', jiraKey: 'PRJ-105', color: '#0891b2', startDate: '2026-10-04',
-    priority: 'high', projectManager: 'Sara Ahmed', businessOwner: 'Head of Customer Service',
+    priority: 'high', projectManager: 'Sara Ahmed',
+    businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '+971 50 123 4567', businessPmEmail: 'mariam.alsuwaidi@example.com',
     mainProject: 'Digital Services', category: 'strategic', projectType: 'Customer',
     goal: CUSTOMER_EXPERIENCE, department: 'Customer Service',
     requester: { internal: false, external: true }, beneficiary: { employees: false, customers: true },

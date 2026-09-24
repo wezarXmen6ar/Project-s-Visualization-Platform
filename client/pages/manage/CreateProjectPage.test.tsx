@@ -66,7 +66,10 @@ describe('CreateProjectPage wizard', () => {
     renderPage();
 
     await user.type(screen.getByLabelText('Project name'), 'Portal');
-    await user.type(screen.getByLabelText('Project manager'), 'Sara Ahmed');
+    await user.type(screen.getByLabelText('Project manager (tech)'), 'Sara Ahmed');
+    await user.type(screen.getByLabelText('Business project manager'), 'Mariam Al Suwaidi');
+    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '050 123 4567');
+    await user.type(screen.getByLabelText('Business PM email'), 'mariam@example.com');
     await screen.findByRole('option', { name: 'Customer' });
     await user.selectOptions(screen.getByLabelText('Project type'), 'Customer');
     await user.selectOptions(screen.getByLabelText('Main project'), 'Digital Services');
@@ -87,6 +90,9 @@ describe('CreateProjectPage wizard', () => {
     expect(sent).toMatchObject({
       name: 'Portal',
       projectManager: 'Sara Ahmed',
+      businessPmName: 'Mariam Al Suwaidi',
+      businessPmPhone: '050 123 4567',
+      businessPmEmail: 'mariam@example.com',
       projectTypeId: 2,
       mainProjectId: 20,
       requester: { internal: true, external: false },
@@ -95,6 +101,17 @@ describe('CreateProjectPage wizard', () => {
       color: '#3b82f6',
     });
     expect(sent.phases).toHaveLength(7);
+  });
+
+  it('will not move on with a business PM phone that is not a UAE mobile', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByLabelText('Project name'), 'Portal');
+    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '04 123 4567');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText('Enter a UAE mobile number, e.g. +971 50 123 4567')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
   });
 
   it('adds a new department from the dropdown and selects it', async () => {

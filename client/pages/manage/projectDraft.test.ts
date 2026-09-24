@@ -25,7 +25,7 @@ describe('projectDraft', () => {
         { id: 6, kind: 'scope', text: 'First', order: 0, dateAdded: '2026-09-24' },
       ],
     }));
-    expect(d).toMatchObject({ jiraKey: '', projectManager: 'Sara', businessOwner: '', projectTypeId: 2, mainProjectId: null });
+    expect(d).toMatchObject({ jiraKey: '', projectManager: 'Sara', projectTypeId: 2, mainProjectId: null });
     expect(d.scope.scope).toEqual([{ id: 6, text: 'First' }, { id: 7, text: 'Second' }]);
   });
 

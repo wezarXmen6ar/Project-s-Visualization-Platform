@@ -65,6 +65,12 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX scope_items_project ON scope_items(project_id);
   `,
+  `
+  ALTER TABLE projects ADD COLUMN business_pm_name TEXT;
+  ALTER TABLE projects ADD COLUMN business_pm_phone TEXT;
+  ALTER TABLE projects ADD COLUMN business_pm_email TEXT;
+  ALTER TABLE projects DROP COLUMN business_owner;
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

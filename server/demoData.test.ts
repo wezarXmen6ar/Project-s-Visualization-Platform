@@ -31,6 +31,11 @@ describe('seedDemo', () => {
       priority: 'high',
     });
     expect(projects.find((p) => p.name === 'Customer Portal Revamp')!.scopeItems.length).toBeGreaterThan(0);
+    expect(projects.find((p) => p.name === 'Customer Portal Revamp')).toMatchObject({
+      businessPmName: 'Mariam Al Suwaidi',
+      businessPmPhone: '+971 50 123 4567',
+      businessPmEmail: 'mariam.alsuwaidi@example.com',
+    });
 
     // The default project types are reused, not duplicated.
     expect(getLists(db).projectType.map((v) => v.name)).toEqual(['Criminal', 'Customer', 'Management']);

@@ -410,6 +410,7 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: var(--sp-4); margin: 0; }
 .details-grid dt { font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
 .details-grid dd { margin: var(--sp-1) 0 0; }
+.detail-line { display: block; overflow-wrap: anywhere; }
 .prose { white-space: pre-wrap; margin: var(--sp-1) 0 var(--sp-4); }
 .scope-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: var(--sp-5); }
 .scope-summary ol { margin: var(--sp-2) 0 0; padding-left: 1.4em; }

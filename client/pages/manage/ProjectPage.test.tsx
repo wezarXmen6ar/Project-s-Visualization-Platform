@@ -64,6 +64,26 @@ describe('ProjectPage', () => {
     expect(screen.getByRole('link', { name: 'Edit details' })).toHaveAttribute('href', '/manage/projects/1/edit');
   });
 
+  it("shows both project managers, with the business PM's phone and email as links", async () => {
+    mockFetch({
+      'GET /api/projects/1': () => ({
+        body: sampleProject({
+          projectManager: 'Sara Ahmed',
+          businessPmName: 'Mariam Al Suwaidi',
+          businessPmPhone: '+971 50 123 4567',
+          businessPmEmail: 'mariam@example.com',
+        }),
+      }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+    });
+    renderAt('/manage/projects/1');
+    expect(await screen.findByText('Mariam Al Suwaidi')).toBeInTheDocument();
+    expect(screen.getByText('Project manager (tech)')).toBeInTheDocument();
+    expect(screen.getByText('Sara Ahmed')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '+971 50 123 4567' })).toHaveAttribute('href', 'tel:+971501234567');
+    expect(screen.getByRole('link', { name: 'mariam@example.com' })).toHaveAttribute('href', 'mailto:mariam@example.com');
+  });
+
   it('says when a project does not exist', async () => {
     mockFetch({
       'GET /api/projects/999': () => ({ status: 404, body: { error: 'Project not found' } }),

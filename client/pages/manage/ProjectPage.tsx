@@ -77,8 +77,16 @@ export function ProjectPage() {
         <h2>Details</h2>
         <dl className="details-grid">
           <Detail label="Priority">{PRIORITY_LABEL[p.priority]}</Detail>
-          <Detail label="Project manager">{p.projectManager ?? '—'}</Detail>
-          <Detail label="Business owner">{p.businessOwner ?? '—'}</Detail>
+          <Detail label="Project manager (tech)">{p.projectManager ?? '—'}</Detail>
+          <Detail label="Business project manager">
+            <span>{p.businessPmName ?? '—'}</span>
+            {p.businessPmPhone ? (
+              <a className="detail-line" href={`tel:${p.businessPmPhone.replace(/\s/g, '')}`}>{p.businessPmPhone}</a>
+            ) : null}
+            {p.businessPmEmail ? (
+              <a className="detail-line" href={`mailto:${p.businessPmEmail}`}>{p.businessPmEmail}</a>
+            ) : null}
+          </Detail>
           <Detail label="Main project">{p.mainProject?.name ?? 'Standalone'}</Detail>
           <Detail label="Categorisation">{p.category ? CATEGORY_LABEL[p.category] : '—'}</Detail>
           <Detail label="Project type">{p.projectType?.name ?? '—'}</Detail>

@@ -56,7 +56,11 @@ export interface ProjectRecord {
   startDate: ISODate;
   priority: Priority;
   projectManager: string | null;
-  businessOwner: string | null;
+  /** The business owner's representative, who runs the project together with the tech project manager. */
+  businessPmName: string | null;
+  /** Normalised UAE mobile, "+971 5X XXX XXXX". */
+  businessPmPhone: string | null;
+  businessPmEmail: string | null;
   mainProject: Ref | null;
   category: Category | null;
   projectType: Ref | null;

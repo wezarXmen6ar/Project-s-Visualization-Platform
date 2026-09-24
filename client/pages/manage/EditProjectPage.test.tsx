@@ -40,7 +40,7 @@ describe('EditProjectPage', () => {
 
     const name = await screen.findByLabelText('Project name');
     expect(name).toHaveValue('Portal');
-    expect(screen.getByLabelText('Project manager')).toHaveValue('Sara Ahmed');
+    expect(screen.getByLabelText('Project manager (tech)')).toHaveValue('Sara Ahmed');
     expect(screen.getByLabelText('Scope item 1')).toHaveValue('Online payments');
     await screen.findByRole('option', { name: 'Customer' });
     expect(screen.getByLabelText('Project type')).toHaveValue('2');

@@ -21,6 +21,41 @@ const optionalId = z
   .nullish()
   .transform((v) => v ?? null);
 
+/**
+ * Normalises a UAE mobile number to "+971 5X XXX XXXX". Accepts +971, 00971, 971 or 0 in front of 5X XXX XXXX, with
+ * any spaces or dashes. Returns null when the input is not a UAE mobile number.
+ */
+export function normalizeUaeMobile(input: string): string | null {
+  const digits = input.replace(/[\s-]/g, '');
+  const match = /^(?:\+971|00971|971|0)(5\d)(\d{3})(\d{4})$/.exec(digits);
+  return match ? `+971 ${match[1]} ${match[2]} ${match[3]}` : null;
+}
+
+/** Optional UAE mobile: blank becomes null, anything else must be a UAE mobile and is stored normalised. */
+const optionalUaeMobile = z
+  .string()
+  .trim()
+  .max(30)
+  .nullish()
+  .transform((v, ctx) => {
+    if (!v) return null;
+    const normalized = normalizeUaeMobile(v);
+    if (normalized === null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter a UAE mobile number, e.g. +971 50 123 4567' });
+      return z.NEVER;
+    }
+    return normalized;
+  });
+
+/** Optional email: blank becomes null. */
+const optionalEmail = z
+  .string()
+  .trim()
+  .max(200)
+  .nullish()
+  .transform((v) => (v ? v : null))
+  .refine((v) => v === null || z.string().email().safeParse(v).success, 'Enter a valid email address');
+
 export const phaseInputSchema = z.object({
   name: z.string().trim().min(1, 'Phase name is required').max(200),
   durationDays: z
@@ -44,7 +79,9 @@ export const projectDetailsSchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Colour must look like #3b82f6'),
   priority: z.enum(PRIORITIES).default('medium'),
   projectManager: optionalText(200),
-  businessOwner: optionalText(200),
+  businessPmName: optionalText(200),
+  businessPmPhone: optionalUaeMobile,
+  businessPmEmail: optionalEmail,
   mainProjectId: optionalId,
   category: z
     .enum(CATEGORIES)

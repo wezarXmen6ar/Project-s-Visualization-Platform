@@ -10,7 +10,7 @@ interface DetailsFieldsProps {
   onListAdded: (value: ListValue) => void;
 }
 
-/** Wizard Step 1: basic info and classification. Also used on the Edit details page. */
+/** Wizard Step 1: basic info, people and classification. Also used on the Edit details page. */
 export function DetailsFields({ value, onChange, lists, onListAdded }: DetailsFieldsProps) {
   return (
     <>
@@ -37,13 +37,37 @@ export function DetailsFields({ value, onChange, lists, onListAdded }: DetailsFi
             Colour
             <input type="color" value={value.color} onChange={(e) => onChange({ color: e.target.value })} />
           </label>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>People</h2>
+        <div className="form-grid">
           <label>
-            Project manager
+            Project manager (tech)
             <input value={value.projectManager} onChange={(e) => onChange({ projectManager: e.target.value })} />
           </label>
           <label>
-            Business owner
-            <input value={value.businessOwner} onChange={(e) => onChange({ businessOwner: e.target.value })} />
+            Business project manager
+            <input value={value.businessPmName} onChange={(e) => onChange({ businessPmName: e.target.value })} />
+          </label>
+          <label>
+            Business PM phone (UAE mobile)
+            <input
+              type="tel"
+              value={value.businessPmPhone}
+              onChange={(e) => onChange({ businessPmPhone: e.target.value })}
+              placeholder="+971 50 123 4567"
+            />
+          </label>
+          <label>
+            Business PM email
+            <input
+              type="email"
+              value={value.businessPmEmail}
+              onChange={(e) => onChange({ businessPmEmail: e.target.value })}
+              placeholder="name@example.com"
+            />
           </label>
         </div>
       </section>

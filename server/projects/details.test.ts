@@ -34,7 +34,6 @@ function fullBody() {
     jiraKey: 'PRJ-1',
     priority: 'high',
     projectManager: 'Sara Ahmed',
-    businessOwner: '  ',
     mainProjectId: ids.digital,
     category: 'strategic',
     projectTypeId: ids.customer,
@@ -60,7 +59,6 @@ describe('project details', () => {
     expect(p).toMatchObject({
       priority: 'high',
       projectManager: 'Sara Ahmed',
-      businessOwner: null,
       mainProject: { id: ids.digital, name: 'Digital Services' },
       category: 'strategic',
       projectType: { id: ids.customer, name: 'Customer' },
@@ -84,7 +82,6 @@ describe('project details', () => {
     expect(p).toMatchObject({
       priority: 'medium',
       projectManager: null,
-      businessOwner: null,
       mainProject: null,
       category: null,
       projectType: null,
@@ -96,6 +93,7 @@ describe('project details', () => {
       summary: '',
       scopeItems: [],
     });
+    expect(p).not.toHaveProperty('businessOwner');
   });
 
   it('rejects a list value that does not exist or belongs to another list', async () => {
@@ -156,6 +154,33 @@ describe('project details', () => {
     });
     expect(invalid.statusCode).toBe(400);
     expect(invalid.json().issues.map((i: { path: string }) => i.path)).toEqual(['name', 'scopeItems.0.text']);
+  });
+
+  it('stores the business project manager with a normalised UAE mobile, every part optional', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      payload: { ...base, businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '050 123 4567', businessPmEmail: ' mariam@example.com ' },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({
+      businessPmName: 'Mariam Al Suwaidi',
+      businessPmPhone: '+971 50 123 4567',
+      businessPmEmail: 'mariam@example.com',
+    });
+    const none = (await app.inject({ method: 'POST', url: '/api/projects', payload: base })).json();
+    expect(none).toMatchObject({ businessPmName: null, businessPmPhone: null, businessPmEmail: null });
+  });
+
+  it('rejects a phone that is not a UAE mobile and a malformed email', async () => {
+    const res = await app.inject({
+      method: 'POST', url: '/api/projects', payload: { ...base, businessPmPhone: '04 123 4567', businessPmEmail: 'mariam@' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().issues).toEqual([
+      { path: 'businessPmPhone', message: 'Enter a UAE mobile number, e.g. +971 50 123 4567' },
+      { path: 'businessPmEmail', message: 'Enter a valid email address' },
+    ]);
   });
 
   it('will not delete a list value that a project uses', async () => {

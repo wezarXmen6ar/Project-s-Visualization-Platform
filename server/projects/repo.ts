@@ -16,7 +16,6 @@ interface ProjectRow {
   start_date: string;
   priority: Priority;
   project_manager: string | null;
-  business_owner: string | null;
   main_project_id: number | null;
   category: Category | null;
   project_type_id: number | null;
@@ -28,6 +27,9 @@ interface ProjectRow {
   beneficiary_customers: number;
   background: string;
   summary: string;
+  business_pm_name: string | null;
+  business_pm_phone: string | null;
+  business_pm_email: string | null;
 }
 
 interface PhaseRow {
@@ -51,16 +53,18 @@ interface ScopeRow {
 
 /** Columns written from ProjectDetails, in the same order as detailValues(). */
 const DETAIL_COLUMNS = [
-  'name', 'jira_key', 'color', 'priority', 'project_manager', 'business_owner', 'main_project_id', 'category',
+  'name', 'jira_key', 'color', 'priority', 'project_manager', 'main_project_id', 'category',
   'project_type_id', 'goal_id', 'department_id', 'requester_internal', 'requester_external',
   'beneficiary_employees', 'beneficiary_customers', 'background', 'summary',
+  'business_pm_name', 'business_pm_phone', 'business_pm_email',
 ];
 
 function detailValues(d: ProjectDetails) {
   return [
-    d.name, d.jiraKey, d.color, d.priority, d.projectManager, d.businessOwner, d.mainProjectId, d.category,
+    d.name, d.jiraKey, d.color, d.priority, d.projectManager, d.mainProjectId, d.category,
     d.projectTypeId, d.goalId, d.departmentId, d.requester.internal ? 1 : 0, d.requester.external ? 1 : 0,
     d.beneficiary.employees ? 1 : 0, d.beneficiary.customers ? 1 : 0, d.background, d.summary,
+    d.businessPmName, d.businessPmPhone, d.businessPmEmail,
   ];
 }
 
@@ -117,7 +121,9 @@ function toProject(row: ProjectRow, phases: PhaseRecord[], scopeItems: ScopeItem
     startDate: row.start_date,
     priority: row.priority,
     projectManager: row.project_manager,
-    businessOwner: row.business_owner,
+    businessPmName: row.business_pm_name,
+    businessPmPhone: row.business_pm_phone,
+    businessPmEmail: row.business_pm_email,
     mainProject: ref(names, row.main_project_id),
     category: row.category,
     projectType: ref(names, row.project_type_id),
