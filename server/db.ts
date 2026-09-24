@@ -67,7 +67,9 @@ export const MIGRATIONS: string[] = [
   `,
 ];
 
+/** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */
 export function transaction<T>(db: DatabaseSync, fn: () => T): T {
+  if (db.isTransaction) return fn();
   db.exec('BEGIN');
   try {
     const result = fn();

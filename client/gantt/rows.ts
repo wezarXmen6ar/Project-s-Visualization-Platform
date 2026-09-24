@@ -1,4 +1,5 @@
 import type { DateRange, ISODate } from '../../shared/calendar';
+import { projectSpan } from '../../shared/scheduler';
 import type { ProjectRecord } from '../../shared/types';
 import type { GanttRow } from './Gantt';
 import { monthPaddedRange } from './scale';
@@ -98,6 +99,40 @@ export function portfolioRows(projects: ProjectRecord[]): GanttRow[] {
       title: `${p.name} · ${ph.name}: ${ph.start} → ${ph.end}`,
     })),
   }));
+}
+
+/**
+ * Portfolio rows grouped by main project: each main project gets a group row with a summary bar from its projects'
+ * earliest start to latest end, followed by its projects. Groups appear in the order of their first project (the
+ * input is sorted by start date). Standalone projects come last.
+ */
+export function groupedPortfolioRows(projects: ProjectRecord[]): GanttRow[] {
+  const groups = new Map<number, { name: string; members: ProjectRecord[] }>();
+  const standalone: ProjectRecord[] = [];
+  for (const p of projects) {
+    if (!p.mainProject) {
+      standalone.push(p);
+      continue;
+    }
+    const group = groups.get(p.mainProject.id) ?? { name: p.mainProject.name, members: [] };
+    group.members.push(p);
+    groups.set(p.mainProject.id, group);
+  }
+
+  const rows: GanttRow[] = [];
+  for (const [id, { name, members }] of groups) {
+    const rowId = `group-${id}`;
+    const span = projectSpan(members.flatMap((m) => m.phases));
+    rows.push({
+      id: rowId,
+      label: name,
+      kind: 'group',
+      // The summary bar's colour comes from the .gantt-summary CSS rule.
+      bars: span ? [{ id: rowId, start: span.start, end: span.end, color: 'currentColor', title: `${name}: ${span.start} → ${span.end}` }] : [],
+    });
+    rows.push(...portfolioRows(members).map((row) => ({ ...row, kind: 'child' as const })));
+  }
+  return [...rows, ...portfolioRows(standalone)];
 }
 
 export function rangeFor(rows: GanttRow[], fallback: ISODate): DateRange {

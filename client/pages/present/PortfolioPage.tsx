@@ -1,7 +1,7 @@
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { Gantt } from '../../gantt/Gantt';
-import { portfolioRows } from '../../gantt/rows';
+import { groupedPortfolioRows } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useAsync } from '../../useAsync';
 
@@ -14,7 +14,7 @@ export function PortfolioPage() {
 
   const goToYear = (y: number) => setParams({ year: String(y) });
   const data = portfolio.data?.year === year ? portfolio.data : undefined;
-  const rows = data ? portfolioRows(data.projects) : [];
+  const rows = data ? groupedPortfolioRows(data.projects) : [];
 
   return (
     <main className="page">

@@ -36,4 +36,17 @@ describe('Gantt', () => {
     rerender(<Gantt rows={rows} range={range} width={300} today="2026-05-01" />);
     expect(screen.queryByTestId('gantt-today')).toBeNull();
   });
+  it('draws a group row with a summary bar that does not open anything', async () => {
+    const onRowClick = vi.fn();
+    const grouped: GanttRow[] = [
+      { id: 'g', label: 'Digital', kind: 'group', bars: [{ id: 'g', start: '2026-01-01', end: '2026-01-05', color: 'currentColor' }] },
+      { ...rows[0], kind: 'child' },
+    ];
+    render(<Gantt rows={grouped} range={range} width={300} onRowClick={onRowClick} />);
+    expect(screen.getByTestId('gantt-bar-g').querySelector('rect')).toHaveClass('gantt-summary');
+    await userEvent.click(screen.getByTestId('gantt-row-g'));
+    expect(onRowClick).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByTestId('gantt-row-a'));
+    expect(onRowClick).toHaveBeenCalledWith('a');
+  });
 });

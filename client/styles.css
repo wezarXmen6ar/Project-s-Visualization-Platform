@@ -508,3 +508,6 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .gantt-bar { stroke: var(--bg); stroke-width: 1.5; }
 .gantt-bar-label { fill: #fff; font-size: 11px; font-weight: 500; pointer-events: none; }
 .gantt-today { stroke: var(--today); stroke-width: 2; stroke-dasharray: 4 3; }
+.gantt-row.group .gantt-row-bg { fill: var(--surface-2); }
+.gantt-row.group .gantt-label { font-weight: 650; }
+.gantt-summary { fill: var(--ink); stroke: none; }

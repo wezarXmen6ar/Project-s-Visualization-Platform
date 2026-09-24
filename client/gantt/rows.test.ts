@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../testing/mockFetch';
-import { PHASE_PALETTE, phaseColorFor, phaseRows, portfolioRows, rangeFor } from './rows';
+import { PHASE_PALETTE, groupedPortfolioRows, phaseColorFor, phaseRows, portfolioRows, rangeFor } from './rows';
 
 const project = sampleProject({
   id: 1, name: 'Portal', jiraKey: null, startDate: '2026-02-10',
@@ -57,5 +57,25 @@ describe('rows', () => {
       expect(PHASE_PALETTE).toContain(a);
       expect(PHASE_PALETTE).toContain(b);
     });
+  });
+
+  it('groups projects under their main project with a summary bar, standalone projects last', () => {
+    const phase = (start: string, end: string) => [{ id: 1, name: 'Development', order: 0, durationDays: 5, start, end }];
+    const digital = { id: 20, name: 'Digital' };
+    const a = sampleProject({ id: 1, name: 'A', mainProject: digital, phases: phase('2026-02-02', '2026-02-06') });
+    const b = sampleProject({ id: 2, name: 'B', mainProject: null, phases: phase('2026-01-05', '2026-01-09') });
+    const c = sampleProject({ id: 3, name: 'C', mainProject: digital, phases: phase('2026-03-02', '2026-03-20') });
+
+    const rows = groupedPortfolioRows([a, b, c]);
+    expect(rows.map((r) => [r.id, r.kind])).toEqual([
+      ['group-20', 'group'],
+      ['1', 'child'],
+      ['3', 'child'],
+      ['2', undefined],
+    ]);
+    expect(rows[0].label).toBe('Digital');
+    expect(rows[0].bars).toEqual([
+      expect.objectContaining({ id: 'group-20', start: '2026-02-02', end: '2026-03-20' }),
+    ]);
   });
 });

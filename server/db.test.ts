@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { MIGRATIONS, migrate } from './db';
+import { MIGRATIONS, migrate, openDb, transaction } from './db';
 
 describe('migrate', () => {
   it('upgrades a version-1 database and keeps its projects', () => {
@@ -21,5 +21,16 @@ describe('migrate', () => {
     expect({ ...row }).toEqual({
       name: 'Old', priority: 'medium', background: '', summary: '', requester_internal: 0, main_project_id: null,
     });
+  });
+
+  it('nests transactions: an error in the outer one also undoes the inner work', () => {
+    const db = openDb(':memory:');
+    expect(() =>
+      transaction(db, () => {
+        transaction(db, () => db.prepare("INSERT INTO settings (key, value) VALUES ('a', '1')").run());
+        throw new Error('boom');
+      }),
+    ).toThrow('boom');
+    expect({ ...db.prepare('SELECT COUNT(*) AS n FROM settings').get() }).toEqual({ n: 0 });
   });
 });

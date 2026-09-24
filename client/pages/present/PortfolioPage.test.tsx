@@ -55,4 +55,24 @@ describe('PortfolioPage', () => {
     expect(await screen.findByText('No projects in 2025.')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith('/api/portfolio?year=2025', expect.anything());
   });
+
+  it('groups projects under their main project, and a group row does not open anything', async () => {
+    mockFetch({
+      'GET /api/portfolio?year=2026': () => ({
+        body: {
+          year: 2026,
+          today: '2026-09-24',
+          stats: { active: 1, finishedThisYear: 0, startingThisYear: 0 },
+          projects: [sampleProject({ mainProject: { id: 20, name: 'Digital Services' } })],
+        },
+      }),
+    });
+    renderPage();
+    const group = await screen.findByTestId('gantt-row-group-20');
+    expect(group).toHaveTextContent('Digital Services');
+    await userEvent.click(group);
+    expect(screen.queryByText('Focus opened')).toBeNull();
+    await userEvent.click(screen.getByTestId('gantt-row-1'));
+    expect(await screen.findByText('Focus opened')).toBeInTheDocument();
+  });
 });
