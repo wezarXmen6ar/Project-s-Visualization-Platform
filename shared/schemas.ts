@@ -36,3 +36,7 @@ export interface ValidationIssue {
 export function toIssues(error: z.ZodError): ValidationIssue[] {
   return error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }));
 }
+
+export const listValueInputSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(100, 'Name is too long'),
+});

@@ -1,6 +1,19 @@
 import type { ISODate } from './calendar';
 import type { PortfolioStats } from './portfolio';
 
+/** The editable dropdown lists (managed in Settings). A main project is just a name, so it is a list too. */
+export const LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department'] as const;
+export type ListName = (typeof LIST_NAMES)[number];
+
+export interface ListValue {
+  id: number;
+  list: ListName;
+  name: string;
+  order: number;
+}
+
+export type Lists = Record<ListName, ListValue[]>;
+
 export interface PhaseRecord {
   id: number;
   name: string;

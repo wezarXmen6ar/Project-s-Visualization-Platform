@@ -3,8 +3,9 @@ import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate } from '../shared/calendar';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
-import { newProjectSchema, toIssues } from '../shared/schemas';
+import { listValueInputSchema, newProjectSchema, toIssues } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
+import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
 import { createProject, getProject, listProjects } from './projects/repo';
 import { getCalendar } from './settings';
 
@@ -20,6 +21,30 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.get('/api/health', async () => ({ ok: true }));
 
   app.get('/api/settings/calendar', async () => getCalendar(db));
+
+  app.get('/api/lists', async () => getLists(db));
+
+  app.post<{ Params: { list: string } }>('/api/lists/:list', async (req, reply) => {
+    if (!isListName(req.params.list)) return reply.code(404).send({ error: 'Unknown list' });
+    const parsed = listValueInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid value', issues: toIssues(parsed.error) });
+    const { value, created } = addListValue(db, req.params.list, parsed.data.name);
+    return reply.code(created ? 201 : 200).send(value);
+  });
+
+  app.put<{ Params: { list: string; id: string } }>('/api/lists/:list/:id', async (req, reply) => {
+    if (!isListName(req.params.list)) return reply.code(404).send({ error: 'Unknown list' });
+    const parsed = listValueInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid value', issues: toIssues(parsed.error) });
+    const result = renameListValue(db, req.params.list, Number(req.params.id), parsed.data.name);
+    return result.ok ? result.value : reply.code(result.status).send({ error: result.error });
+  });
+
+  app.delete<{ Params: { list: string; id: string } }>('/api/lists/:list/:id', async (req, reply) => {
+    if (!isListName(req.params.list)) return reply.code(404).send({ error: 'Unknown list' });
+    const result = deleteListValue(db, req.params.list, Number(req.params.id));
+    return result.ok ? reply.code(204).send() : reply.code(result.status).send({ error: result.error });
+  });
 
   app.get('/api/projects', async () => listProjects(db));
 
