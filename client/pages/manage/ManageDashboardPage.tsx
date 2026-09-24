@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router';
 import { todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
+import { AlertIcon, ArrowLeftIcon, FolderOpenIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
 import { Gantt } from '../../gantt/Gantt';
 import { portfolioRows, rangeFor } from '../../gantt/rows';
@@ -19,18 +20,36 @@ export function ManageDashboardPage() {
     <main className="page">
       <div className="page-header">
         <div>
-          <Link to="/" className="crumb">← Start</Link>
+          <Link to="/" className="crumb"><ArrowLeftIcon />Start</Link>
           <h1>Projects</h1>
         </div>
-        <Link to="/manage/projects/new" className="button">New project</Link>
+        <Link to="/manage/projects/new" className="button"><PlusIcon />New project</Link>
       </div>
 
-      {projects.error ? <div className="errors" role="alert">{projects.error.message}</div> : null}
-      {projects.loading && !projects.data ? <p className="muted">Loading…</p> : null}
+      {projects.error ? (
+        <div className="errors" role="alert">
+          <AlertIcon />
+          <span>{projects.error.message}</span>
+        </div>
+      ) : null}
+
+      {projects.loading && !projects.data ? (
+        <section className="card">
+          <div className="skeleton skeleton-chart" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line" />
+        </section>
+      ) : null}
 
       {projects.data && list.length === 0 ? (
         <section className="card">
-          <p>No projects yet. Create your first one to see it on the timeline.</p>
+          <div className="empty-state">
+            <span className="empty-state-icon"><FolderOpenIcon /></span>
+            <h3>No projects yet</h3>
+            <p>Create your first one to see it laid out on a timeline, phase by phase.</p>
+            <Link to="/manage/projects/new" className="button">Create your first project</Link>
+          </div>
         </section>
       ) : null}
 

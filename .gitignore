@@ -4,3 +4,4 @@ node_modules/
 attachments/
 data/
 dist/
+.claude/

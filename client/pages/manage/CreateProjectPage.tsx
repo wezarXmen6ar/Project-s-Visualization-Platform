@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { DEFAULT_CALENDAR, isISODate, todayLocal } from '../../../shared/calendar';
 import { newProjectSchema, toIssues, type ValidationIssue } from '../../../shared/schemas';
 import { schedulePhases, type PhaseInput } from '../../../shared/scheduler';
+import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
 import { ApiError, api } from '../../api';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
@@ -65,7 +66,7 @@ export function CreateProjectPage() {
     <main className="page">
       <div className="page-header">
         <div>
-          <Link to="/manage" className="crumb">← Projects</Link>
+          <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>
           <h1>New project</h1>
         </div>
       </div>
@@ -73,6 +74,7 @@ export function CreateProjectPage() {
       <form onSubmit={onSubmit} noValidate>
         {issues.length > 0 ? (
           <div className="errors" role="alert">
+            <AlertIcon />
             <ul>{issues.map((i) => <li key={`${i.path}-${i.message}`}>{i.message}</li>)}</ul>
           </div>
         ) : null}
@@ -89,11 +91,12 @@ export function CreateProjectPage() {
 
         <section className="card">
           <h2>Phases</h2>
-          <p className="muted">Durations are in working days. Dates are calculated from the working calendar.</p>
+          <p className="field-hint">Durations are in working days. Dates are calculated from the working calendar.</p>
           {phases.map((phase, i) => (
             <div className="phase-row" key={i}>
               <input
                 aria-label={`Phase ${i + 1} name`}
+                placeholder="Phase name"
                 value={phase.name}
                 onChange={(e) => updatePhase(i, { name: e.target.value })}
               />
@@ -106,16 +109,16 @@ export function CreateProjectPage() {
               />
               <button
                 type="button"
-                className="button secondary"
+                className="button ghost-icon"
                 aria-label={`Remove phase ${i + 1}`}
                 onClick={() => setPhases((ps) => ps.filter((_, j) => j !== i))}
               >
-                Remove
+                <TrashIcon />
               </button>
             </div>
           ))}
           <button type="button" className="button secondary" onClick={() => setPhases((ps) => [...ps, { name: '', durationDays: 5 }])}>
-            Add phase
+            <PlusIcon />Add phase
           </button>
         </section>
 
