@@ -95,8 +95,8 @@ Two tiles: **Project Management** and **Project Presentation**.
 - **People (post-M3-demo feedback, 2026-09-25):** every project has **two project managers** who run it together:
   - **Project manager (tech)** — from the technical team (the user's side).
   - **Business project manager** — the business owner's representative, with an optional **UAE mobile** (accepts +971 / 00971 / 971 / 0 in front of 5X XXX XXXX, with spaces or dashes; stored and shown as `+971 5X XXX XXXX`) and an optional **email**. Name, phone and email are each optional.
-  - **Business owner** — the department side that owns the business for the project.
-  - All three are free text until the Resources list arrives (M4).
+  - **Business owner** is the **Business user (department)** below, i.e. the department that owns the business side. There is no separate business-owner field.
+  - Both PM names are free text until the Resources list arrives (M4).
 - Main project: Standalone, or Part of a main project (dropdown, with **+ Add new** inline).
 - Categorisation: Strategic / Operational.
 - Project type: Criminal / Customer / Management. **"Other" adds a new value to the list.**

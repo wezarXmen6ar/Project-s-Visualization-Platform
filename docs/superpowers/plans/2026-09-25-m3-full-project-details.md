@@ -25,6 +25,7 @@
 - **Create page layout:** a 3-step wizard: Basic info → Description & scope → Phases. The People and History steps (spec Steps 4–5) come in later milestones.
 - **After the M3 demo (2026-09-25), Tasks 9–10:**
   - **Two project managers:** "Project manager (tech)" from the technical team, and a "Business project manager" (the business owner's representative) with an optional UAE mobile and an optional email.
+  - **Business owner = department:** the separate "Business owner" text field is removed. The **Business user (department)** dropdown is the business owner.
   - **Phase names from a dropdown:** names come from an editable Phases list with "Other…".
   - **New default phases:** Requirements gathering, Business analysis, Development plan, Development, QA, UAT, Security testing, Deployment, Launch. "Design" stays in the list but is not a default.
 
@@ -4476,13 +4477,13 @@ git commit -m "feat: portfolio grouped by main project, demo projects with full 
 
 ---
 
-### Task 9: Two project managers — business PM with optional UAE mobile and email (M3 demo feedback, 2026-09-25)
+### Task 9: Two project managers — business PM with optional UAE mobile and email; business owner merged into department (M3 demo feedback, 2026-09-25)
 
 The user reviewed the M3 build and explained that every project has **two** project managers who run it together:
 - **Project manager (tech):** from the technical team (the user's side). This is the existing `projectManager` field, relabelled.
 - **Business project manager:** the business owner's representative. This is a new field, with an optional **UAE mobile** and an optional **email**.
 
-**Business owner** stays as it is: the department side that owns the business for the project. All three fields stay free text until M4 (Resources).
+**Business owner is removed.** The user confirmed it is the same thing as the existing **Business user (department)** dropdown, the department that owns the business side, so the department is now entered only once. Migration 3 drops the `business_owner` column. Both PM fields stay free text until M4 (Resources).
 
 The phone accepts `+971`, `00971`, `971` or `0` in front of `5X XXX XXXX`, with any spaces or dashes. It is stored and shown as `+971 5X XXX XXXX`. Anything else is refused with "Enter a UAE mobile number, e.g. +971 50 123 4567".
 
@@ -4499,16 +4500,15 @@ The phone accepts `+971`, `00971`, `971` or `0` in front of `5X XXX XXXX`, with 
     - `businessPmName` (text, blank → null)
     - `businessPmPhone` (UAE mobile, normalised, blank → null)
     - `businessPmEmail` (valid email, blank → null, "Enter a valid email address")
-  - `ProjectRecord` gains `businessPmName: string | null`, `businessPmPhone: string | null` and `businessPmEmail: string | null`.
-  - Migration 3 adds the columns `business_pm_name`, `business_pm_phone` and `business_pm_email`.
+  - `ProjectRecord` gains `businessPmName: string | null`, `businessPmPhone: string | null` and `businessPmEmail: string | null`, and **loses `businessOwner`**. `projectDetailsSchema`, `DetailsDraft`, `STEP_FIELDS`, the repo columns, the fixtures and the demo data drop it too.
+  - Migration 3 adds the columns `business_pm_name`, `business_pm_phone` and `business_pm_email`, and drops `business_owner`.
   - Wizard Step 1 gets a new "People" card with these labels:
     - "Project manager (tech)" (was "Project manager")
-    - "Business owner"
     - "Business project manager"
     - "Business PM phone (UAE mobile)"
     - "Business PM email"
   - Project page Details:
-    - "Project manager (tech)".
+    - "Project manager (tech)". The "Business owner" row is gone, and the department row "Business user (department)" stays.
     - "Business project manager", with the phone as a `tel:` link and the email as a `mailto:` link when set.
 
 - [ ] **Step 1: Write the failing tests**
@@ -4593,6 +4593,15 @@ Then add this test inside the same `describe`:
     expect(await screen.findByText('Enter a UAE mobile number, e.g. +971 50 123 4567')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
   });
+```
+
+Remove the old field from the existing tests:
+- In `server/projects/details.test.ts`, delete the line `businessOwner: '  ',` from `fullBody()`, and delete both `businessOwner: null,` lines from the expected objects.
+- In `client/pages/manage/projectDraft.test.ts`, delete `businessOwner: '', ` from the `toMatchObject` object.
+- Add this assertion at the end of the `'gives sensible defaults…'` test in `details.test.ts`:
+
+```ts
+    expect(p).not.toHaveProperty('businessOwner');
 ```
 
 In `client/pages/manage/EditProjectPage.test.tsx`, replace every `getByLabelText('Project manager')` with `getByLabelText('Project manager (tech)')`.
@@ -4680,7 +4689,7 @@ const optionalEmail = z
   .refine((v) => v === null || z.string().email().safeParse(v).success, 'Enter a valid email address');
 ```
 
-In `projectDetailsSchema`, add these three fields directly after `businessOwner: optionalText(200),`:
+In `projectDetailsSchema`, replace the line `businessOwner: optionalText(200),` with these three fields:
 
 ```ts
   businessPmName: optionalText(200),
@@ -4690,7 +4699,7 @@ In `projectDetailsSchema`, add these three fields directly after `businessOwner:
 
 - [ ] **Step 4: Add the fields to `ProjectRecord` in `shared/types.ts`**
 
-Directly after `businessOwner: string | null;`:
+Replace the line `businessOwner: string | null;` with:
 
 ```ts
   /** The business owner's representative, who runs the project together with the tech project manager. */
@@ -4700,19 +4709,20 @@ Directly after `businessOwner: string | null;`:
   businessPmEmail: string | null;
 ```
 
-- [ ] **Step 5: Append migration 3 to `server/db.ts`** (a new array entry after migration 2)
+- [ ] **Step 5: Append migration 3 to `server/db.ts`** (a new array entry after migration 2; `DROP COLUMN` needs SQLite 3.35+, which Node 24's `node:sqlite` bundles)
 
 ```ts
   `
   ALTER TABLE projects ADD COLUMN business_pm_name TEXT;
   ALTER TABLE projects ADD COLUMN business_pm_phone TEXT;
   ALTER TABLE projects ADD COLUMN business_pm_email TEXT;
+  ALTER TABLE projects DROP COLUMN business_owner;
   `,
 ```
 
 - [ ] **Step 6: Store and read the fields in `server/projects/repo.ts`**
 
-- In `interface ProjectRow`, add after `summary: string;`:
+- In `interface ProjectRow`, delete `business_owner: string | null;` and add after `summary: string;`:
 
 ```ts
   business_pm_name: string | null;
@@ -4720,9 +4730,9 @@ Directly after `businessOwner: string | null;`:
   business_pm_email: string | null;
 ```
 
-- In `DETAIL_COLUMNS`, append `'business_pm_name', 'business_pm_phone', 'business_pm_email'` after `'summary'`.
-- In `detailValues`, append `d.businessPmName, d.businessPmPhone, d.businessPmEmail` after `d.summary`, in that order. The two lists must line up one to one.
-- In `toProject`, add after `businessOwner: row.business_owner,`:
+- In `DETAIL_COLUMNS`, delete `'business_owner'` and append `'business_pm_name', 'business_pm_phone', 'business_pm_email'` after `'summary'`.
+- In `detailValues`, delete `d.businessOwner` and append `d.businessPmName, d.businessPmPhone, d.businessPmEmail` after `d.summary`, in that order. The two lists must line up one to one.
+- In `toProject`, replace `businessOwner: row.business_owner,` with:
 
 ```ts
     businessPmName: row.business_pm_name,
@@ -4732,7 +4742,7 @@ Directly after `businessOwner: string | null;`:
 
 - [ ] **Step 7: Carry the fields through the form state in `client/pages/manage/projectDraft.ts`**
 
-- In `interface DetailsDraft`, add after `businessOwner: string;`:
+- In `interface DetailsDraft`, replace `businessOwner: string;` with:
 
 ```ts
   businessPmName: string;
@@ -4740,7 +4750,7 @@ Directly after `businessOwner: string | null;`:
   businessPmEmail: string;
 ```
 
-- In `emptyDetails()`, add after `businessOwner: '',`:
+- In `emptyDetails()`, replace `businessOwner: '',` with:
 
 ```ts
     businessPmName: '',
@@ -4748,7 +4758,7 @@ Directly after `businessOwner: string | null;`:
     businessPmEmail: '',
 ```
 
-- In `detailsFromProject()`, add after `businessOwner: p.businessOwner ?? '',`:
+- In `detailsFromProject()`, replace `businessOwner: p.businessOwner ?? '',` with:
 
 ```ts
     businessPmName: p.businessPmName ?? '',
@@ -4756,9 +4766,9 @@ Directly after `businessOwner: string | null;`:
     businessPmEmail: p.businessPmEmail ?? '',
 ```
 
-- In `STEP_FIELDS`, add `'businessPmName', 'businessPmPhone', 'businessPmEmail'` to the first (Step 1) array.
+- In `STEP_FIELDS`, replace `'businessOwner'` in the first (Step 1) array with `'businessPmName', 'businessPmPhone', 'businessPmEmail'`.
 
-In `client/testing/mockFetch.ts`, in `sampleProject`, add after `businessOwner: null,`:
+In `client/testing/mockFetch.ts`, in `sampleProject`, replace `businessOwner: null,` with:
 
 ```ts
     businessPmName: null,
@@ -4817,10 +4827,6 @@ export function DetailsFields({ value, onChange, lists, onListAdded }: DetailsFi
           <label>
             Project manager (tech)
             <input value={value.projectManager} onChange={(e) => onChange({ projectManager: e.target.value })} />
-          </label>
-          <label>
-            Business owner
-            <input value={value.businessOwner} onChange={(e) => onChange({ businessOwner: e.target.value })} />
           </label>
           <label>
             Business project manager
@@ -4963,7 +4969,6 @@ with:
 
 ```tsx
           <Detail label="Project manager (tech)">{p.projectManager ?? '—'}</Detail>
-          <Detail label="Business owner">{p.businessOwner ?? '—'}</Detail>
           <Detail label="Business project manager">
             <span>{p.businessPmName ?? '—'}</span>
             {p.businessPmPhone ? (
@@ -4983,15 +4988,15 @@ Append to `client/styles.css` after the `.details-grid dd` rule:
 
 - [ ] **Step 10: Give the demo projects business PMs (`server/demoData.ts`)**
 
-In each `DEMO_PROJECTS` entry, add the matching line directly after its `businessOwner: …` property:
+In each `DEMO_PROJECTS` entry, delete its `businessOwner: '…',` property and put the matching fields in its place:
 
-| Project | Add after `businessOwner` |
+| Project | Replace `businessOwner: …` with |
 |---|---|
 | Legacy Archive Migration | `businessPmName: 'Khalid Al Mansoori',` |
 | Customer Portal Revamp | `businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '+971 50 123 4567', businessPmEmail: 'mariam.alsuwaidi@example.com',` |
 | HR Self-Service | `businessPmName: 'Noura Al Hammadi', businessPmPhone: '055 234 5678',` |
 | Case Management System | `businessPmName: 'Ahmed Al Zaabi', businessPmEmail: 'ahmed.alzaabi@example.com',` |
-| Internal Reporting Dashboard | nothing (its business PM is left empty on purpose) |
+| Internal Reporting Dashboard | nothing: just delete `businessOwner` (its business PM is left empty on purpose) |
 | E-Services Mobile App | `businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '+971 50 123 4567', businessPmEmail: 'mariam.alsuwaidi@example.com',` |
 
 - [ ] **Step 11: Run the tests to verify they pass**
@@ -5008,7 +5013,7 @@ Run: `npm run typecheck` → Expected: exit code 0.
 
 ```bash
 git add -A
-git commit -m "feat: business project manager with optional UAE mobile and email"
+git commit -m "feat: business project manager with optional UAE mobile and email, business owner merged into department"
 ```
 
 ---
