@@ -83,7 +83,7 @@ export function ProjectPage() {
           <Detail label="Categorisation">{p.category ? CATEGORY_LABEL[p.category] : '—'}</Detail>
           <Detail label="Project type">{p.projectType?.name ?? '—'}</Detail>
           <Detail label="Goal">{p.goal?.name ?? '—'}</Detail>
-          <Detail label="Business user">{p.department?.name ?? '—'}</Detail>
+          <Detail label="Business user (department)">{p.department?.name ?? '—'}</Detail>
           <Detail label="Requester">{requesterLabel(p.requester)}</Detail>
           <Detail label="Beneficiary">{beneficiaryLabel(p.beneficiary)}</Detail>
         </dl>

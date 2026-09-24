@@ -13,7 +13,7 @@ export function EditProjectPage() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
   const project = useAsync(() => api.getProject(id), [id]);
-  const { lists, remember } = useLists();
+  const { lists, error: listsError, remember } = useLists();
   const [edited, setEdited] = useState<DetailsDraft | null>(null);
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [saving, setSaving] = useState(false);
@@ -32,8 +32,10 @@ export function EditProjectPage() {
   if (!project.data) return <main className="page"><p className="muted">Loading…</p></main>;
 
   // Until the user changes something, the form shows the saved project.
-  const draft = edited ?? detailsFromProject(project.data);
-  const patch = (changes: Partial<DetailsDraft>) => setEdited({ ...draft, ...changes });
+  const savedDraft = detailsFromProject(project.data);
+  const draft = edited ?? savedDraft;
+  const patch = (changes: Partial<DetailsDraft>) =>
+    setEdited((prev) => ({ ...(prev ?? savedDraft), ...changes }));
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -73,6 +75,12 @@ export function EditProjectPage() {
           <div className="errors" role="alert">
             <AlertIcon />
             <ul>{issues.map((i) => <li key={`${i.path}-${i.message}`}>{i.message}</li>)}</ul>
+          </div>
+        ) : null}
+        {listsError ? (
+          <div className="errors" role="alert">
+            <AlertIcon />
+            <span>Could not load the dropdown lists: {listsError.message}</span>
           </div>
         ) : null}
 

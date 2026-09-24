@@ -38,6 +38,21 @@ describe('ItemTable', () => {
     expect(screen.getByLabelText('New objective')).toHaveValue('');
   });
 
+  it('adds the drafted text when the New input loses focus, but not a blank draft', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.type(screen.getByLabelText('New objective'), 'Faster checkout');
+    await user.tab();
+
+    expect(screen.getByLabelText('Objective 1')).toHaveValue('Faster checkout');
+    expect(screen.getByLabelText('New objective')).toHaveValue('');
+
+    await user.type(screen.getByLabelText('New objective'), '   ');
+    await user.tab();
+    expect(screen.queryByLabelText('Objective 2')).toBeNull();
+  });
+
   it('edits a row in place, keeping its id, and removes a row', async () => {
     const spy = vi.fn();
     const user = userEvent.setup();

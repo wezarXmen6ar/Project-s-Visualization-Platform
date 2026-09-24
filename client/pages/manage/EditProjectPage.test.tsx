@@ -61,6 +61,28 @@ describe('EditProjectPage', () => {
     expect(sent.phases).toBeUndefined();
   });
 
+  it('saves a scope item typed but not confirmed with Enter, on Save changes', async () => {
+    const fetchMock = mockFetch({
+      'GET /api/projects/1': () => ({ body: project }),
+      'GET /api/lists': () => ({ body: sampleLists() }),
+      'PUT /api/projects/1/details': () => ({ body: project }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1/edit');
+
+    await screen.findByLabelText('Project name');
+    await user.type(screen.getByLabelText('New objective'), 'Faster checkout');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByText('Project page 1')).toBeInTheDocument();
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects/1/details' && init?.method === 'PUT');
+    const sent = JSON.parse(put![1]!.body as string);
+    expect(sent.scopeItems).toEqual([
+      { id: 5, kind: 'scope', text: 'Online payments' },
+      { kind: 'objective', text: 'Faster checkout' },
+    ]);
+  });
+
   it('does not save an empty project name', async () => {
     const fetchMock = mockFetch({
       'GET /api/projects/1': () => ({ body: project }),
@@ -72,6 +94,17 @@ describe('EditProjectPage', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(await screen.findByText('Project name is required')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
+  });
+
+  it('shows an error banner when the dropdown lists fail to load, but still shows the saved project', async () => {
+    mockFetch({
+      'GET /api/projects/1': () => ({ body: project }),
+      'GET /api/lists': () => ({ status: 500, body: { error: 'Lists unavailable' } }),
+    });
+    renderAt('/manage/projects/1/edit');
+
+    expect(await screen.findByText(/Could not load the dropdown lists/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Project name')).toHaveValue('Portal');
   });
 
   it('says when the project does not exist', async () => {

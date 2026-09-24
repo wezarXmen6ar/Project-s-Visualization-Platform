@@ -35,6 +35,11 @@ export function ItemTable({ title, noun, items, onChange }: ItemTableProps) {
     add();
   }
 
+  // Leaving the box (Tab, clicking Next/Save/Create, etc.) shouldn't silently drop typed text.
+  function onDraftBlur() {
+    if (draft.trim()) add();
+  }
+
   return (
     <div className="item-table">
       <h3>{title}</h3>
@@ -72,6 +77,7 @@ export function ItemTable({ title, noun, items, onChange }: ItemTableProps) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onDraftKeyDown}
+          onBlur={onDraftBlur}
         />
         <button type="button" className="button secondary" aria-label={`Add ${lower}`} onClick={add} disabled={!draft.trim()}>
           <PlusIcon />Add
