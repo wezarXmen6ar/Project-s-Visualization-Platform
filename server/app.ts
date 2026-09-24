@@ -1,10 +1,20 @@
 import Fastify from 'fastify';
 import type { DatabaseSync } from 'node:sqlite';
+import { todayLocal, type ISODate } from '../shared/calendar';
+import { overlapsYear, portfolioStats } from '../shared/portfolio';
+import { projectSpan } from '../shared/scheduler';
 import { newProjectSchema, toIssues } from '../shared/schemas';
+import type { PortfolioResponse } from '../shared/types';
 import { createProject, getProject, listProjects } from './projects/repo';
 import { getCalendar } from './settings';
 
-export function buildApp(db: DatabaseSync) {
+export interface AppOptions {
+  /** Injectable clock so tests can fix "today". */
+  today?: () => ISODate;
+}
+
+export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
+  const today = opts.today ?? todayLocal;
   const app = Fastify();
 
   app.get('/api/health', async () => ({ ok: true }));
@@ -25,6 +35,21 @@ export function buildApp(db: DatabaseSync) {
       return reply.code(400).send({ error: 'Invalid project', issues: toIssues(parsed.error) });
     }
     return reply.code(201).send(createProject(db, getCalendar(db), parsed.data));
+  });
+
+  app.get<{ Querystring: { year?: string } }>('/api/portfolio', async (req, reply) => {
+    const now = today();
+    const year = req.query.year === undefined ? Number(now.slice(0, 4)) : Number(req.query.year);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      return reply.code(400).send({ error: 'year must be a whole number between 2000 and 2100' });
+    }
+    const all = listProjects(db);
+    const inYear = all.filter((p) => {
+      const span = projectSpan(p.phases);
+      return span !== null && overlapsYear(span, year);
+    });
+    const body: PortfolioResponse = { year, today: now, stats: portfolioStats(all, year, now), projects: inYear };
+    return body;
   });
 
   return app;

@@ -1,4 +1,5 @@
 import type { ISODate } from './calendar';
+import type { PortfolioStats } from './portfolio';
 
 export interface PhaseRecord {
   id: number;
@@ -16,4 +17,11 @@ export interface ProjectRecord {
   color: string;
   startDate: ISODate;
   phases: PhaseRecord[];
+}
+
+export interface PortfolioResponse {
+  year: number;
+  today: ISODate;
+  stats: PortfolioStats;
+  projects: ProjectRecord[];
 }
