@@ -1,133 +1,72 @@
-import { useEffect, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { DEFAULT_CALENDAR, isISODate, todayLocal } from '../../../shared/calendar';
-import { newProjectSchema, toIssues, type ValidationIssue } from '../../../shared/schemas';
-import { schedulePhases, type PhaseInput } from '../../../shared/scheduler';
-import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
+import { todayLocal } from '../../../shared/calendar';
+import { newProjectSchema, toIssues, type NewProjectInput, type ValidationIssue } from '../../../shared/schemas';
+import type { PhaseInput } from '../../../shared/scheduler';
+import { AlertIcon, ArrowLeftIcon, ArrowRightIcon } from '../../icons';
 import { ApiError, api } from '../../api';
-import { Gantt } from '../../gantt/Gantt';
-import { phaseRows, rangeFor } from '../../gantt/rows';
-import { useElementWidth } from '../../gantt/useElementWidth';
-import { useAsync } from '../../useAsync';
+import { useLists } from '../../useLists';
+import { DetailsFields } from './DetailsFields';
+import { DEFAULT_PHASES, PhasesFields } from './PhasesFields';
+import { ScopeFields } from './ScopeFields';
+import { detailsToInput, emptyDetails, firstStepWithIssue, stepOfIssue, type DetailsDraft } from './projectDraft';
 
-function DragHandleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-      <circle cx="9" cy="6" r="1.3" fill="currentColor" />
-      <circle cx="9" cy="12" r="1.3" fill="currentColor" />
-      <circle cx="9" cy="18" r="1.3" fill="currentColor" />
-      <circle cx="15" cy="6" r="1.3" fill="currentColor" />
-      <circle cx="15" cy="12" r="1.3" fill="currentColor" />
-      <circle cx="15" cy="18" r="1.3" fill="currentColor" />
-    </svg>
-  );
-}
-
-const DEFAULT_PHASES: PhaseInput[] = [
-  { name: 'Requirements gathering', durationDays: 10 },
-  { name: 'Business analysis', durationDays: 10 },
-  { name: 'Design', durationDays: 10 },
-  { name: 'Development', durationDays: 40 },
-  { name: 'QA', durationDays: 15 },
-  { name: 'UAT', durationDays: 10 },
-  { name: 'Go-live', durationDays: 2 },
-];
+const STEPS = ['Basic info', 'Description & scope', 'Phases'];
+const LAST = STEPS.length - 1;
 
 export function CreateProjectPage() {
   const navigate = useNavigate();
-  const calendar = useAsync(() => api.getCalendar(), []);
-  const [name, setName] = useState('');
-  const [jiraKey, setJiraKey] = useState('');
-  const [color, setColor] = useState('#3b82f6');
+  const { lists, error: listsError, remember } = useLists();
+  const [step, setStep] = useState(0);
+  const [details, setDetails] = useState<DetailsDraft>(emptyDetails);
   const [startDate, setStartDate] = useState(todayLocal());
   const [phases, setPhases] = useState<PhaseInput[]>(DEFAULT_PHASES);
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [saving, setSaving] = useState(false);
-  const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
-  const dragIndexRef = useRef<number | null>(null);
-  const handleRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const [pendingFocusIndex, setPendingFocusIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (pendingFocusIndex === null) return;
-    handleRefs.current[pendingFocusIndex]?.focus();
-    setPendingFocusIndex(null);
-  }, [pendingFocusIndex]);
+  const patchDetails = (patch: Partial<DetailsDraft>) => setDetails((d) => ({ ...d, ...patch }));
+  const input = (): NewProjectInput => ({ ...detailsToInput(details), startDate, phases });
 
-  const cal = calendar.data ?? DEFAULT_CALENDAR;
-  const previewPhases = phases.filter((p) => p.name.trim() !== '' && Number.isInteger(p.durationDays) && p.durationDays >= 1);
-  const scheduled = isISODate(startDate) ? schedulePhases(startDate, previewPhases, cal) : [];
-  const rows = phaseRows({ phases: scheduled });
-  const range = rangeFor(rows, isISODate(startDate) ? startDate : todayLocal());
-
-  function updatePhase(index: number, patch: Partial<PhaseInput>) {
-    setPhases((ps) => ps.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  function validate(): ValidationIssue[] {
+    const parsed = newProjectSchema.safeParse(input());
+    return parsed.success ? [] : toIssues(parsed.error);
   }
 
-  function movePhase(from: number, to: number) {
-    if (from === to) return;
-    setPhases((ps) => {
-      const next = [...ps];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
+  /** Shows the issues and moves to the earliest step that has one. */
+  function showIssues(found: ValidationIssue[]) {
+    setIssues(found);
+    const first = firstStepWithIssue(found);
+    if (first !== null) setStep(first);
   }
 
-  function onPhaseDragStart(index: number) {
-    return (e: DragEvent<HTMLButtonElement>) => {
-      dragIndexRef.current = index;
-      e.dataTransfer.setData('text/plain', String(index));
-      e.dataTransfer.effectAllowed = 'move';
-    };
-  }
-
-  function onPhaseDragOver(e: DragEvent<HTMLDivElement>) {
-    if (dragIndexRef.current !== null) {
-      e.preventDefault();
-    }
-  }
-
-  function onPhaseDrop(index: number) {
-    return (e: DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      const from = dragIndexRef.current;
-      dragIndexRef.current = null;
-      if (from === null) return;
-      movePhase(from, index);
-    };
-  }
-
-  function onHandleKeyDown(index: number) {
-    return (e: KeyboardEvent<HTMLButtonElement>) => {
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        if (index === 0) return;
-        movePhase(index, index - 1);
-        setPendingFocusIndex(index - 1);
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        if (index === phases.length - 1) return;
-        movePhase(index, index + 1);
-        setPendingFocusIndex(index + 1);
-      }
-    };
+  function back() {
+    setIssues([]);
+    setStep((s) => s - 1);
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const parsed = newProjectSchema.safeParse({ name, jiraKey, color, startDate, phases });
-    if (!parsed.success) {
-      setIssues(toIssues(parsed.error));
+    const found = validate();
+
+    // Steps 1–2: "Next" (or Enter) only checks the fields on the current step.
+    if (step < LAST) {
+      const blocking = found.filter((i) => stepOfIssue(i) === step);
+      setIssues(blocking);
+      if (blocking.length === 0) setStep(step + 1);
+      return;
+    }
+
+    if (found.length > 0) {
+      showIssues(found);
       return;
     }
     setIssues([]);
     setSaving(true);
     try {
-      const project = await api.createProject(parsed.data);
+      const project = await api.createProject(input());
       navigate(`/manage/projects/${project.id}`);
     } catch (err) {
-      if (err instanceof ApiError && err.issues.length > 0) setIssues(err.issues);
+      if (err instanceof ApiError && err.issues.length > 0) showIssues(err.issues);
       else setIssues([{ path: '', message: err instanceof Error ? err.message : String(err) }]);
     } finally {
       setSaving(false);
@@ -143,6 +82,15 @@ export function CreateProjectPage() {
         </div>
       </div>
 
+      <ol className="wizard-steps">
+        {STEPS.map((label, i) => (
+          <li key={label} className={i === step ? 'current' : i < step ? 'done' : undefined} aria-current={i === step ? 'step' : undefined}>
+            <span className="wizard-step-number">{i + 1}</span>
+            {label}
+          </li>
+        ))}
+      </ol>
+
       <form onSubmit={onSubmit} noValidate>
         {issues.length > 0 ? (
           <div className="errors" role="alert">
@@ -150,77 +98,31 @@ export function CreateProjectPage() {
             <ul>{issues.map((i) => <li key={`${i.path}-${i.message}`}>{i.message}</li>)}</ul>
           </div>
         ) : null}
-
-        <section className="card">
-          <h2>Details</h2>
-          <div className="form-grid">
-            <label>Project name<input value={name} onChange={(e) => setName(e.target.value)} /></label>
-            <label>Jira key<input value={jiraKey} onChange={(e) => setJiraKey(e.target.value)} placeholder="PRJ-123" /></label>
-            <label>Start date<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
-            <label>Colour<input type="color" value={color} onChange={(e) => setColor(e.target.value)} /></label>
+        {listsError ? (
+          <div className="errors" role="alert">
+            <AlertIcon />
+            <span>Could not load the dropdown lists: {listsError.message}</span>
           </div>
-        </section>
+        ) : null}
 
-        <section className="card">
-          <h2>Phases</h2>
-          <p className="field-hint">Durations are in working days. Dates are calculated from the working calendar.</p>
-          {phases.map((phase, i) => (
-            <div
-              className="phase-row"
-              key={i}
-              onDragOver={onPhaseDragOver}
-              onDrop={onPhaseDrop(i)}
-              onDragEnd={() => { dragIndexRef.current = null; }}
-            >
-              <button
-                type="button"
-                className="drag-handle"
-                aria-label={`Reorder phase ${i + 1}`}
-                draggable
-                onDragStart={onPhaseDragStart(i)}
-                onKeyDown={onHandleKeyDown(i)}
-                ref={(el) => { handleRefs.current[i] = el; }}
-              >
-                <DragHandleIcon />
-              </button>
-              <input
-                aria-label={`Phase ${i + 1} name`}
-                placeholder="Phase name"
-                value={phase.name}
-                onChange={(e) => updatePhase(i, { name: e.target.value })}
-              />
-              <input
-                aria-label={`Phase ${i + 1} working days`}
-                type="number"
-                min={1}
-                value={Number.isNaN(phase.durationDays) ? '' : phase.durationDays}
-                onChange={(e) => updatePhase(i, { durationDays: e.target.valueAsNumber })}
-              />
-              <button
-                type="button"
-                className="button ghost-icon"
-                aria-label={`Remove phase ${i + 1}`}
-                onClick={() => setPhases((ps) => ps.filter((_, j) => j !== i))}
-              >
-                <TrashIcon />
-              </button>
-            </div>
-          ))}
-          <button type="button" className="button secondary" onClick={() => setPhases((ps) => [...ps, { name: '', durationDays: 5 }])}>
-            <PlusIcon />Add phase
+        {step === 0 ? <DetailsFields value={details} onChange={patchDetails} lists={lists} onListAdded={remember} /> : null}
+        {step === 1 ? <ScopeFields value={details} onChange={patchDetails} /> : null}
+        {step === 2 ? (
+          <PhasesFields startDate={startDate} onStartDate={setStartDate} phases={phases} onPhases={setPhases} />
+        ) : null}
+
+        <div className="wizard-actions">
+          {step > 0 ? (
+            <button type="button" className="button secondary" onClick={back}>
+              <ArrowLeftIcon />Back
+            </button>
+          ) : (
+            <span />
+          )}
+          <button type="submit" className="button" disabled={saving}>
+            {step < LAST ? <>Next<ArrowRightIcon /></> : saving ? 'Saving…' : 'Create project'}
           </button>
-        </section>
-
-        <section className="card">
-          <h2>Preview</h2>
-          <div className="chart-scroll" ref={chartRef}>
-            <Gantt rows={rows} range={range} width={chartWidth} />
-          </div>
-        </section>
-
-        <button type="submit" className="button" disabled={saving}>
-          {saving ? 'Saving…' : 'Create project'}
-        </button>
+        </div>
       </form>
     </main>
   );

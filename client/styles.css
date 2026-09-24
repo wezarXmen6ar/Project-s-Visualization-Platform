@@ -370,6 +370,43 @@ select { cursor: pointer; }
 .option-add-actions { display: flex; gap: var(--sp-2); }
 .field-error { margin: 0; color: var(--danger); font-size: var(--fs-sm); }
 
+textarea { resize: vertical; min-height: 6rem; line-height: 1.5; }
+.form-stack { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.check-groups { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-6); margin-top: var(--sp-4); }
+.check-group { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: center; }
+.check-group legend { float: left; margin-right: var(--sp-2); padding: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
+label.check { flex-direction: row; align-items: center; gap: var(--sp-2); color: var(--ink); font-size: var(--fs-base); font-weight: 400; cursor: pointer; }
+input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-color: var(--primary); cursor: pointer; }
+
+.item-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: var(--sp-5); }
+.phase-start { max-width: 240px; margin-bottom: var(--sp-4); }
+
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  list-style: none;
+  margin: 0 0 var(--sp-5);
+  padding: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.wizard-steps li { display: flex; align-items: center; gap: var(--sp-2); }
+.wizard-steps li.current { color: var(--ink); font-weight: 600; }
+.wizard-step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  font-variant-numeric: tabular-nums;
+}
+.wizard-steps li.current .wizard-step-number { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.wizard-steps li.done .wizard-step-number { background: var(--primary-wash); border-color: var(--primary-wash); color: var(--primary); }
+.wizard-actions { display: flex; justify-content: space-between; gap: var(--sp-3); }
+
 .errors {
   display: flex;
   gap: var(--sp-3);
