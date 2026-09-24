@@ -6,7 +6,7 @@
 
 **Architecture:**
 - **Storage:** one new schema version (migration 2) adds:
-  - a `list_values` table that holds all four editable dropdown lists: main projects, project types, goals and departments;
+  - a `list_values` table that holds the editable dropdown lists: main projects, project types, goals and departments, plus phases from Task 10;
   - the new project columns;
   - a `scope_items` table.
 - **Server:** list CRUD lives in `server/lists/repo.ts`, and project details in `server/projects/repo.ts`. All HTTP routes stay in `server/app.ts`.
@@ -21,7 +21,7 @@
 
 **Decisions confirmed with the user (2026-09-25):**
 - **Editing:** project details can be edited after creation (Steps 1–2 fields and the scope tables). Phases stay create-only until M8 (change requests and baselines).
-- **People fields:** Project manager and Business owner are free text for now. M4 turns them into pickers from the Resources list.
+- **People fields:** the project managers are free text for now: "Project manager (tech)", and from Task 9 the "Business project manager". M4 turns them into pickers from the Resources list. (Tasks 1–8 also had a "Business owner" text field; Task 9 removed it, since the business owner is the Business user (department).)
 - **Create page layout:** a 3-step wizard: Basic info → Description & scope → Phases. The People and History steps (spec Steps 4–5) come in later milestones.
 - **After the M3 demo (2026-09-25), Tasks 9–10:**
   - **Two project managers:** "Project manager (tech)" from the technical team, and a "Business project manager" (the business owner's representative) with an optional UAE mobile and an optional email.
@@ -30,9 +30,9 @@
   - **New default phases:** Requirements gathering, Business analysis, Development plan, Development, QA, UAT, Security testing, Deployment, Launch. "Design" stays in the list but is not a default.
 
 **Deliberate deviations and choices (flag if you disagree):**
-- **Main projects are stored as a list.** The spec models `MainProject` as its own entity with just a name. It is stored in `list_values` next to the other dropdown lists, so one table, one API and one Settings editor cover all four.
-- **Priority and Categorisation are fixed:** Priority is High / Medium / Low, default Medium; the spec names the field but not its values. Categorisation is Strategic / Operational, exactly as the spec lists it. Neither is an editable list, and only the four dropdowns below are.
-- **Settings is lists only in M3:** main projects, project types, goals and business users (departments). Weekend days, holidays, attachment types, roles and waiting-clock thresholds arrive with the milestones that use them.
+- **Main projects are stored as a list.** The spec models `MainProject` as its own entity with just a name. It is stored in `list_values` next to the other dropdown lists, so one table, one API and one Settings editor cover all of them.
+- **Priority and Categorisation are fixed:** Priority is High / Medium / Low, default Medium; the spec names the field but not its values. Categorisation is Strategic / Operational, exactly as the spec lists it. Neither is an editable list; only the dropdown lists below are.
+- **Settings is lists only in M3:** main projects, project types, goals, business users (departments), and from Task 10 phases. Weekend days, holidays, attachment types, roles and waiting-clock thresholds arrive with the milestones that use them.
 - **Duplicate names return the existing value.** Adding a list value whose name already exists (ignoring case) returns the existing value instead of an error, so "+ Add new" never creates duplicates.
 
 ## Global Constraints
@@ -45,7 +45,7 @@
 - **Presentation side is read-only:** no create or edit controls under `/present`.
 - **Reordering:** reordering is drag-and-drop on a dedicated handle button, plus ArrowUp/ArrowDown on that handle. There are no up/down buttons. Only the handle is `draggable`, never the whole row.
 - **Gantt bar colours:** bar colours come from the phase name (`phaseColorFor`). The project's own `colour` field does not colour bars.
-- **Dropdown lists:** the four lists are `mainProject`, `projectType`, `goal` and `department`.
+- **Dropdown lists:** the lists are `mainProject`, `projectType`, `goal` and `department`, plus `phase` from Task 10. A `phase` value is matched by name: it is in use when any project has a phase with that name, and renaming it renames those phases.
   - Names are unique within a list, ignoring case.
   - A value used by a project can be renamed but not deleted (409).
 - **Defaults on a fresh database:**
