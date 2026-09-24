@@ -1,6 +1,6 @@
 import type { WorkCalendar } from '../shared/calendar';
 import type { NewProjectInput, ValidationIssue } from '../shared/schemas';
-import type { ProjectRecord } from '../shared/types';
+import type { PortfolioResponse, ProjectRecord } from '../shared/types';
 
 export class ApiError extends Error {
   status: number;
@@ -25,4 +25,5 @@ export const api = {
   getProject: (id: number) => request<ProjectRecord>(`/api/projects/${id}`),
   createProject: (input: NewProjectInput) =>
     request<ProjectRecord>('/api/projects', { method: 'POST', body: JSON.stringify(input) }),
+  getPortfolio: (year: number) => request<PortfolioResponse>(`/api/portfolio?year=${year}`),
 };
