@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import type { ProjectRecord } from '../../shared/types';
+import { sampleProject } from '../testing/mockFetch';
 import { PHASE_PALETTE, phaseColorFor, phaseRows, portfolioRows, rangeFor } from './rows';
 
-const project: ProjectRecord = {
-  id: 1, name: 'Portal', jiraKey: null, color: '#3b82f6', startDate: '2026-02-10',
+const project = sampleProject({
+  id: 1, name: 'Portal', jiraKey: null, startDate: '2026-02-10',
   phases: [
     { id: 11, name: 'Requirements', order: 0, durationDays: 2, start: '2026-02-10', end: '2026-02-11' },
     { id: 12, name: 'Development', order: 1, durationDays: 30, start: '2026-02-12', end: '2026-03-25' },
   ],
-};
+});
 
 describe('rows', () => {
   it('makes one row per phase, colouring and labelling bars by phase name', () => {

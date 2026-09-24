@@ -3,10 +3,10 @@ import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate } from '../shared/calendar';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
-import { listValueInputSchema, newProjectSchema, toIssues } from '../shared/schemas';
+import { listValueInputSchema, newProjectSchema, projectDetailsSchema, toIssues } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
-import { createProject, getProject, listProjects } from './projects/repo';
+import { checkListRefs, createProject, getProject, listProjects, updateProjectDetails } from './projects/repo';
 import { getCalendar } from './settings';
 
 export interface AppOptions {
@@ -56,10 +56,20 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.post('/api/projects', async (req, reply) => {
     const parsed = newProjectSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ error: 'Invalid project', issues: toIssues(parsed.error) });
-    }
-    return reply.code(201).send(createProject(db, getCalendar(db), parsed.data));
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid project', issues: toIssues(parsed.error) });
+    const issues = checkListRefs(db, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid project', issues });
+    return reply.code(201).send(createProject(db, getCalendar(db), parsed.data, today()));
+  });
+
+  app.put<{ Params: { id: string } }>('/api/projects/:id/details', async (req, reply) => {
+    const parsed = projectDetailsSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid project', issues: toIssues(parsed.error) });
+    const issues = checkListRefs(db, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid project', issues });
+    const project = updateProjectDetails(db, Number(req.params.id), parsed.data, today());
+    if (!project) return reply.code(404).send({ error: 'Project not found' });
+    return project;
   });
 
   app.get<{ Querystring: { year?: string } }>('/api/portfolio', async (req, reply) => {

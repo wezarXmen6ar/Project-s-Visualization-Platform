@@ -14,6 +14,31 @@ export interface ListValue {
 
 export type Lists = Record<ListName, ListValue[]>;
 
+/** A reference to a list value, with its name resolved for display. */
+export interface Ref {
+  id: number;
+  name: string;
+}
+
+export const PRIORITIES = ['high', 'medium', 'low'] as const;
+export type Priority = (typeof PRIORITIES)[number];
+
+export const CATEGORIES = ['strategic', 'operational'] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+export const SCOPE_KINDS = ['scope', 'out-of-scope', 'problem', 'objective'] as const;
+export type ScopeKind = (typeof SCOPE_KINDS)[number];
+
+export interface ScopeItem {
+  id: number;
+  kind: ScopeKind;
+  text: string;
+  /** Position within its kind, from 0. */
+  order: number;
+  /** When the item was first added; kept across edits (feeds scope-growth views later). */
+  dateAdded: ISODate;
+}
+
 export interface PhaseRecord {
   id: number;
   name: string;
@@ -29,6 +54,20 @@ export interface ProjectRecord {
   jiraKey: string | null;
   color: string;
   startDate: ISODate;
+  priority: Priority;
+  projectManager: string | null;
+  businessOwner: string | null;
+  mainProject: Ref | null;
+  category: Category | null;
+  projectType: Ref | null;
+  goal: Ref | null;
+  department: Ref | null;
+  requester: { internal: boolean; external: boolean };
+  beneficiary: { employees: boolean; customers: boolean };
+  background: string;
+  summary: string;
+  /** Ordered by kind, then by order within the kind. */
+  scopeItems: ScopeItem[];
   phases: PhaseRecord[];
 }
 
