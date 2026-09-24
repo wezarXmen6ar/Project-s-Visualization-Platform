@@ -11,3 +11,17 @@ export const SCOPE_TABLES: { kind: ScopeKind; title: string; noun: string }[] = 
   { kind: 'problem', title: 'Problem statements', noun: 'Problem statement' },
   { kind: 'objective', title: 'Objectives', noun: 'Objective' },
 ];
+
+export function requesterLabel(r: { internal: boolean; external: boolean }): string {
+  if (r.internal && r.external) return 'Both (internal and external)';
+  if (r.internal) return 'Internal';
+  if (r.external) return 'External';
+  return '—';
+}
+
+export function beneficiaryLabel(b: { employees: boolean; customers: boolean }): string {
+  if (b.employees && b.customers) return 'Employees and customers';
+  if (b.employees) return 'Employees';
+  if (b.customers) return 'Customers';
+  return '—';
+}

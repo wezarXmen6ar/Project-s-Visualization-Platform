@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { DEFAULT_CALENDAR, countWorkingDays, todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
@@ -7,6 +8,16 @@ import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useAsync } from '../../useAsync';
+import { CATEGORY_LABEL, PRIORITY_LABEL, SCOPE_TABLES, beneficiaryLabel, requesterLabel } from './labels';
+
+function Detail({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
 
 export function ProjectPage() {
   const id = Number(useParams().id);
@@ -52,12 +63,56 @@ export function ProjectPage() {
             {span ? `${span.start} → ${span.end} · ${countWorkingDays(span.start, span.end, cal)} working days` : 'No phases'}
           </p>
         </div>
+        <Link to={`/manage/projects/${p.id}/edit`} className="button secondary">Edit details</Link>
       </div>
 
       <section className="card">
         <h2>Timeline</h2>
         <div className="chart-scroll" ref={chartRef}>
           <Gantt rows={rows} range={rangeFor(rows, today)} width={chartWidth} today={today} />
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Details</h2>
+        <dl className="details-grid">
+          <Detail label="Priority">{PRIORITY_LABEL[p.priority]}</Detail>
+          <Detail label="Project manager">{p.projectManager ?? '—'}</Detail>
+          <Detail label="Business owner">{p.businessOwner ?? '—'}</Detail>
+          <Detail label="Main project">{p.mainProject?.name ?? 'Standalone'}</Detail>
+          <Detail label="Categorisation">{p.category ? CATEGORY_LABEL[p.category] : '—'}</Detail>
+          <Detail label="Project type">{p.projectType?.name ?? '—'}</Detail>
+          <Detail label="Goal">{p.goal?.name ?? '—'}</Detail>
+          <Detail label="Business user">{p.department?.name ?? '—'}</Detail>
+          <Detail label="Requester">{requesterLabel(p.requester)}</Detail>
+          <Detail label="Beneficiary">{beneficiaryLabel(p.beneficiary)}</Detail>
+        </dl>
+      </section>
+
+      <section className="card">
+        <h2>Description</h2>
+        <h3>Background</h3>
+        <p className="prose">{p.background || '—'}</p>
+        <h3>Summary</h3>
+        <p className="prose">{p.summary || '—'}</p>
+      </section>
+
+      <section className="card">
+        <h2>Scope and goals</h2>
+        <div className="scope-summary">
+          {SCOPE_TABLES.map(({ kind, title }) => {
+            const items = p.scopeItems.filter((i) => i.kind === kind).sort((a, b) => a.order - b.order);
+            return (
+              <div key={kind}>
+                <h3>{title}</h3>
+                {items.length === 0 ? (
+                  <p className="muted">None.</p>
+                ) : (
+                  <ol>{items.map((i) => <li key={i.id}>{i.text}</li>)}</ol>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
 

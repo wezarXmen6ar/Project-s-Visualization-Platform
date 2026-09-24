@@ -407,6 +407,14 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .wizard-steps li.done .wizard-step-number { background: var(--primary-wash); border-color: var(--primary-wash); color: var(--primary); }
 .wizard-actions { display: flex; justify-content: space-between; gap: var(--sp-3); }
 
+.details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: var(--sp-4); margin: 0; }
+.details-grid dt { font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
+.details-grid dd { margin: var(--sp-1) 0 0; }
+.prose { white-space: pre-wrap; margin: var(--sp-1) 0 var(--sp-4); }
+.scope-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: var(--sp-5); }
+.scope-summary ol { margin: var(--sp-2) 0 0; padding-left: 1.4em; }
+.scope-summary p { margin: var(--sp-2) 0 0; }
+
 .errors {
   display: flex;
   gap: var(--sp-3);
