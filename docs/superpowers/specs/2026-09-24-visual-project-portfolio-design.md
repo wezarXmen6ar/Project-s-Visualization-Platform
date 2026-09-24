@@ -1,6 +1,6 @@
 # Visual Project Portfolio Tool — Design Spec
 
-**Status:** DRAFT: brainstorming in progress. Sections 1–4 are approved; Section 5 is not yet written.
+**Status:** Design complete, all sections approved. Awaiting final review of the written spec.
 **Date:** 2026-09-24
 
 ## 0. Purpose
@@ -49,6 +49,7 @@ client/   React + Vite
   3. Playback
   4. What-if sandbox
 - The data model covers all four from the start.
+- This spec is the umbrella design. The first implementation plan covers **sub-project 1 only**. Sub-projects 2–4 each get a short follow-up spec that refines the relevant section here.
 
 ## 2. Data model (APPROVED)
 
@@ -57,7 +58,7 @@ client/   React + Vite
 - `Holiday`: name, start date, end date. `Leave`: resource, start date, end date. Weekend days are a setting.
 
 **Projects**
-- `Project`: the fields listed in §3.2, plus status (planned, active, on hold, done, cancelled) and a reference to its main project.
+- `Project`: the fields listed in §3.2, plus status (**proposed**, planned, active, on hold, done, cancelled) and a reference to its main project. *Proposed* projects come from the sandbox and are left out of capacity checks and the real portfolio until promoted to *Planned*.
 - `MainProject`: name. Can be created inline.
 - `ScopeItem`: project, kind (scope, out-of-scope, problem, objective), text, order, `addedByChangeRequestId` (nullable), date added.
 - `Phase`: project, name, order, planned start and end, duration in working days, actual start and end, % complete, `parentId` (sub-phases are optional on **any** phase and one level deep), weight.
@@ -69,7 +70,7 @@ client/   React + Vite
 - `Entry`: type (meeting, update, action-only), project, optional phase, **effective date**, created date, title, body, **highlight-in-presentation** flag. Has 0..n attachments.
 - `Action`: source entry, assignee, due date, status, linked phase or requirement, tag (for example *Clarification*).
 - `Attachment`: file, name, **type** (editable list: Meeting Minutes, Approval, Change Request, Business Analysis Document, BRD, Documentation, Design, Test Report, Other), entry (optional), phase, deliverable date.
-- `Event`: machine-recorded history. Types: phase started or finished, hold started or ended, change request approved, date shifted, overload resolved, holiday applied, requirement ready. Each has a **cause** and optional links (other project, change request, holiday, resource).
+- `Event`: machine-recorded history, append-only. Types: phase started or finished, hold started or ended, change request proposed, approved or rejected, requirement added, requirement ready, date shifted, overload resolved, holiday applied. Each has an effective date, a **cause**, **delay days** (signed: negative means time saved; these feed Where did the time go? and Why did the end date move?), responsibility, and optional links (other project, change request, holiday, resource).
 - `Hold`: project, start date, end date, reason, **receiving project**.
 - **Responsibility** (on change requests, requirements, holds, slip causes, waiting periods, and the delay days of each `Event`): one or more of **Technical team · Business user · Decision makers · External** (list editable in Settings), plus Calendar (automatic, for holidays only). When several parties share responsibility, delay days are split evenly by default and the split can be adjusted. Defaults: change request, requirement and waiting period → Business user; hold → Decision makers; holiday → Calendar; late-phase cause → chosen in the prompt.
 - `Milestone`: either a ⭐ flag on a phase or requirement end, with a stakeholder-friendly name, or a standalone milestone (date and name, no duration). A flagged milestone's date follows the plan automatically.
@@ -180,7 +181,60 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
 - **Presenter mode:** full screen, large text, no internal details (routine updates and unflagged entries are hidden).
 - **Not included:** a team capacity view for stakeholders. Capacity stays on the project management side.
 
-## 5. Playback, sandbox, errors and testing (NOT YET WRITTEN — decisions so far)
+## 5. Playback, sandbox, errors and testing (APPROVED)
 
-- **Playback style (chosen: B):** the baseline plan shows as dashed outlines from the start, and the actual bars fill in over them as time plays. Anything past the planned end turns red. Highlighted events pop up above the bars and then collapse into pins. When a change request is approved, the outlines move (re-baseline). Pop-ups list linked documents as clickable lines; clicking one pauses playback and opens the document viewer (PDFs and images preview in the app, other files open in their default program). Controls: play/pause, next event, speed, scrubber, auto-pause on major events. Hold arrows draw themselves at the moment of the hold. Works for a single project and for the whole portfolio year.
-- **Sandbox (chosen: A plus the animation from C):** a ghost overlay, with the current plan as dashed outlines and the simulated plan as solid bars, plus red "+Nd" labels. Bars slide into place when a change is applied. The **price tag panel** shows the new go-live date, extra effort by role, knock-on effects on other projects, and overloads that need a decision. It has a "Save as proposed change request" button.
+### 5.1 Playback
+- **Mechanism:** the `timeline` engine merges events, highlighted entries, baselines and actual dates into one ordered stream. What the screen shows at a date is calculated directly as `state(date)`, so moving the timeline slider or jumping to a date is immediate and gives the same result every time.
+- **Visual style (option B):** the baseline plan appears as dashed outlines from the start, and the actual bars fill in over them as time advances. Anything past the planned end (from the baseline in effect at that date) turns red. When a change request is approved, the outlines move (re-baseline). Hold arrows draw themselves at the moment of the hold. The "Why did the end date move?" chart builds step by step alongside.
+- **Range:** a single project plays from its start to its end, or to today. The portfolio plays the selected year, January to December. After today, the playhead stops and the rest of the year shows as plan only (dashed outlines).
+- **Pop-ups:** icon, date, title, one line of detail, a responsible-party tag, and a clickable line for each linked document. Clicking a document pauses playback and opens the in-app viewer (PDFs and images preview in the app; other files open in their default program). Pop-ups then collapse into pins.
+  - A single project pops up every highlighted event and auto-pauses on change requests, holds, and phase starts or ends.
+  - The portfolio pops up and auto-pauses only on change requests, holds and milestones. Phase changes show as pins, and no more than 3 pop-ups are on screen at once.
+- **Controls:** play/pause, previous and next event, speed (default 1 week per second), timeline slider, auto-pause toggle.
+
+### 5.2 What-if sandbox
+- Opened from focus view or the portfolio. It runs the real engines on an **in-memory copy** and never writes to the database.
+- **Stackable hypothetical changes**, each of which can be undone on its own:
+  - add a requirement (days by role)
+  - extend a phase
+  - add a hold
+  - move a start date
+  - move a resource
+  - **add a hypothetical project**
+- **Hypothetical project:** name, optional main project, priority, start date, and phases with working days (optional sub-phases). Shown as a ghost row on the portfolio chart, and built live.
+- **Anonymous resources:** stakeholders see role labels only ("Backend Dev 1"), never names, and the labels stay the same for the session. When a role is assigned to a phase, the picker lists everyone in that role, sorted by availability over the phase's dates:
+  - 🟢 free for the whole phase
+  - 🟡 free at first, then booked on another project from a date
+  - 🔴 busy on another project
+- **Conflicts:** choosing 🟡 or 🔴 brings up the standard decision prompt: delay the new project, delay the other project, pause the other project (hold plus arrow), or split time. Each decision updates the portfolio immediately, and can expose further conflicts that are handled the same way.
+- **Resource pool strip:** one anonymous, summarised line per role under the chart (for example, "1 of 3 free, Mar–Apr"). Sandbox only.
+- **Display:** a ghost overlay, with the current plan as dashed outlines, the simulated plan as solid bars, and red "+Nd" labels. Bars slide into place when a change is applied.
+- **Price tag panel:** new go-live dates, extra effort by role, knock-on effects on other projects, and overloads.
+- **Save:**
+  - "Save as proposed change request" creates a *proposed* change request.
+  - "Save as proposed project" creates a project with status *Proposed*.
+  - Approval or promotion happens **only in project management**.
+  - **Reset** discards everything.
+
+### 5.3 Errors and data safety
+- A daily automatic backup of `pm.db` goes to `backups/`, keeping the last 14. Attachment files are never overwritten.
+- History is never silently rewritten. Edits to recorded events are themselves logged. Deleting an attachment or entry that is used as evidence or linked to a change request brings up a warning first.
+- Validation:
+  - sub-phase weights must total 100% (weights are set automatically unless you set them by hand)
+  - circular dependencies between projects are blocked with a message naming the cycle
+  - the end date must not be before the start date
+  - a requirement cannot move past 0% while it is Incomplete, unless Start at risk is used
+- A failed upload shows a retry and never leaves a half-saved entry. Each save is one database transaction.
+
+### 5.4 Testing
+- **Engines** (calendar, scheduler, capacity, baselines, timeline): thorough Vitest unit tests using realistic scenarios, for example a hold during Eid while a change request is approved.
+- **API:** integration tests against a temporary SQLite database.
+- **End-to-end** (Playwright, a small number): create a project → record a hold → the portfolio shows the arrow → playback runs.
+- **Built-in demo portfolio**, with holds, change requests, waiting requirements and a completed historical project, used for tests and for rehearsing presentations.
+
+## 6. Out of scope (for now)
+- Money or cost figures (these could be added later from rates per role).
+- Multiple users, logins and hosting.
+- Jira integration. The Jira key is a reference field only.
+- Automatic resource levelling. Every schedule shift is a human decision.
+- Team capacity views for stakeholders.
