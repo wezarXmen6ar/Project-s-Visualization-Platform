@@ -7,7 +7,9 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true, // also listen on the LAN so it can be opened from a phone/tablet on the same Wi-Fi
-    proxy: { '/api': 'http://127.0.0.1:3001' },
+    // Trailing slash matters: a bare '/api' prefix also swallows the client's own /api.ts module
+    // and sends it to the backend (404), which leaves the page blank.
+    proxy: { '/api/': 'http://127.0.0.1:3001' },
   },
   build: { outDir: '../dist', emptyOutDir: true },
 });
