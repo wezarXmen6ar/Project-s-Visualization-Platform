@@ -26,6 +26,7 @@ describe('ManageDashboardPage', () => {
     expect(screen.getByText('2026-09-30')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/manage/projects/new');
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/manage/settings');
+    expect(screen.getByRole('link', { name: 'Resources' })).toHaveAttribute('href', '/manage/resources');
   });
 
   it('opens a project from the chart', async () => {

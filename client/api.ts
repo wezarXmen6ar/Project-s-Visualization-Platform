@@ -1,6 +1,6 @@
 import type { WorkCalendar } from '../shared/calendar';
-import type { NewProjectInput, ProjectDetailsInput, ResourceInput, ValidationIssue } from '../shared/schemas';
-import type { ListName, ListValue, Lists, PortfolioResponse, ProjectRecord, ResourceRecord } from '../shared/types';
+import type { LeaveInput, NewProjectInput, ProjectDetailsInput, ResourceInput, ValidationIssue } from '../shared/schemas';
+import type { LeaveRecord, ListName, ListValue, Lists, PortfolioResponse, ProjectRecord, ResourceRecord } from '../shared/types';
 
 export class ApiError extends Error {
   status: number;
@@ -38,4 +38,9 @@ export const api = {
   deleteListValue: (list: ListName, id: number) => request<void>(`/api/lists/${list}/${id}`, { method: 'DELETE' }),
   listResources: () => request<ResourceRecord[]>('/api/resources'),
   createResource: (input: ResourceInput) => request<ResourceRecord>('/api/resources', withBody('POST', input)),
+  updateResource: (id: number, input: ResourceInput) => request<ResourceRecord>(`/api/resources/${id}`, withBody('PUT', input)),
+  deleteResource: (id: number) => request<void>(`/api/resources/${id}`, { method: 'DELETE' }),
+  addLeave: (resourceId: number, input: LeaveInput) =>
+    request<LeaveRecord>(`/api/resources/${resourceId}/leave`, withBody('POST', input)),
+  deleteLeave: (id: number) => request<void>(`/api/leave/${id}`, { method: 'DELETE' }),
 };

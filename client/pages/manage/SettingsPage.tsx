@@ -12,6 +12,7 @@ const EDITORS: { list: ListName; title: string; singular: string }[] = [
   { list: 'goal', title: 'Goals', singular: 'Goal' },
   { list: 'department', title: 'Business users (departments)', singular: 'Department' },
   { list: 'phase', title: 'Phases', singular: 'Phase' },
+  { list: 'role', title: 'Roles', singular: 'Role' },
 ];
 
 export function SettingsPage() {

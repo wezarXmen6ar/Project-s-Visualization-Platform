@@ -524,3 +524,19 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .gantt-row.group .gantt-row-bg { fill: var(--surface-2); }
 .gantt-row.group .gantt-label { font-weight: 650; }
 .gantt-summary { fill: var(--ink); stroke: none; }
+
+/* ---------------------------------------------------------------------- *
+ * Resources
+ * ---------------------------------------------------------------------- */
+.filters { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-bottom: var(--sp-4); }
+.filters label { min-width: min(12rem, 100%); }
+.side-choice { margin-bottom: var(--sp-4); }
+.active-toggle { margin-top: var(--sp-4); }
+.leave-add {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+  gap: var(--sp-3);
+  align-items: end;
+}
+.button.danger { background: var(--danger); color: var(--on-primary); }
+.button.danger:hover { filter: brightness(0.92); }

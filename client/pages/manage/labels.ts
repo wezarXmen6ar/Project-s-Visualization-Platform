@@ -1,4 +1,5 @@
-import type { Category, Priority, ScopeKind } from '../../../shared/types';
+import type { ISODate } from '../../../shared/calendar';
+import type { Category, Priority, ScopeKind, Side, Specialisation } from '../../../shared/types';
 
 export const PRIORITY_LABEL: Record<Priority, string> = { high: 'High', medium: 'Medium', low: 'Low' };
 
@@ -24,4 +25,19 @@ export function beneficiaryLabel(b: { employees: boolean; customers: boolean }):
   if (b.employees) return 'Employees';
   if (b.customers) return 'Customers';
   return '—';
+}
+
+export const SIDE_LABEL: Record<Side, string> = { tech: 'Tech team', business: 'Business side' };
+
+export const SPECIALISATION_LABEL: Record<Specialisation, string> = {
+  'front-end': 'Front end',
+  'back-end': 'Back end',
+  'full-stack': 'Full stack',
+};
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "12 Oct 2026". */
+export function formatDate(d: ISODate): string {
+  return `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
 }
