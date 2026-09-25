@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import type { BackupStatus, ListValue, Me, StarterToDo } from '../../../shared/types';
+import { LanguageProvider } from '../../i18n/LanguageProvider';
 import { mockFetch, sampleLists, samplePeople, type MockHandler } from '../../testing/mockFetch';
 import { SettingsPage } from './SettingsPage';
 
@@ -35,7 +36,9 @@ function fakeServer(backups: BackupStatus = { latest: null, count: 0 }): Record<
     },
     'GET /api/lists': () => ({ body: structuredClone(lists) }),
     'POST /api/lists/goal': (init) => {
-      const value: ListValue = { id: 40, list: 'goal', name: JSON.parse(init!.body as string).name, order: lists.goal.length };
+      const value: ListValue = {
+        id: 40, list: 'goal', name: JSON.parse(init!.body as string).name, order: lists.goal.length, nameAr: null,
+      };
       lists.goal.push(value);
       return { status: 201, body: value };
     },
@@ -52,6 +55,11 @@ function fakeServer(backups: BackupStatus = { latest: null, count: 0 }): Record<
       lists.phase = lists.phase.filter((p) => p.id !== 57);
       return { status: 204, body: null };
     },
+    'PUT /api/lists/phase/53': (init) => {
+      const body = JSON.parse(init!.body as string) as { name: string; nameAr?: string | null };
+      lists.phase[3] = { ...lists.phase[3], name: body.name, nameAr: body.nameAr ?? lists.phase[3].nameAr };
+      return { body: lists.phase[3] };
+    },
     'GET /api/resources': () => ({ body: samplePeople() }),
     'GET /api/settings/me': () => ({ body: me }),
     'PUT /api/settings/me': (init) => {
@@ -64,6 +72,14 @@ function fakeServer(backups: BackupStatus = { latest: null, count: 0 }): Record<
 }
 
 const renderPage = () => render(<MemoryRouter><SettingsPage /></MemoryRouter>);
+const renderArabic = () =>
+  render(
+    <MemoryRouter>
+      <LanguageProvider lang="ar">
+        <SettingsPage />
+      </LanguageProvider>
+    </MemoryRouter>,
+  );
 
 describe('SettingsPage', () => {
   it('shows all four lists', async () => {
@@ -202,5 +218,26 @@ describe('SettingsPage', () => {
     mockFetch(fakeServer({ latest: null, count: 0 }));
     renderPage();
     expect(await screen.findByText('No backup yet. One is taken each day while the app is running.')).toBeInTheDocument();
+  });
+
+  it('in Arabic, shows both the English and the Arabic name of a list value', async () => {
+    mockFetch(fakeServer());
+    renderArabic();
+    expect(await screen.findByText('Development')).toBeInTheDocument();
+    expect(screen.getByText('التطوير')).toBeInTheDocument();
+  });
+
+  it('in Arabic, renaming the Arabic name sends nameAr', async () => {
+    const fetchMock = mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderArabic();
+    await user.click(await screen.findByRole('button', { name: 'Rename Development' }));
+    const arabicInput = screen.getByLabelText('New Arabic name for Development');
+    await user.clear(arabicInput);
+    await user.type(arabicInput, 'تطوير جديد');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('تطوير جديد')).toBeInTheDocument();
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/lists/phase/53' && init?.method === 'PUT');
+    expect(JSON.parse(put![1]!.body as string)).toEqual({ name: 'Development', nameAr: 'تطوير جديد' });
   });
 });

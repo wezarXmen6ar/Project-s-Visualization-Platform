@@ -54,7 +54,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (!isListName(req.params.list)) return reply.code(404).send(err('error.unknownList'));
     const parsed = listValueInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid value', issues: toIssues(parsed.error) });
-    const { value, created } = addListValue(db, req.params.list, parsed.data.name);
+    const { value, created } = addListValue(db, req.params.list, parsed.data.name, parsed.data.nameAr ?? null);
     return reply.code(created ? 201 : 200).send(value);
   });
 
@@ -62,7 +62,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (!isListName(req.params.list)) return reply.code(404).send(err('error.unknownList'));
     const parsed = listValueInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid value', issues: toIssues(parsed.error) });
-    const result = renameListValue(db, req.params.list, Number(req.params.id), parsed.data.name);
+    const result = renameListValue(db, req.params.list, Number(req.params.id), parsed.data.name, parsed.data.nameAr);
     return result.ok ? result.value : reply.code(result.status).send({ error: result.error, code: result.code, params: result.params });
   });
 

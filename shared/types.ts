@@ -10,6 +10,8 @@ export interface ListValue {
   id: number;
   list: ListName;
   name: string;
+  /** The Arabic name, edited alongside `name` in Settings; null when none has been set. */
+  nameAr: string | null;
   order: number;
 }
 
@@ -19,6 +21,8 @@ export type Lists = Record<ListName, ListValue[]>;
 export interface Ref {
   id: number;
   name: string;
+  /** Set only when this reference is to a list value (mainProject, projectType, goal, department); null/absent for people. */
+  nameAr?: string | null;
 }
 
 export const PRIORITIES = ['high', 'medium', 'low'] as const;

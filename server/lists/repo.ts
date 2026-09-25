@@ -9,6 +9,7 @@ interface ListRow {
   id: number;
   list: ListName;
   name: string;
+  name_ar: string | null;
   sort_order: number;
 }
 
@@ -35,7 +36,7 @@ export type ListChange =
   | { ok: false; status: 404 | 409; error: string; code?: MessageKey; params?: Params };
 
 function toValue(row: ListRow): ListValue {
-  return { id: row.id, list: row.list, name: row.name, order: row.sort_order };
+  return { id: row.id, list: row.list, name: row.name, nameAr: row.name_ar, order: row.sort_order };
 }
 
 function findByName(db: DatabaseSync, list: ListName, name: string): ListRow | undefined {
@@ -66,18 +67,26 @@ export function getListValue(db: DatabaseSync, id: number): ListValue | undefine
   return row ? toValue(row) : undefined;
 }
 
-/** Adds a value at the end of a list, or returns the existing value with the same name (ignoring case). */
-export function addListValue(db: DatabaseSync, list: ListName, name: string): { value: ListValue; created: boolean } {
+/**
+ * Adds a value at the end of a list, or returns the existing value with the same name (ignoring case). `nameAr`
+ * is null when not given, e.g. an "Other…" value added from a dropdown.
+ */
+export function addListValue(
+  db: DatabaseSync, list: ListName, name: string, nameAr: string | null = null,
+): { value: ListValue; created: boolean } {
   const existing = findByName(db, list, name);
   if (existing) return { value: toValue(existing), created: false };
   const { next } = db
     .prepare('SELECT COALESCE(MAX(sort_order) + 1, 0) AS next FROM list_values WHERE list = ?')
     .get(list) as unknown as { next: number };
-  const res = db.prepare('INSERT INTO list_values (list, name, sort_order) VALUES (?, ?, ?)').run(list, name, next);
+  const res = db
+    .prepare('INSERT INTO list_values (list, name, name_ar, sort_order) VALUES (?, ?, ?, ?)')
+    .run(list, name, nameAr, next);
   return { value: getListValue(db, Number(res.lastInsertRowid))!, created: true };
 }
 
-export function renameListValue(db: DatabaseSync, list: ListName, id: number, name: string): ListChange {
+/** `nameAr` undefined keeps the value's current Arabic name; null clears it; a string replaces it. */
+export function renameListValue(db: DatabaseSync, list: ListName, id: number, name: string, nameAr?: string | null): ListChange {
   const current = getListValue(db, id);
   if (!current || current.list !== list) {
     return { ok: false, status: 404, error: translate('en', 'error.listValueNotFound'), code: 'error.listValueNotFound' };
@@ -87,8 +96,9 @@ export function renameListValue(db: DatabaseSync, list: ListName, id: number, na
     const params: Params = { name: clash.name };
     return { ok: false, status: 409, error: translate('en', 'error.listValueExists', params), code: 'error.listValueExists', params };
   }
+  const nextNameAr = nameAr === undefined ? current.nameAr : nameAr;
   transaction(db, () => {
-    db.prepare('UPDATE list_values SET name = ? WHERE id = ?').run(name, id);
+    db.prepare('UPDATE list_values SET name = ?, name_ar = ? WHERE id = ?').run(name, nextNameAr, id);
     // Phase names live on each project's phases, so a renamed phase is renamed there too.
     if (list === 'phase') {
       db.prepare('UPDATE phases SET name = ? WHERE parent_id IS NULL AND name = ? COLLATE NOCASE').run(name, current.name);

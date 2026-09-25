@@ -9,8 +9,10 @@ import { messagesOf } from '../../errors';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
-import { useT } from '../../i18n/LanguageProvider';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { listName, phaseName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
+import { useLists } from '../../useLists';
 import { useMe } from '../../useMe';
 import { useResources } from '../../useResources';
 import { useWorkload } from '../../useWorkload';
@@ -31,6 +33,8 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 
 export function ProjectPage() {
   const t = useT();
+  const { lang } = useLang();
+  const { lists } = useLists();
   const id = Number(useParams().id);
   const [searchParams, setSearchParams] = useSearchParams();
   const starterParam = searchParams.get('starter');
@@ -68,7 +72,7 @@ export function ProjectPage() {
   const p = saved ?? project.data;
   const span = projectSpan(p.phases);
   const cal = calendar.data ?? DEFAULT_CALENDAR;
-  const rows = phaseRows(p, { people: p.assignments, calendar: cal });
+  const rows = phaseRows(p, { people: p.assignments, calendar: cal, nameFor: (name) => phaseName(name, lists, lang) });
 
   function clearStarterParam() {
     setSearchParams(
@@ -141,11 +145,11 @@ export function ProjectPage() {
               <a className="detail-line" href={`mailto:${p.businessPm.email}`}>{p.businessPm.email}</a>
             ) : null}
           </Detail>
-          <Detail label="Main project">{p.mainProject?.name ?? 'Standalone'}</Detail>
+          <Detail label="Main project">{p.mainProject ? listName(p.mainProject, lang) : 'Standalone'}</Detail>
           <Detail label="Categorisation">{p.category ? CATEGORY_LABEL[p.category] : '—'}</Detail>
-          <Detail label="Project type">{p.projectType?.name ?? '—'}</Detail>
-          <Detail label="Goal">{p.goal?.name ?? '—'}</Detail>
-          <Detail label="Business user (department)">{p.department?.name ?? '—'}</Detail>
+          <Detail label="Project type">{p.projectType ? listName(p.projectType, lang) : '—'}</Detail>
+          <Detail label="Goal">{p.goal ? listName(p.goal, lang) : '—'}</Detail>
+          <Detail label="Business user (department)">{p.department ? listName(p.department, lang) : '—'}</Detail>
           <Detail label="Requester">{requesterLabel(p.requester)}</Detail>
           <Detail label="Beneficiary">{beneficiaryLabel(p.beneficiary)}</Detail>
         </dl>
@@ -188,7 +192,7 @@ export function ProjectPage() {
             {p.phases.map((ph) => (
               <Fragment key={ph.id}>
                 <tr>
-                  <td>{ph.name}</td>
+                  <td>{phaseName(ph.name, lists, lang)}</td>
                   <td>{formatDate(ph.start)}</td>
                   <td>{formatDate(ph.end)}</td>
                   <td>

@@ -199,6 +199,34 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX starter_todos_phase ON starter_todos(phase_list_id);
   `,
+  `
+  ALTER TABLE list_values ADD COLUMN name_ar TEXT;
+  UPDATE list_values SET name_ar = CASE list || '|' || name COLLATE NOCASE
+    WHEN 'phase|Requirements gathering' THEN 'جمع المتطلبات'
+    WHEN 'phase|Business analysis' THEN 'التحليل'
+    WHEN 'phase|Development plan' THEN 'خطة التطوير'
+    WHEN 'phase|Design' THEN 'التصميم'
+    WHEN 'phase|Development' THEN 'التطوير'
+    WHEN 'phase|QA' THEN 'ضمان الجودة (QA)'
+    WHEN 'phase|UAT' THEN 'اختبار قبول المستخدم (UAT)'
+    WHEN 'phase|Security testing' THEN 'اختبار أمن المعلومات'
+    WHEN 'phase|Deployment' THEN 'النشر'
+    WHEN 'phase|Launch' THEN 'الإطلاق'
+    WHEN 'phase|Go-live' THEN 'الإطلاق'
+    WHEN 'role|Project manager' THEN 'مدير المشروع'
+    WHEN 'role|Tech lead' THEN 'قائد الفريق التقني'
+    WHEN 'role|Business analyst' THEN 'محلل الأعمال'
+    WHEN 'role|Developer' THEN 'مطوّر'
+    WHEN 'role|Designer' THEN 'مصمم'
+    WHEN 'role|QA' THEN 'مختبِر جودة (QA)'
+    WHEN 'role|DB engineer' THEN 'مهندس قواعد البيانات'
+    WHEN 'role|InfoSec' THEN 'أمن المعلومات'
+    WHEN 'projectType|Criminal' THEN 'جنائي'
+    WHEN 'projectType|Customer' THEN 'الجمهور'
+    WHEN 'projectType|Management' THEN 'إداري'
+    WHEN 'goal|Digitalisation of internal operations' THEN 'رقمنة العمليات الداخلية'
+  END WHERE name_ar IS NULL;
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

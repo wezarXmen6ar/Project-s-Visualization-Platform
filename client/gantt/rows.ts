@@ -28,17 +28,21 @@ export const PHASE_PALETTE: string[] = [95, 121, 147, 173, 199, 225, 252, 278, 3
  * Consecutive phases take palette slots three apart (0, 3, 6, 9, 2, 5, …), so neighbouring bars get clearly
  * different hues.
  */
+/**
+ * A known name is normalised by stripping a trailing bracketed acronym (e.g. "ضمان الجودة (QA)" → "ضمان الجودة")
+ * before matching, so the Arabic default names are recognised with or without it.
+ */
 const STANDARD_PHASES: string[][] = [
-  ['requirements', 'requirements gathering', 'gathering requirements'],
-  ['analysis', 'business analysis'],
-  ['design'],
-  ['development plan'],
-  ['development', 'dev'],
-  ['qa', 'testing'],
-  ['uat', 'user acceptance testing'],
-  ['security testing', 'security'],
-  ['deployment', 'deploy'],
-  ['launch', 'go-live', 'golive'],
+  ['requirements', 'requirements gathering', 'gathering requirements', 'جمع المتطلبات'],
+  ['analysis', 'business analysis', 'التحليل'],
+  ['design', 'التصميم'],
+  ['development plan', 'خطة التطوير'],
+  ['development', 'dev', 'التطوير'],
+  ['qa', 'testing', 'ضمان الجودة'],
+  ['uat', 'user acceptance testing', 'اختبار قبول المستخدم'],
+  ['security testing', 'security', 'اختبار أمن المعلومات'],
+  ['deployment', 'deploy', 'النشر'],
+  ['launch', 'go-live', 'golive', 'الإطلاق'],
 ];
 
 const KNOWN_PHASE_COLORS: Record<string, string> = Object.fromEntries(
@@ -58,7 +62,8 @@ function hashString(s: string): number {
  * colour on every project without a persisted registry.
  */
 export function phaseColorFor(name: string): string {
-  const normalized = name.trim().toLowerCase();
+  // Strip a trailing bracketed acronym, e.g. "ضمان الجودة (QA)" or "QA (Quality)" both match on "ضمان الجودة"/"qa".
+  const normalized = name.trim().toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').trim();
   const known = KNOWN_PHASE_COLORS[normalized];
   if (known) return known;
   return PHASE_PALETTE[hashString(normalized) % PHASE_PALETTE.length];
@@ -86,6 +91,11 @@ export interface PhaseRowOptions {
   people?: AssignmentRecord[];
   /** The working calendar for the working-day counts. Falls back to `DEFAULT_CALENDAR`. */
   calendar?: WorkCalendar;
+  /**
+   * Maps a top-level phase's stored name to its display name (e.g. `phaseName` in Arabic). Defaults to the
+   * identity, so callers that don't pass it keep the stored text unchanged. Never applied to sub-phase names.
+   */
+  nameFor?: (name: string) => string;
 }
 
 function pieceDetail(
@@ -108,26 +118,28 @@ function pieceDetail(
  * segments; each further lane in use adds a `lane` row directly under the phase holding that lane's sub-phases.
  */
 export function phaseRows(project: { phases: PhaseLike[] }, options: PhaseRowOptions = {}): GanttRow[] {
+  const nameFor = options.nameFor ?? ((name: string) => name);
   return project.phases.flatMap((p) => {
     const id = String(p.id ?? p.order);
     const color = phaseColorFor(p.name);
+    const displayName = nameFor(p.name);
     const bar: GanttBar = {
       id,
       start: p.start,
       end: p.end,
       color,
-      label: p.name,
-      title: `${p.name}: ${p.start} → ${p.end}`,
-      detail: pieceDetail(p.name, p, options),
+      label: displayName,
+      title: `${displayName}: ${p.start} → ${p.end}`,
+      detail: pieceDetail(displayName, p, options),
     };
-    const own: GanttRow = { id, label: p.name, bars: [bar] };
+    const own: GanttRow = { id, label: displayName, bars: [bar] };
     const subs = p.subPhases ?? [];
     if (subs.length === 0) return [own];
 
     const lanes = assignLanes(subs);
     const pieces = subs.map((s, i) => {
       const subId = s.id !== undefined ? String(s.id) : `${p.order}-${s.order}`;
-      const fullName = subPhaseLabel(p.name, s.name);
+      const fullName = subPhaseLabel(displayName, s.name);
       return {
         lane: lanes[i],
         subId,
@@ -157,18 +169,21 @@ export function phaseRows(project: { phases: PhaseLike[] }, options: PhaseRowOpt
   });
 }
 
-export function portfolioRows(projects: ProjectRecord[]): GanttRow[] {
+export function portfolioRows(projects: ProjectRecord[], nameFor: (name: string) => string = (name) => name): GanttRow[] {
   return projects.map((p) => ({
     id: String(p.id),
     label: p.name,
-    bars: p.phases.map((ph) => ({
-      id: `${p.id}-${ph.id}`,
-      start: ph.start,
-      end: ph.end,
-      color: phaseColorFor(ph.name),
-      label: ph.name,
-      title: `${p.name} · ${ph.name}: ${ph.start} → ${ph.end}`,
-    })),
+    bars: p.phases.map((ph) => {
+      const displayName = nameFor(ph.name);
+      return {
+        id: `${p.id}-${ph.id}`,
+        start: ph.start,
+        end: ph.end,
+        color: phaseColorFor(ph.name),
+        label: displayName,
+        title: `${p.name} · ${displayName}: ${ph.start} → ${ph.end}`,
+      };
+    }),
   }));
 }
 
@@ -177,7 +192,9 @@ export function portfolioRows(projects: ProjectRecord[]): GanttRow[] {
  * earliest start to latest end, followed by its projects. Groups appear in the order of their first project (the
  * input is sorted by start date). Standalone projects come last.
  */
-export function groupedPortfolioRows(projects: ProjectRecord[]): GanttRow[] {
+export function groupedPortfolioRows(
+  projects: ProjectRecord[], nameFor: (name: string) => string = (name) => name,
+): GanttRow[] {
   const groups = new Map<number, { name: string; members: ProjectRecord[] }>();
   const standalone: ProjectRecord[] = [];
   for (const p of projects) {
@@ -201,9 +218,9 @@ export function groupedPortfolioRows(projects: ProjectRecord[]): GanttRow[] {
       // The summary bar's colour comes from the .gantt-summary CSS rule.
       bars: span ? [{ id: rowId, start: span.start, end: span.end, color: 'currentColor', title: `${name}: ${span.start} → ${span.end}` }] : [],
     });
-    rows.push(...portfolioRows(members).map((row) => ({ ...row, kind: 'child' as const })));
+    rows.push(...portfolioRows(members, nameFor).map((row) => ({ ...row, kind: 'child' as const })));
   }
-  return [...rows, ...portfolioRows(standalone)];
+  return [...rows, ...portfolioRows(standalone, nameFor)];
 }
 
 export function rangeFor(rows: GanttRow[], fallback: ISODate): DateRange {

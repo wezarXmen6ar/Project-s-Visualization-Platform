@@ -172,6 +172,13 @@ export const newProjectSchema = projectDetailsSchema.extend({
 
 export const listValueInputSchema = z.object({
   name: z.string().trim().min(1, 'validation.nameRequired').max(100, 'validation.nameTooLong'),
+  /** Omitted keeps whatever Arabic name is already saved; blank (after trimming) clears it. */
+  nameAr: z
+    .string()
+    .trim()
+    .max(100, 'validation.nameTooLong')
+    .nullish()
+    .transform((v) => (v === undefined ? undefined : v ? v : null)),
 });
 
 export type ProjectDetailsInput = z.input<typeof projectDetailsSchema>;

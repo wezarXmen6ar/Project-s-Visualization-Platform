@@ -69,4 +69,61 @@ describe('migrate', () => {
       .map((r) => ({ ...r }));
     expect(projects).toEqual([{ name: 'A', pm: 1, bpm: 1 }, { name: 'B', pm: 1, bpm: 1 }, { name: 'C', pm: 0, bpm: 0 }]);
   });
+
+  it('fills the Arabic name for every default list value, leaves a custom one null, and stays a valid database', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('PRAGMA foreign_keys = ON');
+    for (const m of MIGRATIONS.slice(0, 10)) db.exec(m);
+    db.exec('PRAGMA user_version = 10');
+    db.prepare("INSERT INTO list_values (list, name, sort_order) VALUES ('phase', 'Data migration', 10)").run();
+
+    migrate(db);
+
+    const nameAr = (list: string, name: string) =>
+      (db.prepare('SELECT name_ar FROM list_values WHERE list = ? AND name = ? COLLATE NOCASE').get(list, name) as unknown as {
+        name_ar: string | null;
+      }).name_ar;
+
+    expect(nameAr('phase', 'requirements gathering')).toBe('جمع المتطلبات');
+    expect(nameAr('phase', 'Business analysis')).toBe('التحليل');
+    expect(nameAr('phase', 'Development plan')).toBe('خطة التطوير');
+    expect(nameAr('phase', 'Design')).toBe('التصميم');
+    expect(nameAr('phase', 'Development')).toBe('التطوير');
+    expect(nameAr('phase', 'QA')).toBe('ضمان الجودة (QA)');
+    expect(nameAr('phase', 'UAT')).toBe('اختبار قبول المستخدم (UAT)');
+    expect(nameAr('phase', 'Security testing')).toBe('اختبار أمن المعلومات');
+    expect(nameAr('phase', 'Deployment')).toBe('النشر');
+    expect(nameAr('phase', 'Launch')).toBe('الإطلاق');
+    expect(nameAr('role', 'Project manager')).toBe('مدير المشروع');
+    expect(nameAr('role', 'Tech lead')).toBe('قائد الفريق التقني');
+    expect(nameAr('role', 'Business analyst')).toBe('محلل الأعمال');
+    expect(nameAr('role', 'Developer')).toBe('مطوّر');
+    expect(nameAr('role', 'Designer')).toBe('مصمم');
+    expect(nameAr('role', 'QA')).toBe('مختبِر جودة (QA)');
+    expect(nameAr('role', 'DB engineer')).toBe('مهندس قواعد البيانات');
+    expect(nameAr('role', 'InfoSec')).toBe('أمن المعلومات');
+    expect(nameAr('projectType', 'Criminal')).toBe('جنائي');
+    expect(nameAr('projectType', 'Customer')).toBe('الجمهور');
+    expect(nameAr('projectType', 'Management')).toBe('إداري');
+    expect(nameAr('goal', 'Digitalisation of internal operations')).toBe('رقمنة العمليات الداخلية');
+    expect(nameAr('phase', 'Data migration')).toBeNull();
+
+    const check = db.prepare('PRAGMA integrity_check').get() as unknown as { integrity_check: string };
+    expect(check.integrity_check).toBe('ok');
+  });
+
+  it('leaves a value the user already renamed before upgrading without an Arabic default (the name no longer matches)', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('PRAGMA foreign_keys = ON');
+    for (const m of MIGRATIONS.slice(0, 10)) db.exec(m);
+    db.exec('PRAGMA user_version = 10');
+    db.prepare("UPDATE list_values SET name = 'Build' WHERE list = 'phase' AND name = 'Development'").run();
+
+    migrate(db);
+
+    const row = db.prepare("SELECT name_ar FROM list_values WHERE list = 'phase' AND name = 'Build'").get() as unknown as {
+      name_ar: string | null;
+    };
+    expect(row.name_ar).toBeNull();
+  });
 });

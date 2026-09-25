@@ -66,9 +66,10 @@ export const api = {
   updateSchedule: (id: number, input: ScheduleUpdateInput) => request<ScheduleSaved>(`/api/projects/${id}/schedule`, withBody('PUT', input)),
   getPortfolio: (year: number) => request<PortfolioResponse>(`/api/portfolio?year=${year}`),
   getLists: () => request<Lists>('/api/lists'),
-  addListValue: (list: ListName, name: string) => request<ListValue>(`/api/lists/${list}`, withBody('POST', { name })),
-  renameListValue: (list: ListName, id: number, name: string) =>
-    request<ListValue>(`/api/lists/${list}/${id}`, withBody('PUT', { name })),
+  addListValue: (list: ListName, name: string, nameAr?: string | null) =>
+    request<ListValue>(`/api/lists/${list}`, withBody('POST', { name, nameAr })),
+  renameListValue: (list: ListName, id: number, name: string, nameAr?: string | null) =>
+    request<ListValue>(`/api/lists/${list}/${id}`, withBody('PUT', { name, nameAr })),
   deleteListValue: (list: ListName, id: number) => request<void>(`/api/lists/${list}/${id}`, { method: 'DELETE' }),
   listResources: () => request<ResourceRecord[]>('/api/resources'),
   createResource: (input: ResourceInput) => request<ResourceRecord>('/api/resources', withBody('POST', input)),

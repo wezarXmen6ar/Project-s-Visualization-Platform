@@ -19,7 +19,7 @@ interface ListEditorProps {
 export function ListEditor({ title, singular, list, values, onChanged }: ListEditorProps) {
   const t = useT();
   const [newName, setNewName] = useState('');
-  const [editing, setEditing] = useState<{ id: number; name: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: number; name: string; nameAr: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const lower = singular.toLowerCase();
@@ -65,13 +65,24 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
                   <input
                     aria-label={`New name for ${v.name}`}
                     value={editing.name}
-                    onChange={(e) => setEditing({ id: v.id, name: e.target.value })}
+                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  />
+                  <input
+                    aria-label={`New Arabic name for ${v.name}`}
+                    dir="rtl"
+                    value={editing.nameAr}
+                    onChange={(e) => setEditing({ ...editing, nameAr: e.target.value })}
                   />
                   <button
                     type="button"
                     className="button"
                     disabled={busy || !editing.name.trim()}
-                    onClick={() => void run(() => api.renameListValue(list, v.id, editing.name.trim()), () => setEditing(null))}
+                    onClick={() =>
+                      void run(
+                        () => api.renameListValue(list, v.id, editing.name.trim(), editing.nameAr.trim() || null),
+                        () => setEditing(null),
+                      )
+                    }
                   >
                     Save
                   </button>
@@ -80,11 +91,12 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
               ) : (
                 <>
                   <span className="list-editor-name">{v.name}</span>
+                  {v.nameAr ? <span className="list-editor-name-ar" dir="rtl">{v.nameAr}</span> : null}
                   <button
                     type="button"
                     className="button secondary"
                     aria-label={`Rename ${v.name}`}
-                    onClick={() => setEditing({ id: v.id, name: v.name })}
+                    onClick={() => setEditing({ id: v.id, name: v.name, nameAr: v.nameAr ?? '' })}
                   >
                     Rename
                   </button>

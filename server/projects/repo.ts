@@ -125,15 +125,19 @@ function toScopeItem(row: ScopeRow): ScopeItem {
   return { id: row.id, kind: row.kind, text: row.text, order: row.sort_order, dateAdded: row.date_added };
 }
 
-function listNames(db: DatabaseSync): Map<number, string> {
-  const rows = db.prepare('SELECT id, name FROM list_values').all() as unknown as { id: number; name: string }[];
-  return new Map(rows.map((r) => [r.id, r.name]));
+function listNames(db: DatabaseSync): Map<number, { name: string; nameAr: string | null }> {
+  const rows = db.prepare('SELECT id, name, name_ar FROM list_values').all() as unknown as {
+    id: number;
+    name: string;
+    name_ar: string | null;
+  }[];
+  return new Map(rows.map((r) => [r.id, { name: r.name, nameAr: r.name_ar }]));
 }
 
-function ref(names: Map<number, string>, id: number | null): Ref | null {
+function ref(names: Map<number, { name: string; nameAr: string | null }>, id: number | null): Ref | null {
   if (id === null) return null;
-  const name = names.get(id);
-  return name === undefined ? null : { id, name };
+  const value = names.get(id);
+  return value === undefined ? null : { id, name: value.name, nameAr: value.nameAr };
 }
 
 function peopleById(db: DatabaseSync): Map<number, BusinessContact> {
@@ -142,8 +146,8 @@ function peopleById(db: DatabaseSync): Map<number, BusinessContact> {
 }
 
 function toProject(
-  row: ProjectRow, phases: PhaseRecord[], scopeItems: ScopeItem[], names: Map<number, string>, people: Map<number, BusinessContact>,
-  assignments: AssignmentRecord[],
+  row: ProjectRow, phases: PhaseRecord[], scopeItems: ScopeItem[], names: Map<number, { name: string; nameAr: string | null }>,
+  people: Map<number, BusinessContact>, assignments: AssignmentRecord[],
 ): ProjectRecord {
   return {
     id: row.id,

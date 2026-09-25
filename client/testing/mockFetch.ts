@@ -56,23 +56,53 @@ export function sampleProject(overrides: Partial<ProjectRecord> = {}): ProjectRe
   };
 }
 
+/** English → Arabic for the glossary's default list values, used by sampleLists() so tests can exercise both names. */
+const DEFAULT_NAMES_AR: Record<string, string> = {
+  'Requirements gathering': 'جمع المتطلبات',
+  'Business analysis': 'التحليل',
+  'Development plan': 'خطة التطوير',
+  Development: 'التطوير',
+  QA: 'ضمان الجودة (QA)',
+  UAT: 'اختبار قبول المستخدم (UAT)',
+  'Security testing': 'اختبار أمن المعلومات',
+  Deployment: 'النشر',
+  Launch: 'الإطلاق',
+  Design: 'التصميم',
+  'Project manager': 'مدير المشروع',
+  'Tech lead': 'قائد الفريق التقني',
+  'Business analyst': 'محلل الأعمال',
+  Developer: 'مطوّر',
+  Designer: 'مصمم',
+  'DB engineer': 'مهندس قواعد البيانات',
+  InfoSec: 'أمن المعلومات',
+  Criminal: 'جنائي',
+  Customer: 'الجمهور',
+  Management: 'إداري',
+  'Digitalisation of internal operations': 'رقمنة العمليات الداخلية',
+};
+
 export function sampleLists(): Lists {
   return {
-    mainProject: [{ id: 20, list: 'mainProject', name: 'Digital Services', order: 0 }],
+    mainProject: [{ id: 20, list: 'mainProject', name: 'Digital Services', order: 0, nameAr: null }],
     projectType: [
-      { id: 1, list: 'projectType', name: 'Criminal', order: 0 },
-      { id: 2, list: 'projectType', name: 'Customer', order: 1 },
-      { id: 3, list: 'projectType', name: 'Management', order: 2 },
+      { id: 1, list: 'projectType', name: 'Criminal', order: 0, nameAr: DEFAULT_NAMES_AR.Criminal },
+      { id: 2, list: 'projectType', name: 'Customer', order: 1, nameAr: DEFAULT_NAMES_AR.Customer },
+      { id: 3, list: 'projectType', name: 'Management', order: 2, nameAr: DEFAULT_NAMES_AR.Management },
     ],
-    goal: [{ id: 4, list: 'goal', name: 'Digitalisation of internal operations', order: 0 }],
-    department: [{ id: 30, list: 'department', name: 'Finance', order: 0 }],
+    goal: [
+      {
+        id: 4, list: 'goal', name: 'Digitalisation of internal operations', order: 0,
+        nameAr: DEFAULT_NAMES_AR['Digitalisation of internal operations'],
+      },
+    ],
+    department: [{ id: 30, list: 'department', name: 'Finance', order: 0, nameAr: null }],
     phase: [
       'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
       'Security testing', 'Deployment', 'Launch', 'Design',
-    ].map((name, i) => ({ id: 50 + i, list: 'phase' as const, name, order: i })),
+    ].map((name, i) => ({ id: 50 + i, list: 'phase' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
     role: [
       'Project manager', 'Tech lead', 'Business analyst', 'Developer', 'Designer', 'QA', 'DB engineer', 'InfoSec',
-    ].map((name, i) => ({ id: 60 + i, list: 'role' as const, name, order: i })),
+    ].map((name, i) => ({ id: 60 + i, list: 'role' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
   };
 }
 

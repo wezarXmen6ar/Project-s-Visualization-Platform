@@ -66,6 +66,20 @@ describe('rows', () => {
       expect(new Set(standard.map((name) => phaseColorFor(name))).size).toBe(standard.length);
       expect(phaseColorFor('Go-live')).toBe(phaseColorFor('Launch'));
     });
+    it('recognises the Arabic default names, with or without the bracketed acronym, as the matching English phase', () => {
+      expect(phaseColorFor('التطوير')).toBe(phaseColorFor('Development'));
+      expect(phaseColorFor('جمع المتطلبات')).toBe(phaseColorFor('Requirements gathering'));
+      expect(phaseColorFor('التحليل')).toBe(phaseColorFor('Business analysis'));
+      expect(phaseColorFor('خطة التطوير')).toBe(phaseColorFor('Development plan'));
+      expect(phaseColorFor('التصميم')).toBe(phaseColorFor('Design'));
+      expect(phaseColorFor('ضمان الجودة')).toBe(phaseColorFor('QA'));
+      expect(phaseColorFor('ضمان الجودة (QA)')).toBe(phaseColorFor('QA'));
+      expect(phaseColorFor('اختبار قبول المستخدم')).toBe(phaseColorFor('UAT'));
+      expect(phaseColorFor('اختبار قبول المستخدم (UAT)')).toBe(phaseColorFor('UAT'));
+      expect(phaseColorFor('اختبار أمن المعلومات')).toBe(phaseColorFor('Security testing'));
+      expect(phaseColorFor('النشر')).toBe(phaseColorFor('Deployment'));
+      expect(phaseColorFor('الإطلاق')).toBe(phaseColorFor('Launch'));
+    });
   });
 
   it('groups projects under their main project with a summary bar, standalone projects last', () => {

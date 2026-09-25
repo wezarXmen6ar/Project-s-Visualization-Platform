@@ -19,10 +19,44 @@ describe('lists API', () => {
     expect(lists.department).toEqual([]);
   });
 
+  it('carries the Arabic name from the glossary on every default value, and null on a value with none', async () => {
+    const lists = (await buildApp(db).inject({ method: 'GET', url: '/api/lists' })).json();
+    expect(lists.projectType.map((v: { name: string; nameAr: string | null }) => v.nameAr)).toEqual(['جنائي', 'الجمهور', 'إداري']);
+    expect(lists.phase.find((v: { name: string }) => v.name === 'Development').nameAr).toBe('التطوير');
+    expect(lists.mainProject).toEqual([]);
+    const added = (
+      await buildApp(db).inject({ method: 'POST', url: '/api/lists/department', payload: { name: 'Finance' } })
+    ).json();
+    expect(added.nameAr).toBeNull();
+  });
+
+  it('saves the Arabic name on rename, and clears it when it is blank', async () => {
+    const app = buildApp(db);
+    const criminal = (await app.inject({ method: 'GET', url: '/api/lists' })).json().projectType[0];
+
+    const renamed = await app.inject({
+      method: 'PUT', url: `/api/lists/projectType/${criminal.id}`, payload: { name: 'Criminal', nameAr: 'جنائي جديد' },
+    });
+    expect(renamed.statusCode).toBe(200);
+    expect(renamed.json()).toEqual({ ...criminal, nameAr: 'جنائي جديد' });
+
+    const cleared = await app.inject({
+      method: 'PUT', url: `/api/lists/projectType/${criminal.id}`, payload: { name: 'Criminal', nameAr: '  ' },
+    });
+    expect(cleared.json().nameAr).toBeNull();
+  });
+
+  it('accepts an optional Arabic name when adding a value', async () => {
+    const res = await buildApp(db).inject({
+      method: 'POST', url: '/api/lists/department', payload: { name: 'Finance', nameAr: 'المالية' },
+    });
+    expect(res.json()).toMatchObject({ name: 'Finance', nameAr: 'المالية' });
+  });
+
   it('adds a trimmed value at the end of its list', async () => {
     const res = await buildApp(db).inject({ method: 'POST', url: '/api/lists/projectType', payload: { name: '  Infrastructure ' } });
     expect(res.statusCode).toBe(201);
-    expect(res.json()).toEqual({ id: expect.any(Number), list: 'projectType', name: 'Infrastructure', order: 3 });
+    expect(res.json()).toEqual({ id: expect.any(Number), list: 'projectType', name: 'Infrastructure', order: 3, nameAr: null });
   });
 
   it('returns the existing value when the name is already there, ignoring case', async () => {

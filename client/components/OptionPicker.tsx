@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { ListName, ListValue } from '../../shared/types';
 import { api } from '../api';
 import { messagesOf } from '../errors';
-import { useT } from '../i18n/LanguageProvider';
+import { useLang, useT } from '../i18n/LanguageProvider';
+import { listName } from '../i18n/listNames';
 
 const NONE = '';
 const ADD = '__add__';
@@ -28,6 +29,7 @@ export function OptionPicker({
   label, list, options, value, onChange, onAdded, noneLabel, addLabel, hideLabel = false,
 }: OptionPickerProps) {
   const t = useT();
+  const { lang } = useLang();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +105,7 @@ export function OptionPicker({
       >
         <option value={NONE}>{noneLabel}</option>
         {options.map((o) => (
-          <option key={o.id} value={String(o.id)}>{o.name}</option>
+          <option key={o.id} value={String(o.id)}>{listName(o, lang)}</option>
         ))}
         <option value={ADD}>{addLabel}</option>
       </select>
