@@ -53,7 +53,7 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
     .map((p) => ({ ...p, subPhases: (p.subPhases ?? []).filter(isValidSub) }))
     .filter((p) => p.name.trim() !== '' && (p.subPhases.length > 0 || (Number.isInteger(p.durationDays) && p.durationDays >= 1)));
   const scheduled = isISODate(startDate) ? schedulePhases(startDate, previewPhases, cal) : [];
-  const rows = phaseRows({ phases: scheduled });
+  const rows = phaseRows({ phases: scheduled }, { calendar: cal });
   const range = rangeFor(rows, isISODate(startDate) ? startDate : todayLocal());
 
   function update(index: number, patch: Partial<PhaseDraft>) {

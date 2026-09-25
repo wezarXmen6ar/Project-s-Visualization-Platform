@@ -105,4 +105,87 @@ describe('Gantt', () => {
     render(<Gantt rows={spanningRows} range={range} width={900} showDates />);
     expect(screen.getByText('30 Nov 2026 – 19 Feb 2027')).toBeInTheDocument();
   });
+
+  describe('sub-phase segments and details', () => {
+    const detailRows: GanttRow[] = [
+      {
+        id: 'dev', label: 'Development',
+        bars: [{
+          id: 'dev', start: '2026-10-05', end: '2026-10-23', color: '#3b82f6', label: 'Development',
+          detail: { title: 'Development', lines: ['Mon 5 Oct 2026 – Fri 23 Oct 2026 · 15 working days'] },
+          segments: [
+            {
+              id: 's1', start: '2026-10-05', end: '2026-10-09', label: 'Inc 1',
+              detail: { title: 'Development › Inc 1', lines: ['Mon 5 Oct 2026 – Fri 9 Oct 2026 · 5 working days'] },
+            },
+            {
+              id: 's3', start: '2026-10-12', end: '2026-10-23', label: 'Inc 3',
+              detail: { title: 'Development › Inc 3', lines: ['Mon 12 Oct 2026 – Fri 23 Oct 2026 · 10 working days'] },
+            },
+          ],
+        }],
+      },
+      {
+        id: 'dev-lane-1', label: '', kind: 'lane',
+        bars: [{
+          id: 's2', start: '2026-10-05', end: '2026-10-09', color: '#3b82f6', label: 'Inc 2',
+          detail: { title: 'Development › Inc 2', lines: ['Mon 5 Oct 2026 – Fri 9 Oct 2026 · 5 working days'] },
+        }],
+      },
+    ];
+
+    it('draws each segment inside the phase bar, focusable and labelled', () => {
+      render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
+      const segment = screen.getByTestId('gantt-segment-s1');
+      expect(segment).toHaveAttribute('tabindex', '0');
+      expect(segment).toHaveAttribute('aria-label', 'Development › Inc 1, Mon 5 Oct 2026 – Fri 9 Oct 2026 · 5 working days');
+      expect(screen.getByText('Inc 1', { selector: '.gantt-bar-label' })).toBeInTheDocument();
+      expect(screen.getByTestId('gantt-bar-s2')).toBeInTheDocument();
+    });
+
+    it('shows a segment\'s details on hover and hides them on mouse leave', async () => {
+      const user = userEvent.setup();
+      render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
+      await user.hover(screen.getByTestId('gantt-segment-s1'));
+      const card = screen.getByRole('tooltip');
+      expect(card).toHaveTextContent('Development › Inc 1');
+      expect(card).toHaveTextContent('Mon 5 Oct 2026 – Fri 9 Oct 2026 · 5 working days');
+      await user.unhover(screen.getByTestId('gantt-segment-s1'));
+      expect(screen.queryByRole('tooltip')).toBeNull();
+    });
+
+    it('toggles the details on click or tap, and closes them on Escape', async () => {
+      const user = userEvent.setup();
+      render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
+      const lane = screen.getByTestId('gantt-bar-s2').querySelector('rect')!;
+      await user.click(lane);
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Development › Inc 2');
+      await user.click(lane);
+      expect(screen.queryByRole('tooltip')).toBeNull();
+      await user.click(lane);
+      expect(screen.getByRole('tooltip')).toBeInTheDocument();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('tooltip')).toBeNull();
+    });
+
+    it('shows the details on focus and hides them on blur', async () => {
+      const user = userEvent.setup();
+      render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
+      await user.tab();
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Development');
+      await user.tab();
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Development › Inc 1');
+      await user.tab();
+      await user.tab();
+      await user.tab();
+      expect(screen.queryByRole('tooltip')).toBeNull();
+    });
+
+    it('leaves out a segment name that does not fit', () => {
+      render(<Gantt rows={detailRows} range={{ start: '2026-01-01', end: '2026-12-31' }} width={500} />);
+      expect(screen.getByTestId('gantt-segment-s1')).toBeInTheDocument();
+      expect(screen.queryByText('Inc 1', { selector: '.gantt-bar-label' })).toBeNull();
+    });
+  });
 });
+

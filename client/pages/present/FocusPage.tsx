@@ -27,7 +27,8 @@ export function FocusPage() {
 
   const p = project.data;
   const span = projectSpan(p.phases);
-  const rows = phaseRows(p);
+  // No people: the presentation side shows no names.
+  const rows = phaseRows(p, { calendar: cal });
   const backYear = span ? span.start.slice(0, 4) : today.slice(0, 4);
 
   return (

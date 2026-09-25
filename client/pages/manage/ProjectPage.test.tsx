@@ -207,31 +207,44 @@ describe('ProjectPage', () => {
     expect(JSON.parse(put![1]!.body as string)).toEqual({ assignments: [{ resourceId: 72, allocation: 20, role: 'responsible' }] });
   });
 
-  it('shows sub-phases in the Phases table and on the Gantt chart', async () => {
+  it('shows sub-phases in the Phases table and inside their phase bar on the Gantt chart', async () => {
     mockFetch({
       'GET /api/projects/1': () => ({
         body: sampleProject({
           phases: [
             {
-              id: 12, name: 'Development', order: 0, durationDays: 8, start: '2026-10-05', end: '2026-10-16',
+              id: 12, name: 'Development', order: 0, durationDays: 10, start: '2026-10-05', end: '2026-10-16',
               subPhases: [
                 { id: 21, name: 'Increment 1', order: 0, durationDays: 5, start: '2026-10-05', end: '2026-10-09', withPrevious: false },
-                { id: 22, name: 'Increment 2', order: 1, durationDays: 3, start: '2026-10-05', end: '2026-10-09', withPrevious: true },
+                { id: 22, name: 'Increment 2', order: 1, durationDays: 3, start: '2026-10-05', end: '2026-10-07', withPrevious: true },
+                { id: 23, name: 'Increment 3', order: 2, durationDays: 5, start: '2026-10-12', end: '2026-10-16', withPrevious: false },
               ],
             },
           ],
+          assignments: [{ id: 300, phaseId: 21, resource: { id: 71, name: 'Fatima Noor' }, allocation: 60, role: 'responsible' }],
         }),
       }),
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
       'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
       'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
+    const user = userEvent.setup();
     renderAt('/manage/projects/1');
     expect(await screen.findByText(/↳ Increment 1/)).toBeInTheDocument();
     expect(screen.getByText(/↳ Increment 2/)).toBeInTheDocument();
     expect(screen.getByText(/starts with the one above/)).toBeInTheDocument();
     expect(screen.getByText(/\(from sub-phases\)/)).toBeInTheDocument();
-    expect(screen.getByTestId('gantt-row-21')).toBeInTheDocument();
+
+    expect(screen.getByTestId('gantt-row-12')).toBeInTheDocument();
+    expect(screen.queryByTestId('gantt-row-21')).toBeNull();
+    expect(screen.queryByTestId('gantt-row-23')).toBeNull();
+    expect(screen.getByTestId('gantt-row-12-lane-1')).toBeInTheDocument();
+
+    await user.hover(screen.getByTestId('gantt-segment-21'));
+    const card = screen.getByRole('tooltip');
+    expect(card).toHaveTextContent('Development › Increment 1');
+    expect(card).toHaveTextContent('Mon 5 Oct 2026 – Fri 9 Oct 2026 · 5 working days');
+    expect(card).toHaveTextContent('Fatima Noor · 60% · Responsible');
   });
 });
 

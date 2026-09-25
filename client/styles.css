@@ -547,6 +547,32 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .gantt-row.group .gantt-row-bg { fill: var(--surface-2); }
 .gantt-row.group .gantt-label { font-weight: 650; }
 .gantt-summary { fill: var(--ink); stroke: none; }
+.gantt-wrap { position: relative; }
+.gantt-bar.has-segments { fill-opacity: 0.55; }
+.gantt-segment { stroke: none; }
+.gantt-divider { stroke: var(--surface); pointer-events: none; }
+.gantt-piece { cursor: pointer; outline: none; }
+.gantt-piece:focus-visible { stroke: var(--ink); stroke-width: 2; }
+.gantt-detail {
+  position: absolute;
+  z-index: 5;
+  max-width: min(22rem, calc(100vw - 2 * var(--sp-4)));
+  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: normal;
+}
+.gantt-detail strong { font-weight: 650; }
+.gantt-detail span { color: var(--muted); }
 
 /* ---------------------------------------------------------------------- *
  * Resources

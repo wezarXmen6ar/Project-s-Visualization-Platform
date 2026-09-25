@@ -64,8 +64,8 @@ export function ProjectPage() {
 
   const p = saved ?? project.data;
   const span = projectSpan(p.phases);
-  const rows = phaseRows(p);
   const cal = calendar.data ?? DEFAULT_CALENDAR;
+  const rows = phaseRows(p, { people: p.assignments, calendar: cal });
 
   function clearStarterParam() {
     setSearchParams(
