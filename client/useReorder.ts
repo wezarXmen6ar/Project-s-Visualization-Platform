@@ -129,9 +129,10 @@ export function useReorder(count: number, move: (from: number, to: number) => vo
         endDrag();
         if (from !== null && at !== null && at !== undefined) move(from, at);
       },
-      // Not gated on pointerType: onPointerDown only ever sets drag state for touch/pen, so resetting
-      // unconditionally here is harmless (a no-op) for any other pointer type.
-      onPointerCancel: () => {
+      // Gated on pointerType: the browser fires a mouse pointercancel as soon as a native mouse drag starts, and
+      // resetting then would wipe dragIndex before the drop, so a mouse drag could never land.
+      onPointerCancel: (e: PointerEvent<HTMLButtonElement>) => {
+        if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
         endDrag();
       },
     };

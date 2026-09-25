@@ -100,6 +100,17 @@ describe('useReorder', () => {
     expect(order()).toEqual(['C', 'A', 'B']);
   });
 
+  it('still drops a mouse drag after the browser fires its mouse pointercancel at drag start', () => {
+    // Chrome cancels the mouse pointer as soon as a native drag begins; that must not forget the drag.
+    render(<Harness />);
+    const handle = screen.getByLabelText('Move A');
+    fireEvent.dragStart(handle, { dataTransfer });
+    handle.dispatchEvent(new TestPointerEvent('pointercancel', { bubbles: true, pointerType: 'mouse' }));
+    fireEvent.dragOver(screen.getByTestId('row-2'), { dataTransfer });
+    fireEvent.drop(screen.getByTestId('row-2'), { dataTransfer });
+    expect(order()).toEqual(['B', 'C', 'A']);
+  });
+
   it('refuses drops that did not start on one of its handles', () => {
     render(<Harness />);
     const row = screen.getByTestId('row-0');
