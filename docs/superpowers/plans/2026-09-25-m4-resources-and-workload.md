@@ -48,7 +48,7 @@
   - Their **available %** is their capacity × (working days − leave days) ÷ working days.
   - A week is **overbooked** when booked is more than available by over 0.5 percentage points, a tolerance for rounding such as 3 × 33.4%.
 - **Existing PM names are moved, not lost.** When upgrading, migration 6 turns every distinct tech PM name into a tech-team person with the Project manager role. Every distinct business PM, with their phone and email, becomes a business contact. The project then points at them.
-- **People are deactivated, not deleted, once in use.** A person who is a PM on a project or assigned to a phase can't be deleted, only made inactive, so history keeps their name. Inactive people drop out of pickers and the heatmap, but stay on the projects that already name them.
+- **People are deactivated, not deleted, once in use.** A person who is a PM on a project or assigned to a phase can't be deleted, only made inactive, so history keeps their name. Inactive people drop out of pickers and the heatmap, but stay on the projects that already name them — including surviving a later save of a phase they're already on (Task 4's `checkAssignmentPeople`, fixed post-review, 2026-09-25: the first version rejected any inactive person on every phase PUT, contradicting this rule; only a *newly added* inactive person is now rejected). A person's side also can't be changed while they're in use, for the same reason (Task 4 fix): it would silently point a project's PM or a phase's assignment at someone on the wrong side.
 - **Accepting a risk doesn't hide it.** An accepted overload stays visible on the heatmap in its own "accepted" style, and no longer counts in the dashboard warning.
 
 ## Global Constraints
@@ -1821,7 +1821,7 @@ git commit -m "feat: weekly workload engine with capacity and leave"
     - `overloadDecisionSchema`: `resourceId`; `weekStart` must be a Monday, otherwise "Week must start on a Monday"; `decision`; optional `note`.
     - Types `AssignmentInput`, `AssignmentData`, `OverloadDecisionInput`, `OverloadDecisionData`.
   - `server/assignments/repo.ts`:
-    - `checkAssignmentPeople(db, list, path)`. The messages are "Unknown person", "`<name>` is a business contact; only the tech team can be assigned" and "`<name>` is inactive".
+    - `checkAssignmentPeople(db, list, path, alreadyOnPhase?)`. The messages are "Unknown person", "`<name>` is a business contact; only the tech team can be assigned" and "`<name>` is inactive" — but the last check is skipped for a resourceId already in `alreadyOnPhase`, so a person deactivated after being assigned doesn't block every later save of a phase they're already on (post-M4-review fix, 2026-09-25 — this reconciles the check with the "deactivate, don't delete, they stay on their projects" rule below). `POST /api/projects` calls it with no `alreadyOnPhase` (a brand-new phase has nothing to be lenient about); `PUT /api/phases/:id/assignments` passes the phase's current, pre-update resourceIds via `phaseAssignmentResourceIds(db, phaseId)`.
     - `saveAssignments`, `projectAssignments`, `assignmentsByProject`, `phaseProjectId`, `isTechPerson`, `workloadData`, `recordDecision`, `listDecisions`
   - HTTP:
     - `POST /api/projects` accepts `phases[].assignments`.
