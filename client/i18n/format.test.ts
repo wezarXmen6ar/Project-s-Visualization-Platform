@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { barDates, dayDate, dayRange, formatDate, monthLabel, percent, shortDate, weekdayLetter } from './format';
 
