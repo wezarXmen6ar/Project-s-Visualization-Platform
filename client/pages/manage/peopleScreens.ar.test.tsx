@@ -89,7 +89,7 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
       screen.getByRole('button', { name: 'Fatima Noor، الثلاثاء 6 أكتوبر: محجوز 160% من أصل 100% متاح، فوق الطاقة' }),
     );
     expect(screen.getByRole('heading', { name: 'Fatima Noor · الاثنين 5 أكتوبر – الجمعة 9 أكتوبر' })).toBeInTheDocument();
-    const clashes = screen.getByRole('list', { name: 'أيام فوق الطاقة بمفردها' });
+    const clashes = screen.getByRole('list', { name: 'أيام تتجاوز الطاقة' });
     expect(within(clashes).getByText('الثلاثاء 6 أكتوبر: محجوز 160% من أصل 100% متاح')).toBeInTheDocument();
     expect(screen.getByText('Portal · التطوير: 60% لمدة 5 أيام')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'هذا الأسبوع فوق الطاقة. ما الإجراء الذي تريده؟' })).toBeInTheDocument();
