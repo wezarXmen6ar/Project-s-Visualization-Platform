@@ -301,9 +301,9 @@ export const ar: Record<MessageKey, Message> = {
   'assign.addTo': 'إضافة شخص إلى {phase}',
 
   // The inline "add" of OptionPicker and PersonPicker. {label} is the field label, lower-cased in English.
-  'picker.new': 'اسم {label} الجديد',
-  'picker.phone': 'رقم جوال {label} (إماراتي)',
-  'picker.email': 'بريد {label} الإلكتروني',
+  'picker.new': 'الاسم الجديد – {label}',
+  'picker.phone': 'رقم الجوال (إماراتي) – {label}',
+  'picker.email': 'البريد الإلكتروني – {label}',
 
   // Edit details and Edit phases.
   'edit.saveChanges': 'حفظ التغييرات',

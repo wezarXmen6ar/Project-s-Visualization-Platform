@@ -133,6 +133,15 @@
 | Starter to-dos | مهام جاهزة | per-phase checklists |
 | From removed phases | من مراحل محذوفة | |
 
+### Added in M6 Task 5 (for the user's review)
+| English | Arabic |
+|---|---|
+| Preview | معاينة |
+| Classification | تصنيف المشروع |
+| Open to-do | مهمة غير منجزة |
+| New project (button) / New project (page title) | إضافة مشروع جديد / مشروع جديد |
+| Active now / Finished in 2026 / Scheduled to start in 2026 | قيد التنفيذ حالياً / انتهت في 2026 / مقرر أن تبدأ في 2026 |
+
 ## Common actions and states
 | English | Arabic |
 |---|---|
