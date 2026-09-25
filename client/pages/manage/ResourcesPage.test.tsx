@@ -63,12 +63,12 @@ describe('ResourcesPage', () => {
     const user = userEvent.setup();
     renderPage();
     // This week starts 12 Oct, so the heatmap starts 28 Sep.
-    expect(await screen.findByRole('columnheader', { name: '28 Sep' })).toBeInTheDocument();
-    const cell = screen.getByRole('button', { name: 'Fatima Noor, week of 5 Oct: 160% booked of 100% available, overbooked' });
+    expect(await screen.findByRole('columnheader', { name: /Mon 28 Sep/ })).toBeInTheDocument();
+    const cell = screen.getByRole('button', { name: 'Fatima Noor, Mon 5 Oct – Fri 9 Oct: 160% booked of 100% available, overbooked' });
     await user.click(cell);
-    expect(screen.getByRole('heading', { name: 'Fatima Noor · week of 5 Oct' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Fatima Noor · Mon 5 Oct – Fri 9 Oct' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Later weeks' }));
-    expect(screen.getByRole('columnheader', { name: '26 Oct' })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: '28 Sep' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: /Mon 26 Oct/ })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /Mon 28 Sep/ })).toBeNull();
   });
 });

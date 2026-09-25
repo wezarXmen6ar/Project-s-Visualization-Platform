@@ -21,13 +21,22 @@ function renderPanel(onChanged = vi.fn()) {
   return onChanged;
 }
 
+/** overbookedWorkload with Fatima on leave Mon 12 – Fri 16 Oct, for the leave-line test. */
+function withFatimaLeave() {
+  const withLeave = overbookedWorkload();
+  withLeave.resources = withLeave.resources.map((r) =>
+    r.id === 71 ? { ...r, leave: [{ start: '2026-10-12', end: '2026-10-16', note: 'Annual leave' }] } : r,
+  );
+  return withLeave;
+}
+
 const bodyOf = (fetchMock: ReturnType<typeof mockFetch>, method: string, url: string) =>
   JSON.parse(fetchMock.mock.calls.find(([u, init]) => u === url && init?.method === method)![1]!.body as string);
 
 describe('OverloadPanel', () => {
   it("lists the week's work and offers split, reassign and accept, with pause and delay not yet available", () => {
     renderPanel();
-    expect(screen.getByRole('heading', { name: 'Fatima Noor · week of 5 Oct' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Fatima Noor · Mon 5 Oct – Fri 9 Oct' })).toBeInTheDocument();
     expect(screen.getByText('160% booked of 100% available')).toBeInTheDocument();
     expect(screen.getByText('HR Self-Service · QA: 100% for 5 days')).toBeInTheDocument();
     expect(screen.getByText('Portal · Development: 60% for 5 days')).toBeInTheDocument();
@@ -98,5 +107,17 @@ describe('OverloadPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Reassign' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('The same person is assigned twice to this phase');
     expect(onChanged).not.toHaveBeenCalled();
+  });
+
+  it("shows the person's leave that overlaps the week, under the summary", () => {
+    const withLeave = withFatimaLeave();
+    const fatimaLeaveWeek = computeWorkload(
+      withLeave.resources, withLeave.assignments, { start: '2026-10-12', end: '2026-10-12' }, withLeave.calendar,
+    )[0];
+    render(
+      <OverloadPanel data={withLeave} person={fatimaLeaveWeek} week={fatimaLeaveWeek.weeks[0]} onClose={() => {}} onChanged={() => {}} />,
+    );
+    expect(screen.getByRole('heading', { name: 'Fatima Noor · Mon 12 Oct – Fri 16 Oct' })).toBeInTheDocument();
+    expect(screen.getByText('On leave Mon 12 Oct – Fri 16 Oct · Annual leave')).toBeInTheDocument();
   });
 });

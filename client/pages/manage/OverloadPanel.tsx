@@ -6,7 +6,7 @@ import type { OverloadDecisionKind, WorkloadAssignment, WorkloadData } from '../
 import { AlertIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
-import { shortDate } from '../../overloads';
+import { dayDate, leaveInWeek, weekLabel } from '../../overloads';
 import { isAccepted } from './heatmap';
 
 interface OverloadPanelProps {
@@ -34,6 +34,8 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
   const [saving, setSaving] = useState(false);
 
   const accepted = isAccepted(data.decisions, person.resourceId, week.weekStart);
+  const personResource = data.resources.find((r) => r.id === person.resourceId);
+  const leaveThisWeek = personResource ? leaveInWeek(personResource.leave, week.weekStart) : [];
   // Who is already on the phase the moving work belongs to - the server would reject reassigning to them anyway.
   const movingItem = week.items.find((i) => i.assignmentId === moving);
   const alreadyOnPhase = new Set(
@@ -97,13 +99,19 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
   return (
     <aside className="card overload-panel">
       <div className="panel-head">
-        <h2>{person.name} · week of {shortDate(week.weekStart)}</h2>
+        <h2>{person.name} · {weekLabel(week.weekStart, data.calendar)}</h2>
         <button type="button" className="button secondary" onClick={onClose}>Close</button>
       </div>
       <p>
         {Math.round(week.load)}% booked of {Math.round(week.available)}% available
         {week.leaveDays > 0 ? ` · ${plural(week.leaveDays, 'day')} of leave` : ''}
       </p>
+      {leaveThisWeek.map((l) => (
+        <p key={`${l.start}-${l.end}`} className="muted">
+          On leave {l.start === l.end ? dayDate(l.start) : `${dayDate(l.start)} – ${dayDate(l.end)}`}
+          {l.note ? ` · ${l.note}` : ''}
+        </p>
+      ))}
       {week.items.length === 0 ? (
         <p className="muted">Nothing booked this week.</p>
       ) : (

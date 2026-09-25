@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { countWorkingDays, DEFAULT_CALENDAR } from '../../../shared/calendar';
 import { resourceInputSchema, toIssues, type ResourceInput } from '../../../shared/schemas';
 import type { ResourceRecord, Side, Specialisation } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
@@ -46,6 +47,8 @@ function Errors({ messages }: { messages: string[] }) {
   );
 }
 
+const workingDaysLabel = (n: number) => `${n} working day${n === 1 ? '' : 's'}`;
+
 /** Leave for one tech-team person: listed, added and removed right away. */
 function LeaveCard({ person, onChanged }: { person: ResourceRecord; onChanged: () => void }) {
   const [start, setStart] = useState('');
@@ -89,7 +92,8 @@ function LeaveCard({ person, onChanged }: { person: ResourceRecord; onChanged: (
           {person.leave.map((l) => (
             <li key={l.id} className="list-editor-row">
               <span className="list-editor-name">
-                {formatDate(l.start)} → {formatDate(l.end)}{l.note ? ` · ${l.note}` : ''}
+                {formatDate(l.start)} → {formatDate(l.end)}{l.note ? ` · ${l.note}` : ''} ·{' '}
+                {workingDaysLabel(countWorkingDays(l.start, l.end, DEFAULT_CALENDAR))}
               </span>
               <button
                 type="button"

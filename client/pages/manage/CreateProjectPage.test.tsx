@@ -246,11 +246,11 @@ describe('CreateProjectPage wizard', () => {
     await user.click(screen.getByRole('button', { name: 'Add person to Requirements gathering' }));
     await screen.findByRole('option', { name: 'Fatima Noor · Developer' });
     await user.selectOptions(screen.getByLabelText('Requirements gathering person 1'), 'Fatima Noor · Developer');
-    expect(await screen.findByText('Week of 5 Oct: 200% booked, 100% available')).toBeInTheDocument();
+    expect(await screen.findByText('Mon 5 Oct – Fri 9 Oct: 200% booked, 100% available')).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText('Requirements gathering allocation 1'));
     await user.type(screen.getByLabelText('Requirements gathering allocation 1'), '50');
-    expect(await screen.findByText('Week of 5 Oct: 150% booked, 100% available')).toBeInTheDocument();
+    expect(await screen.findByText('Mon 5 Oct – Fri 9 Oct: 150% booked, 100% available')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Create project' }));
     expect(await screen.findByText('Project page 7')).toBeInTheDocument();
@@ -280,7 +280,7 @@ describe('CreateProjectPage wizard', () => {
     await user.clear(screen.getByLabelText('Requirements gathering allocation 1'));
     await user.type(screen.getByLabelText('Requirements gathering allocation 1'), '60');
     // On his own, 60% on Requirements gathering does not overbook the week of 19 Oct.
-    expect(screen.queryByText(/Week of 19 Oct/)).toBeNull();
+    expect(screen.queryByText(/Mon 19 Oct – Fri 23 Oct: \d+% booked/)).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Add person to Business analysis' }));
     await user.selectOptions(screen.getByLabelText('Business analysis person 1'), 'Rami Saleh · Developer');
@@ -288,7 +288,7 @@ describe('CreateProjectPage wizard', () => {
     await user.type(screen.getByLabelText('Business analysis allocation 1'), '60');
 
     // Together, the two draft phases push the shared week of 19 Oct over his (leave-reduced) availability.
-    const warning = 'Week of 19 Oct: 60% booked, 48% available (2 days of leave)';
+    const warning = 'Mon 19 Oct – Fri 23 Oct: 60% booked, 48% available (2 days of leave)';
     const matches = await screen.findAllByText(warning);
     expect(matches).toHaveLength(2); // shown under both phases, since both touch that week
   });

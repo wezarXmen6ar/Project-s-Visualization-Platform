@@ -103,7 +103,7 @@ describe('assignments', () => {
     const data = (await app.inject({ method: 'GET', url: '/api/workload' })).json();
     expect(data.calendar).toEqual({ weekendDays: [0, 6], holidays: [] });
     expect(data.resources).toEqual([
-      { id: people.fatima, name: 'Fatima Noor', capacity: 100, leave: [{ start: '2026-10-12', end: '2026-10-16' }] },
+      { id: people.fatima, name: 'Fatima Noor', capacity: 100, leave: [{ start: '2026-10-12', end: '2026-10-16', note: null }] },
       { id: people.rami, name: 'Rami Saleh', capacity: 80, leave: [] },
     ]);
     expect(data.assignments).toEqual([{

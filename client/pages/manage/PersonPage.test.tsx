@@ -127,9 +127,9 @@ describe('PersonPage', () => {
     fireEvent.change(screen.getByLabelText('Leave to'), { target: { value: '2026-10-16' } });
     await user.type(screen.getByLabelText('Note'), 'Annual leave');
     await user.click(screen.getByRole('button', { name: 'Add leave' }));
-    expect(await screen.findByText('12 Oct 2026 → 16 Oct 2026 · Annual leave')).toBeInTheDocument();
+    expect(await screen.findByText('Mon 12 Oct 2026 → Fri 16 Oct 2026 · Annual leave · 5 working days')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Remove leave from 12 Oct 2026' }));
+    await user.click(screen.getByRole('button', { name: 'Remove leave from Mon 12 Oct 2026' }));
     expect(await screen.findByText('No leave booked.')).toBeInTheDocument();
   });
 

@@ -66,7 +66,10 @@ export function ResourcesPage() {
           <span className="heat heat-full">Full</span>
           <span className="heat heat-over">Overbooked</span>
           <span className="heat heat-accepted">Accepted</span>
-          <span className="heat has-leave">Leave</span>
+          <span className="heat leave-sample">
+            Leave
+            <span className="leave-strip" aria-hidden="true"><span className="leave-slice on-leave" /></span>
+          </span>
         </div>
         {workloadError ? (
           <div className="errors" role="alert">
@@ -79,6 +82,8 @@ export function ResourcesPage() {
           <WorkloadHeatmap
             loads={loads}
             decisions={workload.decisions}
+            calendar={workload.calendar}
+            resources={workload.resources}
             selected={selected}
             onSelect={(resourceId, weekStart) => setSelected({ resourceId, weekStart })}
           />

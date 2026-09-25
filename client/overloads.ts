@@ -1,4 +1,4 @@
-import { addDays, type DateRange, type ISODate } from '../shared/calendar';
+import { addDays, dayOfWeek, type DateRange, type ISODate, type WorkCalendar } from '../shared/calendar';
 import { computeWorkload, type CapacityAssignment, type WeekLoad } from '../shared/capacity';
 import type { AssignmentRole, WorkloadData } from '../shared/types';
 
@@ -20,10 +20,54 @@ export interface PlannedAssignment {
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/** "5 Oct". */
-export function shortDate(d: ISODate): string {
-  return `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
+/** A leave range as the workload carries it, with its optional note. */
+export interface LeaveRange extends DateRange {
+  note?: string | null;
+}
+
+/** "Mon 12 Oct". */
+export function dayDate(d: ISODate): string {
+  return `${DAYS[dayOfWeek(d)]} ${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
+}
+
+/**
+ * The first and last day of the Monday-to-Sunday week starting `weekStart` that are not weekend days, e.g.
+ * "Mon 12 Oct – Fri 16 Oct". Holidays are ignored, so a holiday Monday does not shift the label. Falls back to
+ * `dayDate(weekStart)` when every day of the week is a weekend day.
+ */
+export function weekLabel(weekStart: ISODate, cal: WorkCalendar): string {
+  const workingDays: ISODate[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(weekStart, i);
+    if (!cal.weekendDays.includes(dayOfWeek(d))) workingDays.push(d);
+  }
+  if (workingDays.length === 0) return dayDate(weekStart);
+  return `${dayDate(workingDays[0])} – ${dayDate(workingDays[workingDays.length - 1])}`;
+}
+
+/** The person's leave ranges that overlap the Monday-to-Sunday week starting `weekStart`, each clipped to the week. */
+export function leaveInWeek(leave: LeaveRange[], weekStart: ISODate): LeaveRange[] {
+  const weekEnd = addDays(weekStart, 6);
+  const out: LeaveRange[] = [];
+  for (const l of leave) {
+    const start = l.start > weekStart ? l.start : weekStart;
+    const end = l.end < weekEnd ? l.end : weekEnd;
+    if (start <= end) out.push({ start, end, note: l.note });
+  }
+  return out;
+}
+
+/** Each working weekday of the Monday-to-Sunday week starting `weekStart`, with whether the person is on leave that day. */
+export function leaveDaysInWeek(leave: LeaveRange[], weekStart: ISODate, cal: WorkCalendar): { date: ISODate; onLeave: boolean }[] {
+  const days: { date: ISODate; onLeave: boolean }[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(weekStart, i);
+    if (cal.weekendDays.includes(dayOfWeek(d))) continue;
+    days.push({ date: d, onLeave: leave.some((l) => d >= l.start && d <= l.end) });
+  }
+  return days;
 }
 
 /**
@@ -57,15 +101,15 @@ export function overloadsWith(data: WorkloadData, planned: PlannedAssignment[], 
   return result;
 }
 
-/** One line per overbooked week that touches the phase, e.g. "Week of 5 Oct: 150% booked, 100% available". */
-export function phaseWarnings(overloads: Map<number, WeekLoad[]>, phase: DateRange): Map<number, string[]> {
+/** One line per overbooked week that touches the phase, e.g. "Mon 5 Oct – Fri 9 Oct: 150% booked, 100% available". */
+export function phaseWarnings(overloads: Map<number, WeekLoad[]>, phase: DateRange, cal: WorkCalendar): Map<number, string[]> {
   const out = new Map<number, string[]>();
   for (const [resourceId, weeks] of overloads) {
     const lines = weeks
       .filter((w) => w.weekStart <= phase.end && addDays(w.weekStart, 6) >= phase.start)
       .map((w) => {
         const leave = w.leaveDays > 0 ? ` (${w.leaveDays} day${w.leaveDays === 1 ? '' : 's'} of leave)` : '';
-        return `Week of ${shortDate(w.weekStart)}: ${Math.round(w.load)}% booked, ${Math.round(w.available)}% available${leave}`;
+        return `${weekLabel(w.weekStart, cal)}: ${Math.round(w.load)}% booked, ${Math.round(w.available)}% available${leave}`;
       });
     if (lines.length > 0) out.set(resourceId, lines);
   }

@@ -1,4 +1,4 @@
-import type { ISODate } from '../../../shared/calendar';
+import { dayOfWeek, type ISODate } from '../../../shared/calendar';
 import type { AssignmentRole, Category, Priority, ScopeKind, Side, Specialisation } from '../../../shared/types';
 
 export const PRIORITY_LABEL: Record<Priority, string> = { high: 'High', medium: 'Medium', low: 'Low' };
@@ -36,10 +36,11 @@ export const SPECIALISATION_LABEL: Record<Specialisation, string> = {
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/** "12 Oct 2026". */
+/** "Mon 12 Oct 2026". */
 export function formatDate(d: ISODate): string {
-  return `${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
+  return `${DAYS[dayOfWeek(d)]} ${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
 }
 
 export const ASSIGNMENT_ROLE_LABEL: Record<AssignmentRole, string> = { responsible: 'Responsible', contributor: 'Contributor' };

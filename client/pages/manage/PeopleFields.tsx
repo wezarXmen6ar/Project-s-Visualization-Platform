@@ -2,7 +2,7 @@ import { DEFAULT_CALENDAR, isISODate } from '../../../shared/calendar';
 import { schedulePhases } from '../../../shared/scheduler';
 import type { ResourceRecord, WorkloadData } from '../../../shared/types';
 import { AssignmentsEditor } from '../../components/AssignmentsEditor';
-import { overloadsWith, phaseWarnings, plannedFrom, shortDate } from '../../overloads';
+import { dayDate, overloadsWith, phaseWarnings, plannedFrom } from '../../overloads';
 import type { PhaseDraft } from './projectDraft';
 
 interface PeopleFieldsProps {
@@ -31,11 +31,11 @@ export function PeopleFields({ projectName, startDate, phases, onPhases, people,
         <AssignmentsEditor
           key={i}
           phaseName={s.name}
-          dates={`${shortDate(s.start)} – ${shortDate(s.end)}`}
+          dates={`${dayDate(s.start)} – ${dayDate(s.end)}`}
           people={people}
           value={phases[i].assignments ?? []}
           onChange={(value) => onPhases(phases.map((p, j) => (j === i ? { ...p, assignments: value } : p)))}
-          warnings={phaseWarnings(overloads, s)}
+          warnings={phaseWarnings(overloads, s, cal)}
         />
       ))}
     </section>

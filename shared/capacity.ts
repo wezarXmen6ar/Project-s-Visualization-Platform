@@ -5,7 +5,7 @@ export interface CapacityResource {
   name: string;
   /** % of a full working week this person can give. */
   capacity: number;
-  leave: DateRange[];
+  leave: (DateRange & { note?: string | null })[];
 }
 
 export interface CapacityAssignment {

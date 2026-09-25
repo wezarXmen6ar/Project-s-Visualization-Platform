@@ -133,10 +133,11 @@ export function workloadData(db: DatabaseSync): WorkloadData {
   const people = db
     .prepare("SELECT id, name, capacity FROM resources WHERE side = 'tech' AND active = 1 ORDER BY name COLLATE NOCASE, id")
     .all() as unknown as { id: number; name: string; capacity: number }[];
-  const leave = db.prepare('SELECT resource_id, start_date, end_date FROM leave ORDER BY start_date, id').all() as unknown as {
+  const leave = db.prepare('SELECT resource_id, start_date, end_date, note FROM leave ORDER BY start_date, id').all() as unknown as {
     resource_id: number;
     start_date: string;
     end_date: string;
+    note: string | null;
   }[];
   const assignments = db
     .prepare(
@@ -166,7 +167,7 @@ export function workloadData(db: DatabaseSync): WorkloadData {
       id: p.id,
       name: p.name,
       capacity: p.capacity,
-      leave: leave.filter((l) => l.resource_id === p.id).map((l) => ({ start: l.start_date, end: l.end_date })),
+      leave: leave.filter((l) => l.resource_id === p.id).map((l) => ({ start: l.start_date, end: l.end_date, note: l.note })),
     })),
     assignments: assignments.map(
       (a): WorkloadAssignment => ({

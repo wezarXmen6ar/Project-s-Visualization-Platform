@@ -4,7 +4,7 @@ import { AssignmentsEditor } from '../../components/AssignmentsEditor';
 import { AlertIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
-import { overloadsWith, phaseWarnings, plannedFrom, shortDate, type DraftAssignment } from '../../overloads';
+import { dayDate, overloadsWith, phaseWarnings, plannedFrom, type DraftAssignment } from '../../overloads';
 import { ASSIGNMENT_ROLE_LABEL } from './labels';
 
 interface ProjectPeopleProps {
@@ -54,12 +54,12 @@ export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeo
       <h2>People</h2>
       {project.phases.map((phase) => {
         const saved = project.assignments.filter((a) => a.phaseId === phase.id);
-        const dates = `${shortDate(phase.start)} – ${shortDate(phase.end)}`;
+        const dates = `${dayDate(phase.start)} – ${dayDate(phase.end)}`;
 
         if (editing === phase.id) {
           const planned = plannedFrom(draft, phase, project.name, phase.name);
           const warnings = workload
-            ? phaseWarnings(overloadsWith(workload, planned, saved.map((a) => a.id)), phase)
+            ? phaseWarnings(overloadsWith(workload, planned, saved.map((a) => a.id)), phase, workload.calendar)
             : new Map<number, string[]>();
           return (
             <div key={phase.id} className="phase-people-edit">

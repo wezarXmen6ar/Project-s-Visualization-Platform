@@ -117,12 +117,12 @@ describe('ProjectPage', () => {
     expect(await screen.findByText(/50% · Responsible/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Edit people on Requirements' }));
     // Rami (capacity 80) is also 60% on Case Management that week: 60 + 50 = 110.
-    expect(await screen.findByText('Week of 5 Oct: 110% booked, 80% available')).toBeInTheDocument();
+    expect(await screen.findByText('Mon 5 Oct – Fri 9 Oct: 110% booked, 80% available')).toBeInTheDocument();
 
     const allocation = screen.getByLabelText('Requirements allocation 1');
     await user.clear(allocation);
     await user.type(allocation, '20');
-    await waitFor(() => expect(screen.queryByText(/Week of 5 Oct/)).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/Mon 5 Oct – Fri 9 Oct: \d+% booked/)).toBeNull());
 
     await user.click(screen.getByRole('button', { name: 'Save people on Requirements' }));
     expect(await screen.findByText(/20% · Responsible/)).toBeInTheDocument();
