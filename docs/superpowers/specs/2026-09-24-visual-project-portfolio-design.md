@@ -308,6 +308,7 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
 ## 7. Layout backlog (collected from the user's reviews, worked through in M9)
 The user sends layout comments as they notice them. They are kept here, and M9 (layout pass) works through them. Functional readability problems, such as overlapping text, are fixed straight away in the milestone where they are found, not left for M9.
 1. **Use the page width (2026-09-25).** Pages stack full-width cards one under another (for example the dashboard: My next steps, then Timeline, then Projects), so you keep scrolling while most of the screen is empty. Arrange cards side by side in a grid, for example a larger box beside a smaller one, each sized by how much it holds. This applies to almost every page.
+2. **Gantt on a phone (2026-09-25, found in review).** The phase-name column takes about half of a phone's width, so the bars get squeezed into the rest. On narrow screens, the name column should shrink (or the names move onto the bars) so the timeline gets most of the width.
 
 ## 6. Out of scope (for now)
 - Money or cost figures (these could be added later from rates per role).
