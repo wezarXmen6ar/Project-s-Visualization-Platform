@@ -1,9 +1,11 @@
 import type { WorkCalendar } from '../shared/calendar';
 import type {
-  AssignmentInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput, ResourceInput, ValidationIssue,
+  AssignmentInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput,
+  ValidationIssue,
 } from '../shared/schemas';
 import type {
-  LeaveRecord, ListName, ListValue, Lists, OverloadDecision, PortfolioResponse, ProjectRecord, ResourceRecord, WorkloadData,
+  LeaveRecord, ListName, ListValue, Lists, OverloadDecision, PortfolioResponse, ProjectRecord, ResourceRecord, ScheduleSaved,
+  WorkloadData,
 } from '../shared/types';
 
 export class ApiError extends Error {
@@ -34,6 +36,7 @@ export const api = {
   createProject: (input: NewProjectInput) => request<ProjectRecord>('/api/projects', withBody('POST', input)),
   updateProjectDetails: (id: number, input: ProjectDetailsInput) =>
     request<ProjectRecord>(`/api/projects/${id}/details`, withBody('PUT', input)),
+  updateSchedule: (id: number, input: ScheduleUpdateInput) => request<ScheduleSaved>(`/api/projects/${id}/schedule`, withBody('PUT', input)),
   getPortfolio: (year: number) => request<PortfolioResponse>(`/api/portfolio?year=${year}`),
   getLists: () => request<Lists>('/api/lists'),
   addListValue: (list: ListName, name: string) => request<ListValue>(`/api/lists/${list}`, withBody('POST', { name })),

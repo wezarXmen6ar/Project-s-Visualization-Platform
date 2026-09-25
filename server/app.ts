@@ -5,7 +5,7 @@ import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
   assignmentsUpdateSchema, leaveInputSchema, listValueInputSchema, newProjectSchema, overloadDecisionSchema, projectDetailsSchema,
-  resourceInputSchema, toIssues,
+  resourceInputSchema, scheduleUpdateSchema, toIssues,
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import {
@@ -13,7 +13,7 @@ import {
 } from './assignments/repo';
 import { transaction } from './db';
 import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
-import { checkRefs, createProject, getProject, listProjects, updateProjectDetails } from './projects/repo';
+import { checkRefs, createProject, getProject, listProjects, updateProjectDetails, updateSchedule } from './projects/repo';
 import {
   addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, listResources, updateResourceChecked,
 } from './resources/repo';
@@ -121,6 +121,15 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const project = updateProjectDetails(db, Number(req.params.id), parsed.data, today());
     if (!project) return reply.code(404).send({ error: 'Project not found' });
     return project;
+  });
+
+  app.put<{ Params: { id: string } }>('/api/projects/:id/schedule', async (req, reply) => {
+    const parsed = scheduleUpdateSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid schedule', issues: toIssues(parsed.error) });
+    const result = updateSchedule(db, getCalendar(db), Number(req.params.id), parsed.data);
+    if (result.ok) return result.saved;
+    if (result.status === 404) return reply.code(404).send({ error: result.error });
+    return reply.code(400).send({ error: 'Invalid schedule', issues: result.issues });
   });
 
   app.put<{ Params: { id: string } }>('/api/phases/:id/assignments', async (req, reply) => {

@@ -1,10 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate, type WorkCalendar } from '../../shared/calendar';
-import type { NewProject, ProjectDetails, ValidationIssue } from '../../shared/schemas';
+import type { NewProject, ProjectDetails, ScheduleUpdate, ValidationIssue } from '../../shared/schemas';
 import { schedulePhases, type ScheduledSubPhase } from '../../shared/scheduler';
 import type {
-  AssignmentRecord, BusinessContact, Category, ListName, PhaseRecord, Priority, ProjectRecord, Ref, ScopeItem, ScopeKind, Side,
-  SubPhaseRecord,
+  AssignmentRecord, BusinessContact, Category, ListName, PhaseRecord, Priority, ProjectRecord, Ref, ScheduleSaved, ScopeItem, ScopeKind,
+  Side, SubPhaseRecord,
 } from '../../shared/types';
 import { assignmentsByProject, projectAssignments, saveAssignments } from '../assignments/repo';
 import { transaction } from '../db';
@@ -235,6 +235,78 @@ export function updateProjectDetails(
     saveScopeItems(db, id, details.scopeItems, today);
   });
   return getProject(db, id);
+}
+
+export type ScheduleResult =
+  | { ok: true; saved: ScheduleSaved }
+  | { ok: false; status: 404; error: string }
+  | { ok: false; status: 400; issues: ValidationIssue[] };
+
+/** Every id must be this project's phase at the same level, and appear once. */
+function checkScheduleIds(db: DatabaseSync, projectId: number, input: ScheduleUpdate): ValidationIssue[] {
+  const rows = db.prepare('SELECT id, parent_id FROM phases WHERE project_id = ?').all(projectId) as unknown as
+    { id: number; parent_id: number | null }[];
+  const topLevel = new Set(rows.filter((r) => r.parent_id === null).map((r) => r.id));
+  const subLevel = new Set(rows.filter((r) => r.parent_id !== null).map((r) => r.id));
+  const seen = new Set<number>();
+  const issues: ValidationIssue[] = [];
+  const check = (id: number | undefined, allowed: Set<number>, path: string, unknown: string) => {
+    if (id === undefined) return;
+    if (seen.has(id)) issues.push({ path, message: 'The same phase appears twice' });
+    else if (!allowed.has(id)) issues.push({ path, message: unknown });
+    seen.add(id);
+  };
+  input.phases.forEach((p, i) => {
+    check(p.id, topLevel, `phases.${i}.id`, 'Unknown phase');
+    p.subPhases.forEach((s, j) => check(s.id, subLevel, `phases.${i}.subPhases.${j}.id`, 'Unknown sub-phase'));
+  });
+  return issues;
+}
+
+/** Replaces the project's start date and phase structure, keeping every phase sent back by id with its people. */
+export function updateSchedule(db: DatabaseSync, cal: WorkCalendar, projectId: number, input: ScheduleUpdate): ScheduleResult {
+  if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return { ok: false, status: 404, error: 'Project not found' };
+  const issues = checkScheduleIds(db, projectId, input);
+  if (issues.length > 0) return { ok: false, status: 400, issues };
+
+  const scheduled = schedulePhases(input.startDate, input.phases, cal);
+  const addedPhaseIds: number[] = [];
+  transaction(db, () => {
+    db.prepare('UPDATE projects SET start_date = ? WHERE id = ?').run(input.startDate, projectId);
+    const update = db.prepare(
+      `UPDATE phases SET parent_id = ?, name = ?, sort_order = ?, duration_days = ?, planned_start = ?, planned_end = ?, with_previous = ?
+       WHERE id = ?`,
+    );
+    const insert = db.prepare(
+      `INSERT INTO phases (project_id, parent_id, name, sort_order, duration_days, planned_start, planned_end, with_previous)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const kept = new Set<number>();
+    const save = (
+      id: number | undefined, parentId: number | null,
+      s: { name: string; order: number; durationDays: number; start: string; end: string }, withPrevious: boolean,
+    ): number => {
+      const flag = withPrevious ? 1 : 0;
+      if (id !== undefined) {
+        update.run(parentId, s.name, s.order, s.durationDays, s.start, s.end, flag, id);
+        kept.add(id);
+        return id;
+      }
+      const newId = Number(insert.run(projectId, parentId, s.name, s.order, s.durationDays, s.start, s.end, flag).lastInsertRowid);
+      kept.add(newId);
+      return newId;
+    };
+    scheduled.forEach((p, i) => {
+      const phaseId = save(input.phases[i].id, null, p, false);
+      if (input.phases[i].id === undefined) addedPhaseIds.push(phaseId);
+      // TS can't merge P's own (input) subPhases type with ScheduledPhase's on the intersection; cast to the scheduled shape.
+      (p.subPhases as ScheduledSubPhase[]).forEach((s, j) => save(input.phases[i].subPhases[j].id, phaseId, s, s.withPrevious));
+    });
+    const all = db.prepare('SELECT id FROM phases WHERE project_id = ?').all(projectId) as unknown as { id: number }[];
+    const remove = db.prepare('DELETE FROM phases WHERE id = ?');
+    for (const { id } of all) if (!kept.has(id)) remove.run(id);
+  });
+  return { ok: true, saved: { project: getProject(db, projectId)!, addedPhaseIds } };
 }
 
 export function getProject(db: DatabaseSync, id: number): ProjectRecord | undefined {

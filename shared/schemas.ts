@@ -89,21 +89,47 @@ const workingDays = z
   .min(1, 'Duration must be at least 1 working day')
   .max(2000, 'Duration is too long');
 
+const phaseName = z.string().trim().min(1, 'Phase name is required').max(200);
+const subPhaseName = z.string().trim().min(1, 'Sub-phase name is required').max(200);
+const existingId = z.number().int().positive().optional();
+
 export const subPhaseInputSchema = z.object({
-  name: z.string().trim().min(1, 'Sub-phase name is required').max(200),
+  name: subPhaseName,
   durationDays: workingDays,
   withPrevious: z.boolean().default(false),
   assignments: phaseAssignmentsSchema.default([]),
 });
 
 export const phaseInputSchema = z.object({
-  name: z.string().trim().min(1, 'Phase name is required').max(200),
+  name: phaseName,
   durationDays: workingDays,
   assignments: phaseAssignmentsSchema.default([]),
   subPhases: z.array(subPhaseInputSchema).max(100, 'A phase can have at most 100 sub-phases').default([]),
 });
 
 export type SubPhaseInputData = z.output<typeof subPhaseInputSchema>;
+
+export const scheduleSubPhaseSchema = z.object({
+  id: existingId,
+  name: subPhaseName,
+  durationDays: workingDays,
+  withPrevious: z.boolean().default(false),
+});
+
+export const schedulePhaseSchema = z.object({
+  id: existingId,
+  name: phaseName,
+  durationDays: workingDays,
+  subPhases: z.array(scheduleSubPhaseSchema).max(100, 'A phase can have at most 100 sub-phases').default([]),
+});
+
+export const scheduleUpdateSchema = z.object({
+  startDate: isoDate,
+  phases: z.array(schedulePhaseSchema).min(1, 'Add at least one phase'),
+});
+
+export type ScheduleUpdateInput = z.input<typeof scheduleUpdateSchema>;
+export type ScheduleUpdate = z.output<typeof scheduleUpdateSchema>;
 
 export const scopeItemInputSchema = z.object({
   /** Sent when editing an item that is already saved, so it keeps its date added. */

@@ -181,6 +181,12 @@ export interface ProjectRecord {
   phases: PhaseRecord[];
 }
 
+/** The result of PUT /api/projects/:id/schedule. `addedPhaseIds` holds the ids of new top-level phases only. */
+export interface ScheduleSaved {
+  project: ProjectRecord;
+  addedPhaseIds: number[];
+}
+
 export interface PortfolioResponse {
   year: number;
   today: ISODate;
