@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { sampleProject, samplePeople, sampleToDos } from './testing/mockFetch';
-import { assigneeChoices, byUrgency, dueLabel, isOverdue, phaseChoices, toDoToInput } from './todos';
+import { assigneeChoices, byUrgency, dueLabel, formerPhaseLabel, isOverdue, phaseChoices, toDoToInput } from './todos';
 import type { Me } from '../shared/types';
 
 const today = '2026-10-07';
@@ -105,5 +105,39 @@ describe('toDoToInput', () => {
     expect(toDoToInput(t, { done: true })).toEqual({
       title: t.title, note: t.note, assigneeId: t.assignee?.id ?? null, dueDate: t.dueDate, phaseId: t.phase?.id ?? null, done: true,
     });
+  });
+});
+
+describe('the to-do labels in Arabic', () => {
+  const [overdue] = sampleToDos();
+
+  it('writes due labels in Arabic', () => {
+    expect(dueLabel(overdue, today, 'ar')).toBe('متأخرة · الخميس 1 أكتوبر');
+    expect(dueLabel({ ...overdue, dueDate: '2026-10-07' }, today, 'ar')).toBe('التسليم اليوم');
+    expect(dueLabel({ ...overdue, dueDate: '2026-10-10' }, today, 'ar')).toBe('التسليم: السبت 10 أكتوبر');
+  });
+
+  it('writes the former phase in Arabic, translating only the phase part', () => {
+    const kept = {
+      ...overdue,
+      formerPhase: { name: 'Development › Increment 2', phaseName: 'Development', subPhaseName: 'Increment 2', removedOn: '2026-09-25' },
+    };
+    expect(formerPhaseLabel(kept)).toBe('Was on Development › Increment 2 (removed Fri 25 Sep)');
+    expect(formerPhaseLabel(kept, 'ar', (n) => (n === 'Development' ? 'التطوير' : n))).toBe(
+      'كانت ضمن التطوير › Increment 2 (حُذفت في الجمعة 25 سبتمبر)',
+    );
+  });
+
+  it('labels the managers in Arabic, and translates phase choices', () => {
+    const project = sampleProject({
+      projectManager: { id: 70, name: 'Sara Ahmed' },
+      businessPm: { id: 80, name: 'Mariam Al Suwaidi', phone: null, email: null },
+    });
+    const choices = assigneeChoices(project, { resourceId: null, name: null }, null, 'ar');
+    expect(choices.managers).toEqual([
+      { id: 70, label: 'Sara Ahmed (مدير المشروع)' },
+      { id: 80, label: 'Mariam Al Suwaidi (مدير مشروع مالك العملية)' },
+    ]);
+    expect(phaseChoices(project, (n) => (n === 'Development' ? 'التطوير' : n))).toContainEqual({ id: 120, name: 'التطوير › Increment 1' });
   });
 });

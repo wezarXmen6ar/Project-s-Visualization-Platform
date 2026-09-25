@@ -20,7 +20,12 @@ export function listName(value: Named | null | undefined, lang: Lang): string {
  * name in Arabic; otherwise (or in English) the stored text unchanged. Sub-phase names are never looked up.
  */
 export function phaseName(name: string, lists: Lists, lang: Lang): string {
+  return phaseNameFrom(name, lists.phase, lang);
+}
+
+/** `phaseName`, given just the Phases list's values (e.g. the options of a phase dropdown). */
+export function phaseNameFrom(name: string, phases: Named[], lang: Lang): string {
   if (lang !== 'ar') return name;
-  const match = lists.phase.find((p) => p.name.localeCompare(name, undefined, { sensitivity: 'base' }) === 0);
+  const match = phases.find((p) => p.name.localeCompare(name, undefined, { sensitivity: 'base' }) === 0);
   return match ? listName(match, lang) : name;
 }

@@ -2,7 +2,7 @@ import { useState, type KeyboardEvent } from 'react';
 import type { ResourceRecord, Side } from '../../shared/types';
 import { api } from '../api';
 import { messagesOf } from '../errors';
-import { useT } from '../i18n/LanguageProvider';
+import { useLang, useT } from '../i18n/LanguageProvider';
 
 const NONE = '';
 const ADD = '__add__';
@@ -24,6 +24,9 @@ interface PersonPickerProps {
 /** A dropdown of people from Resources, with an inline way to add someone (and a business contact's phone and email). */
 export function PersonPicker({ label, side, people, value, onChange, onAdded, noneLabel, newPersonRoleId = null }: PersonPickerProps) {
   const t = useT();
+  const { lang } = useLang();
+  // English lower-cases the field label inside a sentence ("New project manager (tech)"); Arabic has no case.
+  const inSentence = lang === 'en' ? label.toLowerCase() : label;
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -76,27 +79,27 @@ export function PersonPicker({ label, side, people, value, onChange, onAdded, no
     return (
       <div className="option-add">
         <label>
-          New {label.toLowerCase()}
-          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={onKeyDown} />
+          {t('picker.new', { label: inSentence })}
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={onKeyDown} dir="auto" data-user-content="" />
         </label>
         {side === 'business' ? (
           <>
             <label>
-              {label} phone (UAE mobile)
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} onKeyDown={onKeyDown} placeholder="+971 50 123 4567" />
+              {t('picker.phone', { label })}
+              <input type="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} onKeyDown={onKeyDown} placeholder="+971 50 123 4567" />
             </label>
             <label>
-              {label} email
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={onKeyDown} placeholder="name@example.com" />
+              {t('picker.email', { label })}
+              <input type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={onKeyDown} placeholder="name@example.com" />
             </label>
           </>
         ) : null}
         <div className="option-add-actions">
           <button type="button" className="button" onClick={() => void save()} disabled={saving || !name.trim()}>
-            Add
+            {t('common.add')}
           </button>
           <button type="button" className="button secondary" onClick={closeAdd}>
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
         {errors.length > 0 ? (
@@ -120,9 +123,9 @@ export function PersonPicker({ label, side, people, value, onChange, onAdded, no
       >
         <option value={NONE}>{noneLabel}</option>
         {options.map((p) => (
-          <option key={p.id} value={String(p.id)}>{p.active ? p.name : `${p.name} (inactive)`}</option>
+          <option key={p.id} value={String(p.id)}>{p.active ? p.name : t('common.inactive', { name: p.name })}</option>
         ))}
-        <option value={ADD}>+ Add new person…</option>
+        <option value={ADD}>{t('common.addNewPerson')}</option>
       </select>
     </label>
   );

@@ -6,11 +6,15 @@ import { messagesOf } from '../../errors';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
-import { useT } from '../../i18n/LanguageProvider';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { phaseName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
+import { useLists } from '../../useLists';
 
 export function FocusPage() {
   const t = useT();
+  const { lang } = useLang();
+  const { lists } = useLists();
   const id = Number(useParams().id);
   const project = useAsync(() => api.getProject(id), [id]);
   const calendar = useAsync(() => api.getCalendar(), []);
@@ -21,26 +25,26 @@ export function FocusPage() {
   if (project.error) {
     return (
       <main className="page">
-        <Link to="/present" className="crumb">← Portfolio</Link>
+        <Link to="/present" className="crumb">{t('present.backToPortfolio')}</Link>
         <div className="errors" role="alert">{messagesOf(project.error, t)[0]}</div>
       </main>
     );
   }
-  if (!project.data) return <main className="page"><p className="muted">Loading…</p></main>;
+  if (!project.data) return <main className="page"><p className="muted">{t('common.loading')}</p></main>;
 
   const p = project.data;
   const span = projectSpan(p.phases);
   // No people: the presentation side shows no names.
-  const rows = phaseRows(p, { calendar: cal });
+  const rows = phaseRows(p, { calendar: cal, lang, nameFor: (name) => phaseName(name, lists, lang) });
   const backYear = span ? span.start.slice(0, 4) : today.slice(0, 4);
 
   return (
     <main className="page page-wide">
       <div className="page-header">
         <div>
-          <Link to={`/present?year=${backYear}`} className="crumb">← Portfolio</Link>
-          <h1>{p.name}</h1>
-          <p className="muted">{span ? `${span.start} → ${span.end}` : 'No phases yet'}</p>
+          <Link to={`/present?year=${backYear}`} className="crumb">{t('present.backToPortfolio')}</Link>
+          <h1 dir="auto" data-user-content="">{p.name}</h1>
+          <p className="muted">{span ? t('present.span', { start: span.start, end: span.end }) : t('present.noPhasesYet')}</p>
         </div>
       </div>
       <section className="card">

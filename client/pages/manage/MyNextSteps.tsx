@@ -6,14 +6,19 @@ import { api } from '../../api';
 import { AlertIcon } from '../../icons';
 import { ToDoRow } from '../../components/ToDoRow';
 import { messagesOf } from '../../errors';
-import { useT } from '../../i18n/LanguageProvider';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { phaseName } from '../../i18n/listNames';
+import { withNodes } from '../../i18n/withNodes';
 import { byUrgency, toDoToInput } from '../../todos';
 import { useAsync } from '../../useAsync';
+import { useLists } from '../../useLists';
 import { useMe } from '../../useMe';
 
 /** My open to-dos across every project, most urgent first, at most 5. */
 export function MyNextSteps() {
   const t = useT();
+  const { lang } = useLang();
+  const { lists } = useLists();
   const { me } = useMe();
   const [version, setVersion] = useState(0);
   const assigneeId = me?.resourceId ?? null;
@@ -38,7 +43,7 @@ export function MyNextSteps() {
   if (me === undefined) {
     return (
       <section className="card">
-        <h2>My next steps</h2>
+        <h2>{t('todo.myNextSteps')}</h2>
       </section>
     );
   }
@@ -46,21 +51,21 @@ export function MyNextSteps() {
   if (me.resourceId === null) {
     return (
       <section className="card">
-        <h2>My next steps</h2>
+        <h2>{t('todo.myNextSteps')}</h2>
         <p className="muted">
-          Set who you are in <Link to="/manage/settings">Settings</Link> to see your next steps here.
+          {withNodes(t('todo.setWhoYouAre'), { settings: <Link to="/manage/settings">{t('nav.settings')}</Link> })}
         </p>
       </section>
     );
   }
 
-  const mine = byUrgency((loaded.data ?? []).filter((t) => !t.done)).slice(0, 5);
+  const mine = byUrgency((loaded.data ?? []).filter((x) => !x.done)).slice(0, 5);
 
   return (
     <section className="card">
       <div className="phase-people-head">
-        <h2>My next steps</h2>
-        <Link to="/manage/todos?assignee=me">All to-dos</Link>
+        <h2>{t('todo.myNextSteps')}</h2>
+        <Link to="/manage/todos?assignee=me">{t('todo.allTodos')}</Link>
       </div>
       {errors.length > 0 ? (
         <div className="errors" role="alert">
@@ -69,11 +74,18 @@ export function MyNextSteps() {
         </div>
       ) : null}
       {mine.length === 0 ? (
-        <p className="muted">Nothing on your list. Nice.</p>
+        <p className="muted">{t('todo.nothingOnList')}</p>
       ) : (
         <ul className="todo-list">
-          {mine.map((t) => (
-            <ToDoRow key={t.id} todo={t} today={today} showProject onToggle={(x) => void toggleDone(x)} />
+          {mine.map((x) => (
+            <ToDoRow
+              key={x.id}
+              todo={x}
+              today={today}
+              showProject
+              onToggle={(y) => void toggleDone(y)}
+              nameFor={(name) => phaseName(name, lists, lang)}
+            />
           ))}
         </ul>
       )}

@@ -8,14 +8,18 @@ import { messagesOf } from '../../errors';
 import { Gantt } from '../../gantt/Gantt';
 import { portfolioRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
-import { useT } from '../../i18n/LanguageProvider';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { phaseName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
+import { useLists } from '../../useLists';
 import { useWorkload } from '../../useWorkload';
 import { isAccepted } from './heatmap';
 import { MyNextSteps } from './MyNextSteps';
 
 export function ManageDashboardPage() {
   const t = useT();
+  const { lang } = useLang();
+  const { lists } = useLists();
   const navigate = useNavigate();
   const projects = useAsync(() => api.listProjects(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
@@ -27,20 +31,20 @@ export function ManageDashboardPage() {
         .filter((p) => p.weeks.some((w) => w.overloaded && !isAccepted(workload.decisions, p.resourceId, w.weekStart)))
     : [];
   const list = projects.data ?? [];
-  const rows = portfolioRows(list);
+  const rows = portfolioRows(list, (name) => phaseName(name, lists, lang));
 
   return (
     <main className="page page-wide">
       <div className="page-header">
         <div>
-          <Link to="/" className="crumb"><ArrowLeftIcon />Start</Link>
-          <h1>Projects</h1>
+          <Link to="/" className="crumb"><ArrowLeftIcon />{t('nav.start')}</Link>
+          <h1>{t('nav.projects')}</h1>
         </div>
         <div className="header-actions">
-          <Link to="/manage/todos" className="button secondary">To-dos</Link>
-          <Link to="/manage/resources" className="button secondary">Resources</Link>
-          <Link to="/manage/settings" className="button secondary">Settings</Link>
-          <Link to="/manage/projects/new" className="button"><PlusIcon />New project</Link>
+          <Link to="/manage/todos" className="button secondary">{t('nav.todos')}</Link>
+          <Link to="/manage/resources" className="button secondary">{t('nav.resources')}</Link>
+          <Link to="/manage/settings" className="button secondary">{t('nav.settings')}</Link>
+          <Link to="/manage/projects/new" className="button"><PlusIcon />{t('project.new')}</Link>
         </div>
       </div>
 
@@ -51,6 +55,7 @@ export function ManageDashboardPage() {
         </div>
       ) : null}
 
+      {/* The overbooking notice is translated with the workload views (M6 Task 6). */}
       {overbooked.length > 0 ? (
         <div className="notice" role="status">
           <AlertIcon />
@@ -76,9 +81,9 @@ export function ManageDashboardPage() {
         <section className="card">
           <div className="empty-state">
             <span className="empty-state-icon"><FolderOpenIcon /></span>
-            <h3>No projects yet</h3>
-            <p>Create your first one to see it laid out on a timeline, phase by phase.</p>
-            <Link to="/manage/projects/new" className="button">Create your first project</Link>
+            <h3>{t('project.emptyTitle')}</h3>
+            <p>{t('project.emptyBody')}</p>
+            <Link to="/manage/projects/new" className="button">{t('project.createFirst')}</Link>
           </div>
         </section>
       ) : null}
@@ -86,7 +91,7 @@ export function ManageDashboardPage() {
       {list.length > 0 ? (
         <>
           <section className="card">
-            <h2>Timeline</h2>
+            <h2>{t('project.timeline')}</h2>
             <div className="chart-scroll" ref={chartRef}>
               <Gantt
                 rows={rows}
@@ -101,15 +106,21 @@ export function ManageDashboardPage() {
           <section className="card">
             <table>
               <thead>
-                <tr><th>Project</th><th>Jira key</th><th>Start</th><th>End</th><th>Phases</th></tr>
+                <tr>
+                  <th>{t('project.colProject')}</th>
+                  <th>{t('project.jiraKey')}</th>
+                  <th>{t('project.colStart')}</th>
+                  <th>{t('project.colEnd')}</th>
+                  <th>{t('project.phases')}</th>
+                </tr>
               </thead>
               <tbody>
                 {list.map((p) => {
                   const span = projectSpan(p.phases);
                   return (
                     <tr key={p.id}>
-                      <td><Link to={`/manage/projects/${p.id}`}>{p.name}</Link></td>
-                      <td>{p.jiraKey ?? '—'}</td>
+                      <td><Link to={`/manage/projects/${p.id}`} dir="auto" data-user-content="">{p.name}</Link></td>
+                      <td>{p.jiraKey ? <span dir="ltr">{p.jiraKey}</span> : '—'}</td>
                       <td>{span?.start ?? '—'}</td>
                       <td>{span?.end ?? '—'}</td>
                       <td>{p.phases.length}</td>

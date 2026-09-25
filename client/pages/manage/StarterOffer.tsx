@@ -91,8 +91,8 @@ export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: Start
 
   return (
     <section className="card">
-      <h2>Starter to-dos</h2>
-      <p className="field-hint">From your checklists in Settings. Untick any you don't need.</p>
+      <h2>{t('todo.starters')}</h2>
+      <p className="field-hint">{t('todo.startersHint')}</p>
       {errors.length > 0 ? (
         <div className="errors" role="alert">
           <AlertIcon />
@@ -107,7 +107,7 @@ export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: Start
               <li key={item.index}>
                 <label className="check">
                   <input type="checkbox" checked={checked.has(item.index)} onChange={() => toggle(item.index)} />
-                  {item.title}
+                  <span dir="auto" data-user-content="">{item.title}</span>
                 </label>
               </li>
             ))}
@@ -116,9 +116,9 @@ export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: Start
       ))}
       <div className="wizard-actions">
         <button type="button" className="button" disabled={n === 0 || adding} onClick={() => void onAccept()}>
-          {adding ? 'Adding…' : `Add ${n} to-do${n === 1 ? '' : 's'}`}
+          {adding ? t('common.adding') : t('todo.addStarters', { count: n })}
         </button>
-        <button type="button" className="button secondary" onClick={onSkip}>Skip</button>
+        <button type="button" className="button secondary" onClick={onSkip}>{t('common.skip')}</button>
       </div>
     </section>
   );

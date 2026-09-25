@@ -234,6 +234,25 @@ describe('phaseRows with sub-phases', () => {
     expect(anonymous.segments?.[0].detail?.lines).toHaveLength(1);
   });
 
+  it('writes the details card in Arabic, with Arabic dates, working-day plurals and roles', () => {
+    const people: AssignmentRecord[] = [
+      { id: 1, phaseId: 21, resource: { id: 71, name: 'Fatima Noor' }, allocation: 60, role: 'responsible' },
+    ];
+    const dev = phaseRows(eServices, { people, lang: 'ar' })[1].bars[0];
+    expect(dev.segments?.[0].detail?.lines).toEqual([
+      'الاثنين 30 نوفمبر 2026 – الجمعة 18 ديسمبر 2026 · 15 يوم عمل',
+      'Fatima Noor · 60% · مسؤول',
+    ]);
+    const oneDay = phaseRows(
+      { phases: [{ order: 0, name: 'Dev', start: '2026-10-05', end: '2026-10-05' }] }, { lang: 'ar' },
+    )[0].bars[0];
+    expect(oneDay.detail?.lines[0]).toBe('الاثنين 5 أكتوبر 2026 – الاثنين 5 أكتوبر 2026 · يوم عمل واحد');
+    const threeDays = phaseRows(
+      { phases: [{ order: 0, name: 'Dev', start: '2026-10-05', end: '2026-10-07' }] }, { lang: 'ar' },
+    )[0].bars[0];
+    expect(threeDays.detail?.lines[0]).toContain('· 3 أيام عمل');
+  });
+
   it('gives draft sub-phases without ids stable ids', () => {
     const rows = phaseRows({
       phases: [{

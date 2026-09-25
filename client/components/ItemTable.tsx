@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
 import { GripIcon, PlusIcon, TrashIcon } from '../icons';
+import { useT } from '../i18n/LanguageProvider';
 import { moveItem, useReorder } from '../useReorder';
 
 export interface DraftItem {
@@ -18,6 +19,7 @@ interface ItemTableProps {
 
 /** An auto-numbered list of short texts: add, edit in place, remove, and reorder by dragging or with the arrow keys. */
 export function ItemTable({ title, noun, items, onChange }: ItemTableProps) {
+  const t = useT();
   const [draft, setDraft] = useState('');
   const { handleProps, rowProps } = useReorder(items.length, (from, to) => onChange(moveItem(items, from, to)));
   const lower = noun.toLowerCase();
@@ -44,26 +46,28 @@ export function ItemTable({ title, noun, items, onChange }: ItemTableProps) {
     <div className="item-table">
       <h3>{title}</h3>
       {items.length === 0 ? (
-        <p className="muted item-empty">None yet.</p>
+        <p className="muted item-empty">{t('item.none')}</p>
       ) : (
         <ol className="item-list">
           {items.map((item, i) => {
             const { className: rowClassName, ...rowRest } = rowProps(i);
             return (
             <li key={i} className={`item-row ${rowClassName}`.trim()} {...rowRest}>
-              <button {...handleProps(i, `Reorder ${lower} ${i + 1}`)}>
+              <button {...handleProps(i, t('item.reorder', { noun: lower, number: i + 1 }))}>
                 <GripIcon />
               </button>
               <span className="item-number" aria-hidden="true">{i + 1}.</span>
               <input
-                aria-label={`${noun} ${i + 1}`}
+                aria-label={t('item.label', { noun, number: i + 1 })}
                 value={item.text}
+                dir="auto"
+                data-user-content=""
                 onChange={(e) => onChange(items.map((it, j) => (j === i ? { ...it, text: e.target.value } : it)))}
               />
               <button
                 type="button"
                 className="button ghost-icon"
-                aria-label={`Remove ${lower} ${i + 1}`}
+                aria-label={t('item.remove', { noun: lower, number: i + 1 })}
                 onClick={() => onChange(items.filter((_, j) => j !== i))}
               >
                 <TrashIcon />
@@ -75,15 +79,17 @@ export function ItemTable({ title, noun, items, onChange }: ItemTableProps) {
       )}
       <div className="item-add">
         <input
-          aria-label={`New ${lower}`}
-          placeholder={`Add ${lower}…`}
+          aria-label={t('item.new', { noun: lower })}
+          placeholder={t('item.addPlaceholder', { noun: lower })}
           value={draft}
+          dir="auto"
+          data-user-content=""
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={onDraftKeyDown}
           onBlur={onDraftBlur}
         />
-        <button type="button" className="button secondary" aria-label={`Add ${lower}`} onClick={add} disabled={!draft.trim()}>
-          <PlusIcon />Add
+        <button type="button" className="button secondary" aria-label={t('item.add', { noun: lower })} onClick={add} disabled={!draft.trim()}>
+          <PlusIcon />{t('common.add')}
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { GripIcon, TrashIcon } from '../../icons';
+import { useT } from '../../i18n/LanguageProvider';
 import { moveItem, useReorder } from '../../useReorder';
 import type { SubPhaseDraft } from './projectDraft';
 
@@ -13,6 +14,7 @@ interface SubPhaseListProps {
  * from every other phase's), so dragging or arrow-keying a sub-phase's handle only reorders within this phase.
  */
 export function SubPhaseList({ phaseNumber, subs, onChange }: SubPhaseListProps) {
+  const t = useT();
   const { handleProps, rowProps } = useReorder(subs.length, (from, to) => onChange(moveItem(subs, from, to)));
 
   function update(index: number, patch: Partial<SubPhaseDraft>) {
@@ -25,38 +27,40 @@ export function SubPhaseList({ phaseNumber, subs, onChange }: SubPhaseListProps)
         const { className: rowClassName, ...rowRest } = rowProps(i);
         return (
         <div className={`sub-phase-row ${rowClassName}`.trim()} key={i} {...rowRest}>
-          <button {...handleProps(i, `Reorder phase ${phaseNumber} sub-phase ${i + 1}`)}>
+          <button {...handleProps(i, t('wizard.reorderSub', { phase: phaseNumber, sub: i + 1 }))}>
             <GripIcon />
           </button>
           <input
-            aria-label={`Phase ${phaseNumber} sub-phase ${i + 1} name`}
-            placeholder="e.g. Increment 1 – Sign-in"
+            aria-label={t('wizard.subName', { phase: phaseNumber, sub: i + 1 })}
+            placeholder={t('wizard.subPlaceholder')}
             value={sub.name}
+            dir="auto"
+            data-user-content=""
             onChange={(e) => update(i, { name: e.target.value })}
           />
           <input
-            aria-label={`Phase ${phaseNumber} sub-phase ${i + 1} working days`}
+            aria-label={t('wizard.subDays', { phase: phaseNumber, sub: i + 1 })}
             type="number"
             min={1}
             value={Number.isNaN(sub.durationDays) ? '' : sub.durationDays}
             onChange={(e) => update(i, { durationDays: e.target.valueAsNumber })}
           />
           {i === 0 ? (
-            <span className="muted">Starts with the phase</span>
+            <span className="muted">{t('wizard.startsWithPhase')}</span>
           ) : (
             <select
-              aria-label={`Phase ${phaseNumber} sub-phase ${i + 1} starts`}
+              aria-label={t('wizard.subStarts', { phase: phaseNumber, sub: i + 1 })}
               value={sub.withPrevious ? 'with' : 'after'}
               onChange={(e) => update(i, { withPrevious: e.target.value === 'with' })}
             >
-              <option value="after">After the ones above</option>
-              <option value="with">With the one above</option>
+              <option value="after">{t('wizard.afterAbove')}</option>
+              <option value="with">{t('wizard.withAbove')}</option>
             </select>
           )}
           <button
             type="button"
             className="button ghost-icon"
-            aria-label={`Remove phase ${phaseNumber} sub-phase ${i + 1}`}
+            aria-label={t('wizard.removeSub', { phase: phaseNumber, sub: i + 1 })}
             onClick={() => onChange(subs.filter((_, j) => j !== i))}
           >
             <TrashIcon />
@@ -67,10 +71,10 @@ export function SubPhaseList({ phaseNumber, subs, onChange }: SubPhaseListProps)
       <button
         type="button"
         className="button secondary"
-        aria-label={`Add sub-phase to phase ${phaseNumber}`}
+        aria-label={t('wizard.addSubTo', { phase: phaseNumber })}
         onClick={() => onChange([...subs, { name: '', durationDays: 5, withPrevious: false }])}
       >
-        + Add sub-phase
+        {t('wizard.addSub')}
       </button>
     </div>
   );

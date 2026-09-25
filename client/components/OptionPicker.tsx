@@ -22,11 +22,13 @@ interface OptionPickerProps {
   addLabel: string;
   /** Keep the label for screen readers and tests but don't show it (e.g. inside a table-like row). */
   hideLabel?: boolean;
+  /** The inline add box's label. Defaults to "New <label>" ("New main project"). */
+  newLabel?: string;
 }
 
 /** A dropdown over one of the editable lists, with an inline way to add a new value. */
 export function OptionPicker({
-  label, list, options, value, onChange, onAdded, noneLabel, addLabel, hideLabel = false,
+  label, list, options, value, onChange, onAdded, noneLabel, addLabel, hideLabel = false, newLabel,
 }: OptionPickerProps) {
   const t = useT();
   const { lang } = useLang();
@@ -67,7 +69,8 @@ export function OptionPicker({
           {labelText}
           <input
             autoFocus
-            aria-label={`New ${label.toLowerCase()}`}
+            aria-label={newLabel ?? t('picker.new', { label: lang === 'en' ? label.toLowerCase() : label })}
+            dir="auto"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -82,10 +85,10 @@ export function OptionPicker({
         </label>
         <div className="option-add-actions">
           <button type="button" className="button" onClick={() => void save()} disabled={saving || !name.trim()}>
-            Add
+            {t('common.add')}
           </button>
           <button type="button" className="button secondary" onClick={closeAdd}>
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
         {error ? <p className="field-error" role="alert">{error}</p> : null}

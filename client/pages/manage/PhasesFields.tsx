@@ -8,6 +8,8 @@ import { api } from '../../api';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { phaseNameFrom } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { moveItem, useReorder } from '../../useReorder';
 import type { PhaseDraft, SubPhaseDraft } from './projectDraft';
@@ -44,6 +46,8 @@ function isValidSub(s: SubPhaseDraft): boolean {
 
 /** Wizard Step 3: start date, ordered phases chosen from the Phases list, working-day durations, and a live Gantt preview. */
 export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOptions, onListAdded }: PhasesFieldsProps) {
+  const t = useT();
+  const { lang } = useLang();
   const calendar = useAsync(() => api.getCalendar(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
   const { handleProps, rowProps } = useReorder(phases.length, (from, to) => onPhases(moveItem(phases, from, to)));
@@ -53,7 +57,10 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
     .map((p) => ({ ...p, subPhases: (p.subPhases ?? []).filter(isValidSub) }))
     .filter((p) => p.name.trim() !== '' && (p.subPhases.length > 0 || (Number.isInteger(p.durationDays) && p.durationDays >= 1)));
   const scheduled = isISODate(startDate) ? schedulePhases(startDate, previewPhases, cal) : [];
-  const rows = phaseRows({ phases: scheduled }, { calendar: cal });
+  const rows = phaseRows(
+    { phases: scheduled },
+    { calendar: cal, lang, nameFor: (name) => phaseNameFrom(name, phaseOptions, lang) },
+  );
   const range = rangeFor(rows, isISODate(startDate) ? startDate : todayLocal());
 
   function update(index: number, patch: Partial<PhaseDraft>) {
@@ -69,11 +76,11 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
   return (
     <>
       <section className="card">
-        <h2>Phases</h2>
-        <p className="field-hint">Durations are in working days. Dates are calculated from the working calendar.</p>
+        <h2>{t('project.phases')}</h2>
+        <p className="field-hint">{t('wizard.phasesHint')}</p>
         <div className="phase-start">
           <label>
-            Start date
+            {t('wizard.startDate')}
             <input type="date" value={startDate} onChange={(e) => onStartDate(e.target.value)} />
           </label>
         </div>
@@ -83,11 +90,12 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
           return (
             <Fragment key={i}>
               <div className={`phase-row ${rowClassName}`.trim()} {...rowRest}>
-                <button {...handleProps(i, `Reorder phase ${i + 1}`)}>
+                <button {...handleProps(i, t('wizard.reorderPhase', { number: i + 1 }))}>
                   <GripIcon />
                 </button>
                 <OptionPicker
-                  label={`Phase ${i + 1} name`}
+                  label={t('wizard.phaseName', { number: i + 1 })}
+                  newLabel={t('wizard.newPhaseName', { number: i + 1 })}
                   hideLabel
                   list="phase"
                   options={phaseOptions}
@@ -105,16 +113,16 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
                     onListAdded(value);
                     update(i, { name: value.name });
                   }}
-                  noneLabel="Choose a phase…"
-                  addLabel="Other…"
+                  noneLabel={t('wizard.choosePhase')}
+                  addLabel={t('common.other')}
                 />
                 {subs.length > 0 ? (
-                  <span className="derived-days" aria-label={`Phase ${i + 1} working days`}>
-                    {subPhaseSpan(subs.filter(isValidSub))} working days (from sub-phases)
+                  <span className="derived-days" aria-label={t('wizard.phaseDays', { number: i + 1 })}>
+                    {t('wizard.daysFromSubPhases', { count: subPhaseSpan(subs.filter(isValidSub)) })}
                   </span>
                 ) : (
                   <input
-                    aria-label={`Phase ${i + 1} working days`}
+                    aria-label={t('wizard.phaseDays', { number: i + 1 })}
                     type="number"
                     min={1}
                     value={Number.isNaN(phase.durationDays) ? '' : phase.durationDays}
@@ -124,7 +132,7 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
                 <button
                   type="button"
                   className="button ghost-icon"
-                  aria-label={`Remove phase ${i + 1}`}
+                  aria-label={t('wizard.removePhase', { number: i + 1 })}
                   onClick={() => onPhases(phases.filter((_, j) => j !== i))}
                 >
                   <TrashIcon />
@@ -135,12 +143,12 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
           );
         })}
         <button type="button" className="button secondary" onClick={() => onPhases([...phases, { name: '', durationDays: 5 }])}>
-          <PlusIcon />Add phase
+          <PlusIcon />{t('wizard.addPhase')}
         </button>
       </section>
 
       <section className="card">
-        <h2>Preview</h2>
+        <h2>{t('wizard.preview')}</h2>
         <div className="chart-scroll" ref={chartRef}>
           <Gantt rows={rows} range={range} width={chartWidth} calendar={cal} detail="weeks" showDates />
         </div>

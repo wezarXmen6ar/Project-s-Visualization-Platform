@@ -163,12 +163,13 @@ export function scheduleToInput(startDate: string, phases: PhaseDraft[]): Schedu
  * Every saved phase and sub-phase whose id is no longer anywhere in `phases` and that has people, open to-dos, or
  * done to-dos on it, in plan order. A removed phase's sub-phases that were not moved elsewhere count as removed
  * too. Done to-dos of a removed phase are always deleted, so they only add to the warning, never to the keep/delete
- * choice (that only concerns open to-dos).
+ * choice (that only concerns open to-dos). `nameFor` gives a top-level phase's display name (e.g. its Arabic name).
  */
 export function removedItems(
   p: ProjectRecord,
   phases: PhaseDraft[],
   todos: ToDoRecord[],
+  nameFor: (name: string) => string = (name) => name,
 ): { label: string; people: number; openToDos: number; doneToDos: number }[] {
   const keptPhaseIds = new Set(phases.map((ph) => ph.id).filter((id): id is number => id !== undefined));
   const keptSubIds = new Set(
@@ -184,7 +185,7 @@ export function removedItems(
       const people = peopleOn(phase.id);
       const openToDos = openToDosOn(phase.id);
       const doneToDos = doneToDosOn(phase.id);
-      if (people > 0 || openToDos > 0 || doneToDos > 0) result.push({ label: phase.name, people, openToDos, doneToDos });
+      if (people > 0 || openToDos > 0 || doneToDos > 0) result.push({ label: nameFor(phase.name), people, openToDos, doneToDos });
     }
     for (const sub of phase.subPhases) {
       if (!keptSubIds.has(sub.id)) {
@@ -192,7 +193,7 @@ export function removedItems(
         const openToDos = openToDosOn(sub.id);
         const doneToDos = doneToDosOn(sub.id);
         if (people > 0 || openToDos > 0 || doneToDos > 0) {
-          result.push({ label: subPhaseLabel(phase.name, sub.name), people, openToDos, doneToDos });
+          result.push({ label: subPhaseLabel(nameFor(phase.name), sub.name), people, openToDos, doneToDos });
         }
       }
     }

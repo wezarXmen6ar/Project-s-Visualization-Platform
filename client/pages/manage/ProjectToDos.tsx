@@ -6,10 +6,10 @@ import { ToDoForm } from '../../components/ToDoForm';
 import { ToDoMetaLine } from '../../components/ToDoMetaLine';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
-import { useT } from '../../i18n/LanguageProvider';
+import { useLang, useT } from '../../i18n/LanguageProvider';
 import { AlertIcon } from '../../icons';
 import { useAsync } from '../../useAsync';
-import { byUrgency, toDoToInput } from '../../todos';
+import { byUrgency, toDoToInput, type PhaseNameFor } from '../../todos';
 
 /** Loads a project's to-dos (open and done); `reload` fetches them again after a change. */
 export function useProjectToDos(projectId: number) {
@@ -33,15 +33,6 @@ export function useProjectToDos(projectId: number) {
   return { todos: loaded.data ?? [], error: loaded.error, reload, toggleDone, toggleErrors };
 }
 
-interface ToDoRowMetaProps {
-  t: ToDoRecord;
-  today: string;
-}
-
-function ToDoMeta({ t, today }: ToDoRowMetaProps) {
-  return <ToDoMetaLine todo={t} today={today} />;
-}
-
 interface ProjectToDosProps {
   project: ProjectRecord;
   me: Me | undefined;
@@ -49,10 +40,14 @@ interface ProjectToDosProps {
   reload: () => void;
   toggleDone: (t: ToDoRecord) => void;
   toggleErrors?: string[];
+  /** Maps a top-level phase's stored name to its display name (e.g. its Arabic name). */
+  nameFor?: PhaseNameFor;
 }
 
 /** The project's to-dos: add, edit, tick off, and delete, with done ones tucked away by default. */
-export function ProjectToDos({ project, me, todos, reload, toggleDone, toggleErrors = [] }: ProjectToDosProps) {
+export function ProjectToDos({ project, me, todos, reload, toggleDone, toggleErrors = [], nameFor }: ProjectToDosProps) {
+  const t = useT();
+  const { lang } = useLang();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
@@ -60,8 +55,8 @@ export function ProjectToDos({ project, me, todos, reload, toggleDone, toggleErr
   const today = todayLocal();
   const meValue: Me = me ?? { resourceId: null, name: null };
 
-  const open = byUrgency(todos.filter((t) => !t.done));
-  const done = todos.filter((t) => t.done);
+  const open = byUrgency(todos.filter((x) => !x.done));
+  const done = todos.filter((x) => x.done);
 
   async function deleteToDo(id: number) {
     await api.deleteToDo(id);
@@ -72,9 +67,9 @@ export function ProjectToDos({ project, me, todos, reload, toggleDone, toggleErr
   return (
     <section className="card">
       <div className="phase-people-head">
-        <h2>To-dos</h2>
+        <h2>{t('nav.todos')}</h2>
         {!adding ? (
-          <button type="button" className="button secondary" onClick={() => setAdding(true)}>Add to-do</button>
+          <button type="button" className="button secondary" onClick={() => setAdding(true)}>{t('todo.add')}</button>
         ) : null}
       </div>
 
@@ -89,6 +84,7 @@ export function ProjectToDos({ project, me, todos, reload, toggleDone, toggleErr
         <ToDoForm
           project={project}
           me={meValue}
+          nameFor={nameFor}
           onSave={async (input) => {
             await api.createToDo(project.id, input);
             setAdding(false);
@@ -99,18 +95,19 @@ export function ProjectToDos({ project, me, todos, reload, toggleDone, toggleErr
       ) : null}
 
       {open.length === 0 ? (
-        <p className="muted">Nothing to do yet.</p>
+        <p className="muted">{t('todo.nothingYet')}</p>
       ) : (
         <ul className="todo-list">
-          {open.map((t) =>
-            editingId === t.id ? (
-              <li key={t.id} className="todo-editing">
+          {open.map((x) =>
+            editingId === x.id ? (
+              <li key={x.id} className="todo-editing">
                 <ToDoForm
                   project={project}
                   me={meValue}
-                  initial={t}
+                  initial={x}
+                  nameFor={nameFor}
                   onSave={async (input) => {
-                    await api.updateToDo(t.id, input);
+                    await api.updateToDo(x.id, input);
                     setEditingId(null);
                     reload();
                   }}
@@ -118,26 +115,41 @@ export function ProjectToDos({ project, me, todos, reload, toggleDone, toggleErr
                 />
               </li>
             ) : (
-              <li key={t.id} className="todo">
-                <input type="checkbox" aria-label={`Done: ${t.title}`} checked={false} onChange={() => void toggleDone(t)} />
+              <li key={x.id} className="todo">
+                <input
+                  type="checkbox"
+                  aria-label={t('todo.doneAria', { title: x.title })}
+                  checked={false}
+                  onChange={() => void toggleDone(x)}
+                />
                 <div>
-                  <div className="todo-title">{t.title}</div>
-                  <ToDoMeta t={t} today={today} />
-                  {t.note ? <div className="todo-note">{t.note}</div> : null}
+                  <div className="todo-title" dir="auto" data-user-content="">{x.title}</div>
+                  <ToDoMetaLine todo={x} today={today} nameFor={nameFor} />
+                  {x.note ? <div className="todo-note" dir="auto" data-user-content="">{x.note}</div> : null}
                 </div>
-                {confirmingId === t.id ? (
+                {confirmingId === x.id ? (
                   <div className="option-add-actions">
-                    <span>Delete this to-do?</span>
-                    <button type="button" className="button danger" onClick={() => void deleteToDo(t.id)}>Delete</button>
-                    <button type="button" className="button secondary" onClick={() => setConfirmingId(null)}>Keep</button>
+                    <span>{t('todo.confirmDelete')}</span>
+                    <button type="button" className="button danger" onClick={() => void deleteToDo(x.id)}>{t('common.delete')}</button>
+                    <button type="button" className="button secondary" onClick={() => setConfirmingId(null)}>{t('common.keep')}</button>
                   </div>
                 ) : (
                   <div className="option-add-actions">
-                    <button type="button" className="button secondary" aria-label={`Edit ${t.title}`} onClick={() => setEditingId(t.id)}>
-                      Edit
+                    <button
+                      type="button"
+                      className="button secondary"
+                      aria-label={t('todo.editAria', { title: x.title })}
+                      onClick={() => setEditingId(x.id)}
+                    >
+                      {t('common.edit')}
                     </button>
-                    <button type="button" className="button secondary" aria-label={`Delete ${t.title}`} onClick={() => setConfirmingId(t.id)}>
-                      Delete
+                    <button
+                      type="button"
+                      className="button secondary"
+                      aria-label={t('todo.deleteAria', { title: x.title })}
+                      onClick={() => setConfirmingId(x.id)}
+                    >
+                      {t('common.delete')}
                     </button>
                   </div>
                 )}
@@ -149,18 +161,18 @@ export function ProjectToDos({ project, me, todos, reload, toggleDone, toggleErr
 
       {done.length > 0 ? (
         <button type="button" className="button secondary" onClick={() => setShowDone((v) => !v)}>
-          {showDone ? 'Hide done' : `Show ${done.length} done`}
+          {showDone ? t('todo.hideDone') : t('todo.showDone', { count: done.length })}
         </button>
       ) : null}
 
       {showDone && done.length > 0 ? (
         <ul className="todo-list">
-          {done.map((t) => (
-            <li key={t.id} className="todo done">
-              <input type="checkbox" aria-label={`Done: ${t.title}`} checked onChange={() => void toggleDone(t)} />
+          {done.map((x) => (
+            <li key={x.id} className="todo done">
+              <input type="checkbox" aria-label={t('todo.doneAria', { title: x.title })} checked onChange={() => void toggleDone(x)} />
               <div>
-                <div className="todo-title">{t.title}</div>
-                <div className="todo-meta">{t.doneDate ? `Done ${dayDate(t.doneDate)}` : ''}</div>
+                <div className="todo-title" dir="auto" data-user-content="">{x.title}</div>
+                <div className="todo-meta">{x.doneDate ? t('todo.doneOn', { date: dayDate(x.doneDate, lang) }) : ''}</div>
               </div>
             </li>
           ))}

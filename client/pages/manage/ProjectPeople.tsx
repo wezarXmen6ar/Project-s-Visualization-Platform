@@ -9,7 +9,7 @@ import { phaseName } from '../../i18n/listNames';
 import { dayDate, overloadsWith, phaseWarnings, plannedFrom, type DraftAssignment } from '../../overloads';
 import { useLists } from '../../useLists';
 import { subPhaseLabel } from '../../todos';
-import { ASSIGNMENT_ROLE_LABEL } from './labels';
+import { ASSIGNMENT_ROLE_KEY } from './labels';
 
 interface PhasePeopleBlockProps {
   id: number;
@@ -33,8 +33,10 @@ interface PhasePeopleBlockProps {
 function PhasePeopleBlock({
   id, label, start, end, project, people, workload, editing, draft, errors, saving, onStartEdit, onSave, onCancel, onChangeDraft,
 }: PhasePeopleBlockProps) {
+  const t = useT();
+  const { lang } = useLang();
   const saved = project.assignments.filter((a) => a.phaseId === id);
-  const dates = `${dayDate(start)} – ${dayDate(end)}`;
+  const dates = `${dayDate(start, lang)} – ${dayDate(end, lang)}`;
 
   if (editing === id) {
     const planned = plannedFrom(draft, { start, end }, project.name, label);
@@ -62,12 +64,12 @@ function PhasePeopleBlock({
             type="button"
             className="button"
             disabled={saving}
-            aria-label={`Save people on ${label}`}
+            aria-label={t('project.savePeopleOn', { phase: label })}
             onClick={() => onSave(id)}
           >
-            Save
+            {t('common.save')}
           </button>
-          <button type="button" className="button secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className="button secondary" onClick={onCancel}>{t('common.cancel')}</button>
         </div>
       </div>
     );
@@ -82,20 +84,21 @@ function PhasePeopleBlock({
         <button
           type="button"
           className="button secondary"
-          aria-label={`Edit people on ${label}`}
+          aria-label={t('project.editPeopleOn', { phase: label })}
           disabled={editing !== null}
           onClick={() => onStartEdit(id)}
         >
-          Edit
+          {t('common.edit')}
         </button>
       </div>
       {saved.length === 0 ? (
-        <p className="muted item-empty">No one assigned.</p>
+        <p className="muted item-empty">{t('project.noOneAssigned')}</p>
       ) : (
         <ul className="people-list">
           {saved.map((a) => (
             <li key={a.id}>
-              <span>{a.resource.name}</span> — {a.allocation}% · {ASSIGNMENT_ROLE_LABEL[a.role]}
+              <span dir="auto" data-user-content="">{a.resource.name}</span>
+              {` — ${t('project.allocationRole', { allocation: a.allocation, role: t(ASSIGNMENT_ROLE_KEY[a.role]) })}`}
             </li>
           ))}
         </ul>
@@ -151,7 +154,7 @@ export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeo
 
   return (
     <section className="card">
-      <h2>People</h2>
+      <h2>{t('project.people')}</h2>
       {project.phases.map((phase) => (
         <Fragment key={phase.id}>
           <PhasePeopleBlock

@@ -1,30 +1,49 @@
 import type { ISODate } from '../../../shared/calendar';
+import type { MessageKey } from '../../../shared/i18n/en';
+import { translate } from '../../../shared/i18n/translate';
+import type { Lang } from '../../../shared/i18n/types';
 import type { AssignmentRole, Category, Priority, ScopeKind, Side, Specialisation } from '../../../shared/types';
 import { formatDate as formatDay } from '../../i18n/format';
 
-export const PRIORITY_LABEL: Record<Priority, string> = { high: 'High', medium: 'Medium', low: 'Low' };
+/** Catalogue keys for each priority; `PRIORITY_LABEL` is their English text. */
+export const PRIORITY_KEY: Record<Priority, MessageKey> = {
+  high: 'project.priorityHigh',
+  medium: 'project.priorityMedium',
+  low: 'project.priorityLow',
+};
 
-export const CATEGORY_LABEL: Record<Category, string> = { strategic: 'Strategic', operational: 'Operational' };
+/** Catalogue keys for each categorisation; `CATEGORY_LABEL` is their English text. */
+export const CATEGORY_KEY: Record<Category, MessageKey> = {
+  strategic: 'project.categoryStrategic',
+  operational: 'project.categoryOperational',
+};
 
-/** The four scope tables, in the order the wizard and project page show them. */
-export const SCOPE_TABLES: { kind: ScopeKind; title: string; noun: string }[] = [
-  { kind: 'scope', title: 'Scope', noun: 'Scope item' },
-  { kind: 'out-of-scope', title: 'Out of scope', noun: 'Out-of-scope item' },
-  { kind: 'problem', title: 'Problem statements', noun: 'Problem statement' },
-  { kind: 'objective', title: 'Objectives', noun: 'Objective' },
+const english = <K extends string>(keys: Record<K, MessageKey>) =>
+  Object.fromEntries(Object.entries(keys).map(([k, key]) => [k, translate('en', key as MessageKey)])) as Record<K, string>;
+
+export const PRIORITY_LABEL: Record<Priority, string> = english(PRIORITY_KEY);
+
+export const CATEGORY_LABEL: Record<Category, string> = english(CATEGORY_KEY);
+
+/** The four scope tables, in the order the wizard and project page show them, as catalogue keys. */
+export const SCOPE_TABLES: { kind: ScopeKind; title: MessageKey; noun: MessageKey }[] = [
+  { kind: 'scope', title: 'project.scopeTitle', noun: 'project.scopeNoun' },
+  { kind: 'out-of-scope', title: 'project.outOfScopeTitle', noun: 'project.outOfScopeNoun' },
+  { kind: 'problem', title: 'project.problemTitle', noun: 'project.problemNoun' },
+  { kind: 'objective', title: 'project.objectiveTitle', noun: 'project.objectiveNoun' },
 ];
 
-export function requesterLabel(r: { internal: boolean; external: boolean }): string {
-  if (r.internal && r.external) return 'Both (internal and external)';
-  if (r.internal) return 'Internal';
-  if (r.external) return 'External';
+export function requesterLabel(r: { internal: boolean; external: boolean }, lang: Lang = 'en'): string {
+  if (r.internal && r.external) return translate(lang, 'project.requesterBoth');
+  if (r.internal) return translate(lang, 'project.requesterInternal');
+  if (r.external) return translate(lang, 'project.requesterExternal');
   return '—';
 }
 
-export function beneficiaryLabel(b: { employees: boolean; customers: boolean }): string {
-  if (b.employees && b.customers) return 'Employees and customers';
-  if (b.employees) return 'Employees';
-  if (b.customers) return 'Customers';
+export function beneficiaryLabel(b: { employees: boolean; customers: boolean }, lang: Lang = 'en'): string {
+  if (b.employees && b.customers) return translate(lang, 'project.beneficiaryBoth');
+  if (b.employees) return translate(lang, 'project.beneficiaryEmployees');
+  if (b.customers) return translate(lang, 'project.beneficiaryCustomers');
   return '—';
 }
 
@@ -41,4 +60,10 @@ export function formatDate(d: ISODate): string {
   return formatDay('en', d);
 }
 
-export const ASSIGNMENT_ROLE_LABEL: Record<AssignmentRole, string> = { responsible: 'Responsible', contributor: 'Contributor' };
+/** Catalogue keys for each assignment role; `ASSIGNMENT_ROLE_LABEL` is their English text. */
+export const ASSIGNMENT_ROLE_KEY: Record<AssignmentRole, MessageKey> = {
+  responsible: 'project.roleResponsible',
+  contributor: 'project.roleContributor',
+};
+
+export const ASSIGNMENT_ROLE_LABEL: Record<AssignmentRole, string> = english(ASSIGNMENT_ROLE_KEY);

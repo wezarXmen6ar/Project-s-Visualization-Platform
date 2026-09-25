@@ -1,5 +1,7 @@
 import type { AssignmentRole, ResourceRecord } from '../../shared/types';
 import { PlusIcon, TrashIcon } from '../icons';
+import { useLang, useT } from '../i18n/LanguageProvider';
+import { listName } from '../i18n/listNames';
 import type { DraftAssignment } from '../overloads';
 
 interface AssignmentsEditorProps {
@@ -16,6 +18,13 @@ interface AssignmentsEditorProps {
 
 /** The people on one phase: who, how much of their week, and whether they are responsible or contributing. */
 export function AssignmentsEditor({ phaseName, dates, people, value, onChange, warnings }: AssignmentsEditorProps) {
+  const t = useT();
+  const { lang } = useLang();
+  /** "Fatima Noor · Developer", with "(inactive)" after someone no longer active. */
+  const personLabel = (p: ResourceRecord) => {
+    const who = p.role ? `${p.name} · ${listName(p.role, lang)}` : p.name;
+    return p.active ? who : t('common.inactive', { name: who });
+  };
   const update = (index: number, patch: Partial<DraftAssignment>) =>
     onChange(value.map((a, i) => (i === index ? { ...a, ...patch } : a)));
 
@@ -24,7 +33,7 @@ export function AssignmentsEditor({ phaseName, dates, people, value, onChange, w
       <h3>
         {phaseName} <span className="muted phase-dates">{dates}</span>
       </h3>
-      {value.length === 0 ? <p className="muted item-empty">No one assigned.</p> : null}
+      {value.length === 0 ? <p className="muted item-empty">{t('project.noOneAssigned')}</p> : null}
       {value.map((a, i) => {
         const chosenElsewhere = new Set(
           value.filter((_, j) => j !== i).map((other) => other.resourceId).filter((id): id is number => id !== null),
@@ -37,20 +46,20 @@ export function AssignmentsEditor({ phaseName, dates, people, value, onChange, w
           <div className="assignment" key={i}>
             <div className="assignment-row">
               <select
-                aria-label={`${phaseName} person ${i + 1}`}
+                aria-label={t('assign.person', { phase: phaseName, number: i + 1 })}
                 value={a.resourceId === null ? '' : String(a.resourceId)}
                 onChange={(e) => update(i, { resourceId: e.target.value === '' ? null : Number(e.target.value) })}
               >
-                <option value="">Choose a person…</option>
+                <option value="">{t('common.choosePerson')}</option>
                 {options.map((p) => (
                   <option key={p.id} value={String(p.id)}>
-                    {p.name}{p.role ? ` · ${p.role.name}` : ''}{p.active ? '' : ' (inactive)'}
+                    {personLabel(p)}
                   </option>
                 ))}
               </select>
               <span className="inline-number">
                 <input
-                  aria-label={`${phaseName} allocation ${i + 1}`}
+                  aria-label={t('assign.allocation', { phase: phaseName, number: i + 1 })}
                   type="number"
                   min={1}
                   max={100}
@@ -60,17 +69,17 @@ export function AssignmentsEditor({ phaseName, dates, people, value, onChange, w
                 <span aria-hidden="true">%</span>
               </span>
               <select
-                aria-label={`${phaseName} role ${i + 1}`}
+                aria-label={t('assign.role', { phase: phaseName, number: i + 1 })}
                 value={a.role}
                 onChange={(e) => update(i, { role: e.target.value as AssignmentRole })}
               >
-                <option value="responsible">Responsible</option>
-                <option value="contributor">Contributor</option>
+                <option value="responsible">{t('project.roleResponsible')}</option>
+                <option value="contributor">{t('project.roleContributor')}</option>
               </select>
               <button
                 type="button"
                 className="button ghost-icon"
-                aria-label={`Remove ${phaseName} person ${i + 1}`}
+                aria-label={t('assign.remove', { phase: phaseName, number: i + 1 })}
                 onClick={() => onChange(value.filter((_, j) => j !== i))}
               >
                 <TrashIcon />
@@ -89,7 +98,7 @@ export function AssignmentsEditor({ phaseName, dates, people, value, onChange, w
         className="button secondary"
         onClick={() => onChange([...value, { resourceId: null, allocation: 100, role: value.length === 0 ? 'responsible' : 'contributor' }])}
       >
-        <PlusIcon />Add person to {phaseName}
+        <PlusIcon />{t('assign.addTo', { phase: phaseName })}
       </button>
     </div>
   );

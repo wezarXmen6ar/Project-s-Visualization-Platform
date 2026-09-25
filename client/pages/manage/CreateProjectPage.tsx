@@ -5,7 +5,9 @@ import { newProjectSchema, toIssues, type NewProjectInput, type ValidationIssue 
 import { AlertIcon, ArrowLeftIcon, ArrowRightIcon } from '../../icons';
 import { ApiError, api } from '../../api';
 import { messageFor, messagesOf } from '../../errors';
-import { useT } from '../../i18n/LanguageProvider';
+import type { MessageKey } from '../../../shared/i18n/en';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { phaseName } from '../../i18n/listNames';
 import { useLists } from '../../useLists';
 import { useResources } from '../../useResources';
 import { useWorkload } from '../../useWorkload';
@@ -15,12 +17,13 @@ import { DEFAULT_PHASES, PhasesFields } from './PhasesFields';
 import { ScopeFields } from './ScopeFields';
 import { detailsToInput, emptyDetails, firstStepWithIssue, phasesToInput, stepOfIssue, type DetailsDraft, type PhaseDraft } from './projectDraft';
 
-const STEPS = ['Basic info', 'Description & scope', 'Phases', 'People'];
+const STEPS: MessageKey[] = ['wizard.stepBasics', 'wizard.stepScope', 'wizard.stepPhases', 'wizard.stepPeople'];
 const LAST = STEPS.length - 1;
 
 export function CreateProjectPage() {
   const navigate = useNavigate();
   const t = useT();
+  const { lang } = useLang();
   const { lists, error: listsError, remember } = useLists();
   const { people, error: peopleError, remember: rememberPerson } = useResources();
   const { workload, error: workloadError } = useWorkload();
@@ -84,8 +87,8 @@ export function CreateProjectPage() {
     <main className="page page-wide">
       <div className="page-header">
         <div>
-          <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>
-          <h1>New project</h1>
+          <Link to="/manage" className="crumb"><ArrowLeftIcon />{t('nav.projects')}</Link>
+          <h1>{t('wizard.title')}</h1>
         </div>
       </div>
 
@@ -93,7 +96,7 @@ export function CreateProjectPage() {
         {STEPS.map((label, i) => (
           <li key={label} className={i === step ? 'current' : i < step ? 'done' : undefined} aria-current={i === step ? 'step' : undefined}>
             <span className="wizard-step-number">{i + 1}</span>
-            {label}
+            {t(label)}
           </li>
         ))}
       </ol>
@@ -108,19 +111,19 @@ export function CreateProjectPage() {
         {listsError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load the dropdown lists: {messagesOf(listsError, t)[0]}</span>
+            <span>{t('common.couldNotLoadLists', { error: messagesOf(listsError, t)[0] })}</span>
           </div>
         ) : null}
         {peopleError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load people: {messagesOf(peopleError, t)[0]}</span>
+            <span>{t('common.couldNotLoadPeople', { error: messagesOf(peopleError, t)[0] })}</span>
           </div>
         ) : null}
         {workloadError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load everyone's workload: {messagesOf(workloadError, t)[0]}</span>
+            <span>{t('common.couldNotLoadWorkload', { error: messagesOf(workloadError, t)[0] })}</span>
           </div>
         ) : null}
 
@@ -153,19 +156,20 @@ export function CreateProjectPage() {
             onPhases={setPhases}
             people={people}
             workload={workload}
+            nameFor={(name) => phaseName(name, lists, lang)}
           />
         ) : null}
 
         <div className="wizard-actions">
           {step > 0 ? (
             <button type="button" className="button secondary" onClick={back}>
-              <ArrowLeftIcon />Back
+              <ArrowLeftIcon />{t('common.back')}
             </button>
           ) : (
             <span />
           )}
           <button type="submit" className="button" disabled={saving}>
-            {step < LAST ? <>Next<ArrowRightIcon /></> : saving ? 'Saving…' : 'Create project'}
+            {step < LAST ? <>{t('common.next')}<ArrowRightIcon /></> : saving ? t('common.saving') : t('wizard.create')}
           </button>
         </div>
       </form>

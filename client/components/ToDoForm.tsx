@@ -3,8 +3,8 @@ import { toDoInputSchema, toIssues, type ToDoInput } from '../../shared/schemas'
 import type { Me, ProjectRecord, ToDoRecord } from '../../shared/types';
 import { AlertIcon } from '../icons';
 import { messageFor, messagesOf } from '../errors';
-import { useT } from '../i18n/LanguageProvider';
-import { assigneeChoices, phaseChoices, toDoToInput } from '../todos';
+import { useLang, useT } from '../i18n/LanguageProvider';
+import { assigneeChoices, phaseChoices, toDoToInput, type PhaseNameFor } from '../todos';
 
 interface ToDoFormProps {
   project: ProjectRecord;
@@ -13,10 +13,12 @@ interface ToDoFormProps {
   initial?: ToDoRecord;
   onSave: (input: ToDoInput) => Promise<void>;
   onCancel: () => void;
+  /** Maps a top-level phase's stored name to its display name (e.g. its Arabic name), for the Phase choices. */
+  nameFor?: PhaseNameFor;
 }
 
 /** Add or edit a to-do: title, assignee, due date, phase and note. */
-export function ToDoForm({ project, me, initial, onSave, onCancel }: ToDoFormProps) {
+export function ToDoForm({ project, me, initial, onSave, onCancel, nameFor }: ToDoFormProps) {
   const defaults: ToDoInput = initial
     ? toDoToInput(initial)
     : { title: '', note: null, assigneeId: me.resourceId, dueDate: null, phaseId: null, done: false };
@@ -29,9 +31,10 @@ export function ToDoForm({ project, me, initial, onSave, onCancel }: ToDoFormPro
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const t = useT();
+  const { lang } = useLang();
 
-  const choices = assigneeChoices(project, me, initial?.assignee ?? null);
-  const phases = phaseChoices(project);
+  const choices = assigneeChoices(project, me, initial?.assignee ?? null, lang);
+  const phases = phaseChoices(project, nameFor);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -68,48 +71,50 @@ export function ToDoForm({ project, me, initial, onSave, onCancel }: ToDoFormPro
         </div>
       ) : null}
       <label>
-        Title
-        <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        {t('todo.fieldTitle')}
+        <input value={title} onChange={(e) => setTitle(e.target.value)} dir="auto" data-user-content="" />
       </label>
       <label>
-        Assigned to
+        {t('todo.assignedTo')}
         <select
           value={assigneeId === null ? '' : String(assigneeId)}
           onChange={(e) => setAssigneeId(e.target.value === '' ? null : Number(e.target.value))}
         >
-          <option value="">Unassigned</option>
-          {choices.me ? <option value={String(choices.me.id)}>{`Me — ${choices.me.name}`}</option> : null}
+          <option value="">{t('todo.unassigned')}</option>
+          {choices.me ? <option value={String(choices.me.id)}>{t('todo.me', { name: choices.me.name })}</option> : null}
           {choices.managers.length > 0 ? (
-            <optgroup label="Project managers">
+            <optgroup label={t('todo.projectManagers')}>
               {choices.managers.map((m) => <option key={m.id} value={String(m.id)}>{m.label}</option>)}
             </optgroup>
           ) : null}
           {choices.team.length > 0 ? (
-            <optgroup label="Team on this project">
-              {choices.team.map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+            <optgroup label={t('todo.team')}>
+              {choices.team.map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
             </optgroup>
           ) : null}
-          {choices.former ? <option value={String(choices.former.id)}>{`${choices.former.name} (no longer on this project)`}</option> : null}
+          {choices.former ? (
+            <option value={String(choices.former.id)}>{t('todo.formerAssignee', { name: choices.former.name })}</option>
+          ) : null}
         </select>
       </label>
       <label>
-        Due
+        {t('todo.dueField')}
         <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
       </label>
       <label>
-        Phase
+        {t('todo.phaseField')}
         <select value={phaseId === null ? '' : String(phaseId)} onChange={(e) => setPhaseId(e.target.value === '' ? null : Number(e.target.value))}>
-          <option value="">Whole project</option>
+          <option value="">{t('todo.wholeProject')}</option>
           {phases.map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </select>
       </label>
       <label>
-        Note
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} />
+        {t('todo.note')}
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} dir="auto" data-user-content="" />
       </label>
       <div className="option-add-actions">
-        <button type="submit" className="button" disabled={saving}>Save to-do</button>
-        <button type="button" className="button secondary" onClick={onCancel}>Cancel</button>
+        <button type="submit" className="button" disabled={saving}>{t('todo.save')}</button>
+        <button type="button" className="button secondary" onClick={onCancel}>{t('common.cancel')}</button>
       </div>
     </form>
   );

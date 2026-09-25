@@ -1,7 +1,10 @@
 import { DEFAULT_CALENDAR, countWorkingDays, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
 import { projectSpan } from '../../shared/scheduler';
-import type { AssignmentRecord, ProjectRecord } from '../../shared/types';
-import { ASSIGNMENT_ROLE_LABEL, formatDate } from '../pages/manage/labels';
+import { translate } from '../../shared/i18n/translate';
+import type { Lang } from '../../shared/i18n/types';
+import type { AssignmentRecord, ProjectRecord, Ref } from '../../shared/types';
+import { formatDate } from '../i18n/format';
+import { ASSIGNMENT_ROLE_KEY } from '../pages/manage/labels';
 import { subPhaseLabel } from '../todos';
 import type { GanttBar, GanttDetail, GanttRow, GanttSegment } from './Gantt';
 import { monthPaddedRange } from './scale';
@@ -99,6 +102,8 @@ export interface PhaseRowOptions {
    * identity, so callers that don't pass it keep the stored text unchanged. Never applied to sub-phase names.
    */
   nameFor?: (name: string) => string;
+  /** The language of the details card (dates, working days, roles). Defaults to English. */
+  lang?: Lang;
 }
 
 function pieceDetail(
@@ -106,11 +111,18 @@ function pieceDetail(
   piece: { id?: number; start: ISODate; end: ISODate },
   options: PhaseRowOptions,
 ): GanttDetail {
+  const lang = options.lang ?? 'en';
   const days = countWorkingDays(piece.start, piece.end, options.calendar ?? DEFAULT_CALENDAR);
-  const lines = [`${formatDate(piece.start)} – ${formatDate(piece.end)} · ${days} working ${days === 1 ? 'day' : 'days'}`];
+  const lines = [
+    translate(lang, 'project.pieceDates', {
+      start: formatDate(lang, piece.start), end: formatDate(lang, piece.end), count: days,
+    }),
+  ];
   if (options.people && piece.id !== undefined) {
     for (const a of options.people.filter((x) => x.phaseId === piece.id)) {
-      lines.push(`${a.resource.name} · ${a.allocation}% · ${ASSIGNMENT_ROLE_LABEL[a.role]}`);
+      lines.push(translate(lang, 'project.personLine', {
+        name: a.resource.name, allocation: a.allocation, role: translate(lang, ASSIGNMENT_ROLE_KEY[a.role]),
+      }));
     }
   }
   return { title, lines };
@@ -196,7 +208,9 @@ export function portfolioRows(projects: ProjectRecord[], nameFor: (name: string)
  * input is sorted by start date). Standalone projects come last.
  */
 export function groupedPortfolioRows(
-  projects: ProjectRecord[], nameFor: (name: string) => string = (name) => name,
+  projects: ProjectRecord[],
+  nameFor: (name: string) => string = (name) => name,
+  groupNameFor: (mainProject: Ref) => string = (mainProject) => mainProject.name,
 ): GanttRow[] {
   const groups = new Map<number, { name: string; members: ProjectRecord[] }>();
   const standalone: ProjectRecord[] = [];
@@ -205,7 +219,7 @@ export function groupedPortfolioRows(
       standalone.push(p);
       continue;
     }
-    const group = groups.get(p.mainProject.id) ?? { name: p.mainProject.name, members: [] };
+    const group = groups.get(p.mainProject.id) ?? { name: groupNameFor(p.mainProject), members: [] };
     group.members.push(p);
     groups.set(p.mainProject.id, group);
   }

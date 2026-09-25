@@ -5,6 +5,7 @@ import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { ApiError, api } from '../../api';
 import { messageFor, messagesOf } from '../../errors';
 import { useT } from '../../i18n/LanguageProvider';
+import { withNodes } from '../../i18n/withNodes';
 import { useAsync } from '../../useAsync';
 import { useLists } from '../../useLists';
 import { useResources } from '../../useResources';
@@ -26,7 +27,7 @@ export function EditProjectPage() {
   if (project.error) {
     return (
       <main className="page">
-        <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>
+        <Link to="/manage" className="crumb"><ArrowLeftIcon />{t('nav.projects')}</Link>
         <div className="errors" role="alert">
           <AlertIcon />
           <span>{messagesOf(project.error, t)[0]}</span>
@@ -34,7 +35,7 @@ export function EditProjectPage() {
       </main>
     );
   }
-  if (!project.data) return <main className="page"><p className="muted">Loading…</p></main>;
+  if (!project.data) return <main className="page"><p className="muted">{t('common.loading')}</p></main>;
 
   // Until the user changes something, the form shows the saved project.
   const savedDraft = detailsFromProject(project.data);
@@ -70,8 +71,8 @@ export function EditProjectPage() {
     <main className="page">
       <div className="page-header">
         <div>
-          <Link to={`/manage/projects/${id}`} className="crumb"><ArrowLeftIcon />{project.data.name}</Link>
-          <h1>Edit details</h1>
+          <Link to={`/manage/projects/${id}`} className="crumb"><ArrowLeftIcon /><span dir="auto" data-user-content="">{project.data.name}</span></Link>
+          <h1>{t('project.editDetails')}</h1>
         </div>
       </div>
 
@@ -85,13 +86,13 @@ export function EditProjectPage() {
         {listsError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load the dropdown lists: {messagesOf(listsError, t)[0]}</span>
+            <span>{t('common.couldNotLoadLists', { error: messagesOf(listsError, t)[0] })}</span>
           </div>
         ) : null}
         {peopleError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load people: {messagesOf(peopleError, t)[0]}</span>
+            <span>{t('common.couldNotLoadPeople', { error: messagesOf(peopleError, t)[0] })}</span>
           </div>
         ) : null}
 
@@ -106,11 +107,13 @@ export function EditProjectPage() {
         <ScopeFields value={draft} onChange={patch} />
 
         <p className="muted">
-          Phases are changed on their own page: <Link to={`/manage/projects/${id}/phases`}>Edit phases</Link>
+          {withNodes(t('edit.phasesElsewhere'), {
+            link: <Link to={`/manage/projects/${id}/phases`}>{t('project.editPhases')}</Link>,
+          })}
         </p>
         <div className="wizard-actions">
-          <Link to={`/manage/projects/${id}`} className="button secondary">Cancel</Link>
-          <button type="submit" className="button" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+          <Link to={`/manage/projects/${id}`} className="button secondary">{t('common.cancel')}</Link>
+          <button type="submit" className="button" disabled={saving}>{saving ? t('common.saving') : t('edit.saveChanges')}</button>
         </div>
       </form>
     </main>
