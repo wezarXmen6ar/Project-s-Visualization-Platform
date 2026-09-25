@@ -47,8 +47,10 @@ export function ItemTable({ title, noun, items, onChange }: ItemTableProps) {
         <p className="muted item-empty">None yet.</p>
       ) : (
         <ol className="item-list">
-          {items.map((item, i) => (
-            <li key={i} className="item-row" {...rowProps(i)}>
+          {items.map((item, i) => {
+            const { className: rowClassName, ...rowRest } = rowProps(i);
+            return (
+            <li key={i} className={`item-row ${rowClassName}`.trim()} {...rowRest}>
               <button {...handleProps(i, `Reorder ${lower} ${i + 1}`)}>
                 <GripIcon />
               </button>
@@ -67,7 +69,8 @@ export function ItemTable({ title, noun, items, onChange }: ItemTableProps) {
                 <TrashIcon />
               </button>
             </li>
-          ))}
+            );
+          })}
         </ol>
       )}
       <div className="item-add">

@@ -79,9 +79,10 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
         </div>
         {phases.map((phase, i) => {
           const subs = phase.subPhases ?? [];
+          const { className: rowClassName, ...rowRest } = rowProps(i);
           return (
             <Fragment key={i}>
-              <div className="phase-row" {...rowProps(i)}>
+              <div className={`phase-row ${rowClassName}`.trim()} {...rowRest}>
                 <button {...handleProps(i, `Reorder phase ${i + 1}`)}>
                   <GripIcon />
                 </button>

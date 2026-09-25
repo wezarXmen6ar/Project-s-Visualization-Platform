@@ -21,8 +21,10 @@ export function SubPhaseList({ phaseNumber, subs, onChange }: SubPhaseListProps)
 
   return (
     <div className="sub-phases">
-      {subs.map((sub, i) => (
-        <div className="sub-phase-row" key={i} {...rowProps(i)}>
+      {subs.map((sub, i) => {
+        const { className: rowClassName, ...rowRest } = rowProps(i);
+        return (
+        <div className={`sub-phase-row ${rowClassName}`.trim()} key={i} {...rowRest}>
           <button {...handleProps(i, `Reorder phase ${phaseNumber} sub-phase ${i + 1}`)}>
             <GripIcon />
           </button>
@@ -60,7 +62,8 @@ export function SubPhaseList({ phaseNumber, subs, onChange }: SubPhaseListProps)
             <TrashIcon />
           </button>
         </div>
-      ))}
+        );
+      })}
       <button
         type="button"
         className="button secondary"
