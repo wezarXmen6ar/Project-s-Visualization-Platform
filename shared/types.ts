@@ -187,6 +187,27 @@ export interface ScheduleSaved {
   addedPhaseIds: number[];
 }
 
+export interface ToDoRecord {
+  id: number;
+  projectId: number;
+  projectName: string;
+  title: string;
+  note: string | null;
+  assignee: Ref | null;
+  dueDate: ISODate | null;
+  done: boolean;
+  /** The day it was ticked off. */
+  doneDate: ISODate | null;
+  /** The phase or sub-phase it belongs to; a sub-phase's name reads "Phase › Sub-phase". */
+  phase: Ref | null;
+  /** Set when the phase it was linked to was removed and the to-do was kept; cleared once it is linked again. */
+  formerPhase: { name: string; removedOn: ISODate } | null;
+  createdAt: string;
+}
+
+/** Who "I am" is: the PM using the tool. */
+export interface Me { resourceId: number | null; name: string | null }
+
 export interface PortfolioResponse {
   year: number;
   today: ISODate;

@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Lists, ProjectRecord, ResourceRecord, WorkloadData } from '../../shared/types';
+import type { Lists, ProjectRecord, ResourceRecord, ToDoRecord, WorkloadData } from '../../shared/types';
 
 export type MockHandler = (init?: RequestInit) => { status?: number; body: unknown };
 
@@ -108,6 +108,34 @@ export function sampleWorkload(): WorkloadData {
     ],
     decisions: [],
   };
+}
+
+/**
+ * One overdue, one due later, one with no due date, one done, one on a sub-phase, and one assigned to a business
+ * contact. Uses the sample people and project ids.
+ */
+export function sampleToDos(): ToDoRecord[] {
+  const base = (overrides: Partial<ToDoRecord> & Pick<ToDoRecord, 'id' | 'title'>): ToDoRecord => ({
+    projectId: 1,
+    projectName: 'Portal',
+    note: null,
+    assignee: null,
+    dueDate: null,
+    done: false,
+    doneDate: null,
+    phase: null,
+    formerPhase: null,
+    createdAt: '2026-09-20T09:00:00.000Z',
+    ...overrides,
+  });
+  return [
+    base({ id: 200, title: 'Chase the missing contract', dueDate: '2026-10-01' }),
+    base({ id: 201, title: 'Book the UAT room', dueDate: '2026-10-20' }),
+    base({ id: 202, title: 'Draft the go-live checklist' }),
+    base({ id: 203, title: 'Confirm the sandbox is ready', done: true, doneDate: '2026-09-22' }),
+    base({ id: 204, title: 'Review Increment 1 scope', phase: { id: 120, name: 'Development › Increment 1' } }),
+    base({ id: 205, title: 'Get sign-off from the business', assignee: { id: 80, name: 'Mariam Al Suwaidi' } }),
+  ];
 }
 
 /** sampleWorkload plus 60% more for Fatima in the week of 5 Oct 2026 (160% booked). */

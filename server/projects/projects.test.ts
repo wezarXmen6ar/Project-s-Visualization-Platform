@@ -21,6 +21,8 @@ const body = {
   ],
 };
 
+const TODAY = '2026-09-25';
+
 let db: DatabaseSync;
 beforeEach(() => {
   db = openDb(':memory:');
@@ -196,7 +198,7 @@ describe('updateSchedule', () => {
         { id: a.id, name: 'A', durationDays: 5 },
         { id: c.id, name: 'C', durationDays: 5, subPhases: [{ id: c1.id, name: 'C1', durationDays: 3 }, { id: c2.id, name: 'C2', durationDays: 2 }] },
       ],
-    }));
+    }), TODAY);
     expect(r.ok).toBe(true);
     const p = getProject(db, id)!;
     expect(p.phases.map((ph) => [ph.id, ph.name, ph.start])).toEqual([
@@ -216,7 +218,7 @@ describe('updateSchedule', () => {
         { id: c.id, name: 'C', durationDays: 5, subPhases: [{ id: c1.id, name: 'C1', durationDays: 3 }, { id: c2.id, name: 'C2', durationDays: 2 }] },
         { name: 'D', durationDays: 3 },
       ],
-    }));
+    }), TODAY);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const p = getProject(db, id)!;
@@ -238,7 +240,7 @@ describe('updateSchedule', () => {
         { id: a.id, name: 'A', durationDays: 5 },
         { id: c.id, name: 'C', durationDays: 5, subPhases: [{ id: c1.id, name: 'C1', durationDays: 3 }, { id: c2.id, name: 'C2', durationDays: 2 }] },
       ],
-    }));
+    }), TODAY);
     expect(r.ok).toBe(true);
     const p = getProject(db, id)!;
     expect(p.phases.map((ph) => ph.id)).not.toContain(b.id);
@@ -252,7 +254,7 @@ describe('updateSchedule', () => {
         { id: a.id, name: 'A', durationDays: 5, subPhases: [{ id: c2.id, name: 'C2', durationDays: 2 }] },
         { id: b.id, name: 'B', durationDays: 5 },
       ],
-    }));
+    }), TODAY);
     expect(r.ok).toBe(true);
     const p = getProject(db, id)!;
     expect(p.phases.map((ph) => ph.id)).not.toContain(c.id);
@@ -271,7 +273,7 @@ describe('updateSchedule', () => {
         { id: b.id, name: 'B', durationDays: 5 },
         { id: c.id, name: 'C', durationDays: 5, subPhases: [{ id: c1.id, name: 'C1', durationDays: 3 }, { id: c2.id, name: 'C2', durationDays: 2 }] },
       ],
-    }));
+    }), TODAY);
     expect(r.ok).toBe(true);
     const after = getProject(db, id)!;
     expect(after.startDate).toBe('2026-10-12');
@@ -322,7 +324,7 @@ describe('updateSchedule', () => {
       },
     ];
     for (const { input, path, message } of cases) {
-      const r = updateSchedule(db, DEFAULT_CALENDAR, id, scheduleUpdateSchema.parse(input));
+      const r = updateSchedule(db, DEFAULT_CALENDAR, id, scheduleUpdateSchema.parse(input), TODAY);
       expect(r.ok).toBe(false);
       if (r.ok) continue;
       expect(r.status).toBe(400);
@@ -336,7 +338,7 @@ describe('updateSchedule', () => {
     const r = updateSchedule(db, DEFAULT_CALENDAR, 999999, scheduleUpdateSchema.parse({
       startDate: '2026-10-05',
       phases: [{ name: 'A', durationDays: 2 }],
-    }));
+    }), TODAY);
     expect(r).toEqual({ ok: false, status: 404, error: 'Project not found' });
   });
 });

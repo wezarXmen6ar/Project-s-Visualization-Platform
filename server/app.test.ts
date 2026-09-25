@@ -115,3 +115,100 @@ describe('PUT /api/projects/:id/schedule', () => {
     expect(assignment.start).toBe('2026-10-12');
   });
 });
+
+describe('to-dos', () => {
+  async function setup() {
+    const db = openDb(':memory:');
+    const app = buildApp(db, { today: () => '2026-10-07' });
+    const ted = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Ted', side: 'tech' } })).json();
+    const project = (
+      await app.inject({
+        method: 'POST', url: '/api/projects',
+        payload: {
+          name: 'Portal', color: '#3b82f6', startDate: '2026-10-05',
+          phases: [{ name: 'A', durationDays: 5, assignments: [{ resourceId: ted.id, allocation: 50 }] }],
+        },
+      })
+    ).json();
+    return { app, project, ted };
+  }
+
+  it('creates a to-do, and 404s for a missing project', async () => {
+    const { app, project } = await setup();
+    const created = await app.inject({ method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: 'Chase Jira' } });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ title: 'Chase Jira', projectId: project.id, done: false });
+
+    const missing = await app.inject({ method: 'POST', url: '/api/projects/999/todos', payload: { title: 'Chase Jira' } });
+    expect(missing.statusCode).toBe(404);
+    expect(missing.json()).toEqual({ error: 'Project not found' });
+  });
+
+  it('rejects an empty title', async () => {
+    const { app, project } = await setup();
+    const res = await app.inject({ method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: '' } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().issues).toContainEqual({ path: 'title', message: 'Write what needs doing' });
+  });
+
+  it('marks a to-do done with today\'s date, and deletes it', async () => {
+    const { app, project } = await setup();
+    const created = (
+      await app.inject({ method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: 'Chase Jira' } })
+    ).json();
+
+    const done = await app.inject({ method: 'PUT', url: `/api/todos/${created.id}`, payload: { title: 'Chase Jira', done: true } });
+    expect(done.statusCode).toBe(200);
+    expect(done.json()).toMatchObject({ done: true, doneDate: '2026-10-07' });
+
+    const deleted = await app.inject({ method: 'DELETE', url: `/api/todos/${created.id}` });
+    expect(deleted.statusCode).toBe(204);
+    const again = await app.inject({ method: 'DELETE', url: `/api/todos/${created.id}` });
+    expect(again.statusCode).toBe(404);
+  });
+
+  it('filters by assignee, and includes done ones only when asked', async () => {
+    const { app, project, ted } = await setup();
+    await app.inject({ method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: 'Unassigned' } });
+    const tedsToDo = (
+      await app.inject({
+        method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: "Ted's task", assigneeId: ted.id },
+      })
+    ).json();
+    const doneToDo = (
+      await app.inject({ method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: 'Done task', done: true } })
+    ).json();
+
+    const forTed = await app.inject({ method: 'GET', url: `/api/todos?assigneeId=${ted.id}` });
+    expect(forTed.json().map((t: { id: number }) => t.id)).toEqual([tedsToDo.id]);
+
+    const withoutDone = await app.inject({ method: 'GET', url: `/api/todos?projectId=${project.id}` });
+    expect(withoutDone.json().map((t: { id: number }) => t.id)).not.toContain(doneToDo.id);
+
+    const withDone = await app.inject({ method: 'GET', url: `/api/todos?projectId=${project.id}&done=include` });
+    expect(withDone.json().map((t: { id: number }) => t.id)).toContain(doneToDo.id);
+  });
+});
+
+describe('"I am"', () => {
+  it('rejects a business contact, accepts a tech person, and null clears it', async () => {
+    const db = openDb(':memory:');
+    const app = buildApp(db);
+    const contact = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Mariam', side: 'business' } })).json();
+    const rejected = await app.inject({ method: 'PUT', url: '/api/settings/me', payload: { resourceId: contact.id } });
+    expect(rejected.statusCode).toBe(400);
+    expect(rejected.json()).toEqual({ error: 'Choose someone from your tech team' });
+
+    const tech = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Sara', side: 'tech' } })).json();
+    const set = await app.inject({ method: 'PUT', url: '/api/settings/me', payload: { resourceId: tech.id } });
+    expect(set.statusCode).toBe(200);
+    expect(set.json()).toEqual({ resourceId: tech.id, name: 'Sara' });
+
+    const got = await app.inject({ method: 'GET', url: '/api/settings/me' });
+    expect(got.json()).toEqual({ resourceId: tech.id, name: 'Sara' });
+
+    const cleared = await app.inject({ method: 'PUT', url: '/api/settings/me', payload: { resourceId: null } });
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json()).toEqual({ resourceId: null, name: null });
+  });
+});

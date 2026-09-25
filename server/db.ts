@@ -173,6 +173,23 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE phases ADD COLUMN with_previous INTEGER NOT NULL DEFAULT 0;
   CREATE INDEX phases_parent ON phases(parent_id);
   `,
+  `
+  CREATE TABLE todos (
+    id INTEGER PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    note TEXT,
+    assignee_id INTEGER REFERENCES resources(id),
+    due_date TEXT,
+    phase_id INTEGER REFERENCES phases(id) ON DELETE SET NULL,
+    done_date TEXT,
+    former_phase TEXT,
+    former_phase_removed_on TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX todos_project ON todos(project_id);
+  CREATE INDEX todos_assignee ON todos(assignee_id);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

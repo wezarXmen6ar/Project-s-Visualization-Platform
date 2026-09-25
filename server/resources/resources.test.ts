@@ -152,6 +152,40 @@ describe('resources API', () => {
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({ error: '"Developer" is used by 1 person' });
   });
+
+  it("won't delete a person with a to-do, but allows switching a business contact who has one to the tech team", async () => {
+    const project = (
+      await app.inject({
+        method: 'POST', url: '/api/projects',
+        payload: { name: 'Portal', color: '#3b82f6', startDate: '2026-10-05', phases: [{ name: 'A', durationDays: 5 }] },
+      })
+    ).json();
+
+    const tech = (await post({ name: 'Fatima', side: 'tech' })).json();
+    await app.inject({
+      method: 'PUT', url: `/api/phases/${project.phases[0].id}/assignments`,
+      payload: { assignments: [{ resourceId: tech.id, allocation: 30 }] },
+    });
+    const created = await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: 'Follow up', assigneeId: tech.id },
+    });
+    expect(created.statusCode).toBe(201);
+    const deleted = await app.inject({ method: 'DELETE', url: `/api/resources/${tech.id}` });
+    expect(deleted.statusCode).toBe(409);
+    expect(deleted.json().error).toContain('they have 1 to-do');
+
+    // Inserted directly: a to-do keeps its assignee even once they are no longer "on the project" in any other way
+    // (see the assignee rule), which is how a business contact ends up with only a to-do to their name.
+    const contact = (await post({ name: 'Mariam', side: 'business' })).json();
+    db.prepare('INSERT INTO todos (project_id, title, assignee_id, created_at) VALUES (?, ?, ?, ?)')
+      .run(project.id, 'Chase invoice', contact.id, new Date().toISOString());
+
+    const switched = await app.inject({
+      method: 'PUT', url: `/api/resources/${contact.id}`, payload: { name: 'Mariam', side: 'tech' },
+    });
+    expect(switched.statusCode).toBe(200);
+    expect(switched.json().side).toBe('tech');
+  });
 });
 
 describe('the projects a person is on', () => {

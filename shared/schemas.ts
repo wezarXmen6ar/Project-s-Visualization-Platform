@@ -126,6 +126,7 @@ export const schedulePhaseSchema = z.object({
 export const scheduleUpdateSchema = z.object({
   startDate: isoDate,
   phases: z.array(schedulePhaseSchema).min(1, 'Add at least one phase'),
+  removedToDos: z.enum(['keep', 'delete']).default('keep'),
 });
 
 export type ScheduleUpdateInput = z.input<typeof scheduleUpdateSchema>;
@@ -228,3 +229,15 @@ export type AssignmentInput = z.input<typeof assignmentInputSchema>;
 export type AssignmentData = z.output<typeof assignmentInputSchema>;
 export type OverloadDecisionInput = z.input<typeof overloadDecisionSchema>;
 export type OverloadDecisionData = z.output<typeof overloadDecisionSchema>;
+
+export const toDoInputSchema = z.object({
+  title: z.string().trim().min(1, 'Write what needs doing').max(200, 'Keep the title under 200 characters'),
+  note: optionalText(2000),
+  assigneeId: optionalId,
+  dueDate: isoDate.nullish().transform((v) => v ?? null),
+  phaseId: optionalId,
+  done: z.boolean().default(false),
+});
+export const meInputSchema = z.object({ resourceId: z.number().int().positive().nullable() });
+export type ToDoInput = z.input<typeof toDoInputSchema>;
+export type ToDoData = z.output<typeof toDoInputSchema>;

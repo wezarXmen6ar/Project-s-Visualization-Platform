@@ -4,8 +4,8 @@ import { todayLocal, type ISODate } from '../shared/calendar';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
-  assignmentsUpdateSchema, leaveInputSchema, listValueInputSchema, newProjectSchema, overloadDecisionSchema, projectDetailsSchema,
-  resourceInputSchema, scheduleUpdateSchema, toIssues,
+  assignmentsUpdateSchema, leaveInputSchema, listValueInputSchema, meInputSchema, newProjectSchema, overloadDecisionSchema,
+  projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, toDoInputSchema, toIssues,
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import {
@@ -17,7 +17,8 @@ import { checkRefs, createProject, getProject, listProjects, updateProjectDetail
 import {
   addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, listResources, updateResourceChecked,
 } from './resources/repo';
-import { getCalendar } from './settings';
+import { getCalendar, getMe, setMe } from './settings';
+import { checkToDo, createToDo, deleteToDo, getToDo, listToDos, updateToDo } from './todos/repo';
 
 export interface AppOptions {
   /** Injectable clock so tests can fix "today". */
@@ -126,7 +127,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.put<{ Params: { id: string } }>('/api/projects/:id/schedule', async (req, reply) => {
     const parsed = scheduleUpdateSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid schedule', issues: toIssues(parsed.error) });
-    const result = updateSchedule(db, getCalendar(db), Number(req.params.id), parsed.data);
+    const result = updateSchedule(db, getCalendar(db), Number(req.params.id), parsed.data, today());
     if (result.ok) return result.saved;
     if (result.status === 404) return reply.code(404).send({ error: result.error });
     return reply.code(400).send({ error: 'Invalid schedule', issues: result.issues });
@@ -151,6 +152,60 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid decision', issues: toIssues(parsed.error) });
     if (!isTechPerson(db, parsed.data.resourceId)) return reply.code(404).send({ error: 'Person not found' });
     return reply.code(201).send(recordDecision(db, parsed.data, today()));
+  });
+
+  app.get<{ Querystring: { projectId?: string; assigneeId?: string; done?: string; removed?: string } }>(
+    '/api/todos',
+    async (req) => {
+      const filter: Parameters<typeof listToDos>[1] = {};
+      const projectId = Number(req.query.projectId);
+      if (Number.isInteger(projectId) && projectId > 0) filter.projectId = projectId;
+      const assigneeId = Number(req.query.assigneeId);
+      if (Number.isInteger(assigneeId) && assigneeId > 0) filter.assigneeId = assigneeId;
+      if (req.query.done === 'include') filter.includeDone = true;
+      if (req.query.removed === '1') filter.fromRemovedPhases = true;
+      return listToDos(db, filter);
+    },
+  );
+
+  app.post<{ Params: { id: string } }>('/api/projects/:id/todos', async (req, reply) => {
+    const projectId = Number(req.params.id);
+    if (!getProject(db, projectId)) return reply.code(404).send({ error: 'Project not found' });
+    const parsed = toDoInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid to-do', issues: toIssues(parsed.error) });
+    const issues = checkToDo(db, projectId, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid to-do', issues });
+    return reply.code(201).send(createToDo(db, projectId, parsed.data, today()));
+  });
+
+  app.put<{ Params: { id: string } }>('/api/todos/:id', async (req, reply) => {
+    const id = Number(req.params.id);
+    const existing = getToDo(db, id);
+    if (!existing) return reply.code(404).send({ error: 'To-do not found' });
+    const parsed = toDoInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid to-do', issues: toIssues(parsed.error) });
+    const issues = checkToDo(db, existing.projectId, parsed.data, existing);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid to-do', issues });
+    return updateToDo(db, id, parsed.data, today());
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/todos/:id', async (req, reply) =>
+    deleteToDo(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send({ error: 'To-do not found' }));
+
+  app.get('/api/settings/me', async () => getMe(db));
+
+  app.put('/api/settings/me', async (req, reply) => {
+    const parsed = meInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid person', issues: toIssues(parsed.error) });
+    const { resourceId } = parsed.data;
+    if (resourceId !== null) {
+      const person = db.prepare("SELECT active FROM resources WHERE id = ? AND side = 'tech'").get(resourceId) as unknown as
+        | { active: number }
+        | undefined;
+      if (!person || person.active !== 1) return reply.code(400).send({ error: 'Choose someone from your tech team' });
+    }
+    setMe(db, resourceId);
+    return getMe(db);
   });
 
   app.get<{ Querystring: { year?: string } }>('/api/portfolio', async (req, reply) => {

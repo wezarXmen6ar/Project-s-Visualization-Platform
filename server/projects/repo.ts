@@ -9,6 +9,7 @@ import type {
 import { assignmentsByProject, projectAssignments, saveAssignments } from '../assignments/repo';
 import { transaction } from '../db';
 import { getListValue } from '../lists/repo';
+import { handleRemovedPhaseToDos } from '../todos/repo';
 
 interface ProjectRow {
   id: number;
@@ -264,7 +265,9 @@ function checkScheduleIds(db: DatabaseSync, projectId: number, input: ScheduleUp
 }
 
 /** Replaces the project's start date and phase structure, keeping every phase sent back by id with its people. */
-export function updateSchedule(db: DatabaseSync, cal: WorkCalendar, projectId: number, input: ScheduleUpdate): ScheduleResult {
+export function updateSchedule(
+  db: DatabaseSync, cal: WorkCalendar, projectId: number, input: ScheduleUpdate, today: ISODate,
+): ScheduleResult {
   if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return { ok: false, status: 404, error: 'Project not found' };
   const issues = checkScheduleIds(db, projectId, input);
   if (issues.length > 0) return { ok: false, status: 400, issues };
@@ -272,6 +275,25 @@ export function updateSchedule(db: DatabaseSync, cal: WorkCalendar, projectId: n
   const scheduled = schedulePhases(input.startDate, input.phases, cal);
   const addedPhaseIds: number[] = [];
   transaction(db, () => {
+    // Read every current phase's name before anything is updated, so a kept-but-renamed phase's old name never
+    // leaks into a removed sibling's "former phase" note, and a removed phase's own name is the one before this save.
+    const oldPhases = db.prepare('SELECT id, name, parent_id FROM phases WHERE project_id = ?').all(projectId) as unknown as
+      { id: number; name: string; parent_id: number | null }[];
+    const oldNameById = new Map(oldPhases.map((r) => [r.id, r.name]));
+    const labelFor = (id: number): string => {
+      const row = oldPhases.find((r) => r.id === id)!;
+      return row.parent_id === null ? row.name : `${oldNameById.get(row.parent_id)} › ${row.name}`;
+    };
+    const explicitIds = new Set<number>();
+    input.phases.forEach((p) => {
+      if (p.id !== undefined) explicitIds.add(p.id);
+      p.subPhases.forEach((s) => {
+        if (s.id !== undefined) explicitIds.add(s.id);
+      });
+    });
+    const removedPhaseIds = oldPhases.filter((r) => !explicitIds.has(r.id)).map((r) => r.id);
+    handleRemovedPhaseToDos(db, removedPhaseIds, input.removedToDos, today, labelFor);
+
     db.prepare('UPDATE projects SET start_date = ? WHERE id = ?').run(input.startDate, projectId);
     const update = db.prepare(
       `UPDATE phases SET parent_id = ?, name = ?, sort_order = ?, duration_days = ?, planned_start = ?, planned_end = ?, with_previous = ?

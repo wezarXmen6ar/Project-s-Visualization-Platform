@@ -3,6 +3,7 @@ import { todayLocal, type ISODate } from '../../shared/calendar';
 import type { LeaveData, ResourceData, ValidationIssue } from '../../shared/schemas';
 import type { LeaveRecord, PersonProject, ResourceRecord, Side, Specialisation } from '../../shared/types';
 import { getListValue } from '../lists/repo';
+import { getMe, setMe } from '../settings';
 
 interface ResourceRow {
   id: number;
@@ -34,15 +35,23 @@ function resourceValues(r: ResourceData) {
 /**
  * What still points at a person, each with the reason shown when deleting is refused. A person in use can be made
  * inactive but not deleted, so history keeps their name. Later features add their own entries here.
+ * `sideChange` marks the entries that also block switching sides; to-dos are allowed on either side, so they don't.
  */
-const USAGE: { sql: string; reason: (n: number) => string }[] = [
+const USAGE: { sql: string; reason: (n: number) => string; sideChange: boolean }[] = [
   {
     sql: 'SELECT COUNT(*) AS n FROM projects WHERE ? IN (project_manager_id, business_pm_id)',
     reason: (n) => `they are a project manager on ${n} project${n === 1 ? '' : 's'}`,
+    sideChange: true,
   },
   {
     sql: 'SELECT COUNT(*) AS n FROM assignments WHERE resource_id = ?',
     reason: (n) => `they are assigned to ${n} phase${n === 1 ? '' : 's'}`,
+    sideChange: true,
+  },
+  {
+    sql: 'SELECT COUNT(*) AS n FROM todos WHERE assignee_id = ?',
+    reason: (n) => `they have ${n} to-do${n === 1 ? '' : 's'}`,
+    sideChange: false,
   },
 ];
 
@@ -185,8 +194,9 @@ export function updateResource(db: DatabaseSync, id: number, r: ResourceData): R
   return Number(res.changes) === 0 ? undefined : getResource(db, id);
 }
 
-function usageReasons(db: DatabaseSync, id: number): string[] {
-  return USAGE.flatMap(({ sql, reason }) => {
+/** All USAGE entries by default; pass a filter to consider only some, e.g. side-change entries. */
+function usageReasons(db: DatabaseSync, id: number, filter: (u: (typeof USAGE)[number]) => boolean = () => true): string[] {
+  return USAGE.filter(filter).flatMap(({ sql, reason }) => {
     const { n } = db.prepare(sql).get(id) as unknown as { n: number };
     return n > 0 ? [reason(n)] : [];
   });
@@ -202,6 +212,8 @@ export function deleteResource(db: DatabaseSync, id: number): ResourceDelete {
     return { ok: false, status: 409, error: `${person.name} can't be deleted because ${reasons.join(' and ')}. Make them inactive instead.` };
   }
   db.prepare('DELETE FROM resources WHERE id = ?').run(id);
+  // In practice a person "in use" can't reach here, but this keeps "I am" correct if that ever changes.
+  if (getMe(db).resourceId === id) setMe(db, null);
   return { ok: true };
 }
 
@@ -209,13 +221,14 @@ export type ResourceUpdate = { ok: true; resource: ResourceRecord } | { ok: fals
 
 /**
  * Switching side while in use (a PM on a project, or assigned to a phase) would leave that project or phase pointing
- * at someone on the wrong side, so it is refused the same way a delete of someone in use is refused.
+ * at someone on the wrong side, so it is refused the same way a delete of someone in use is refused. To-dos are
+ * allowed on either side, so they don't block a side change.
  */
 export function updateResourceChecked(db: DatabaseSync, id: number, r: ResourceData): ResourceUpdate {
   const person = getResource(db, id);
   if (!person) return { ok: false, status: 404, error: 'Person not found' };
   if (r.side !== person.side) {
-    const reasons = usageReasons(db, id);
+    const reasons = usageReasons(db, id, (u) => u.sideChange);
     if (reasons.length > 0) {
       return { ok: false, status: 409, error: `${person.name} can't change side because ${reasons.join(' and ')}.` };
     }

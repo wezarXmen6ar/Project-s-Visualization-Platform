@@ -1,11 +1,11 @@
 import type { WorkCalendar } from '../shared/calendar';
 import type {
   AssignmentInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput,
-  ValidationIssue,
+  ToDoInput, ValidationIssue,
 } from '../shared/schemas';
 import type {
-  LeaveRecord, ListName, ListValue, Lists, OverloadDecision, PortfolioResponse, ProjectRecord, ResourceRecord, ScheduleSaved,
-  WorkloadData,
+  LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision, PortfolioResponse, ProjectRecord, ResourceRecord, ScheduleSaved,
+  ToDoRecord, WorkloadData,
 } from '../shared/types';
 
 export class ApiError extends Error {
@@ -28,6 +28,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const withBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
+
+export interface ToDoFilterInput {
+  projectId?: number;
+  assigneeId?: number;
+  includeDone?: boolean;
+  fromRemovedPhases?: boolean;
+}
+
+/** Builds "?projectId=…&assigneeId=…&done=include&removed=1", including only the keys that are set. */
+function toDoQuery(filter: ToDoFilterInput): string {
+  const params = new URLSearchParams();
+  if (filter.projectId !== undefined) params.set('projectId', String(filter.projectId));
+  if (filter.assigneeId !== undefined) params.set('assigneeId', String(filter.assigneeId));
+  if (filter.includeDone) params.set('done', 'include');
+  if (filter.fromRemovedPhases) params.set('removed', '1');
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
 
 export const api = {
   getCalendar: () => request<WorkCalendar>('/api/settings/calendar'),
@@ -55,4 +73,10 @@ export const api = {
   getWorkload: () => request<WorkloadData>('/api/workload'),
   recordOverloadDecision: (input: OverloadDecisionInput) =>
     request<OverloadDecision>('/api/overloads/decisions', withBody('POST', input)),
+  listToDos: (filter: ToDoFilterInput = {}) => request<ToDoRecord[]>(`/api/todos${toDoQuery(filter)}`),
+  createToDo: (projectId: number, input: ToDoInput) => request<ToDoRecord>(`/api/projects/${projectId}/todos`, withBody('POST', input)),
+  updateToDo: (id: number, input: ToDoInput) => request<ToDoRecord>(`/api/todos/${id}`, withBody('PUT', input)),
+  deleteToDo: (id: number) => request<void>(`/api/todos/${id}`, { method: 'DELETE' }),
+  getMe: () => request<Me>('/api/settings/me'),
+  setMe: (resourceId: number | null) => request<Me>('/api/settings/me', withBody('PUT', { resourceId })),
 };
