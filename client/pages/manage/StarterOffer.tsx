@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import type { StarterSuggestion } from '../../../shared/types';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
-import { useT } from '../../i18n/LanguageProvider';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { phaseName } from '../../i18n/listNames';
+import { useLists } from '../../useLists';
 import { AlertIcon } from '../../icons';
 import { useAsync } from '../../useAsync';
 
@@ -28,6 +30,8 @@ interface StarterOfferProps {
 /** Offered right after a project is created or gets new phases: starter checklists for its (new) top-level phases. */
 export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: StarterOfferProps) {
   const t = useT();
+  const { lang } = useLang();
+  const { lists } = useLists();
   const phaseIds = parsePhaseIds(starterParam);
   const suggestions = useAsync(() => api.starterSuggestions(projectId, phaseIds), [projectId, starterParam]);
   const [checked, setChecked] = useState<Set<number> | null>(null);
@@ -97,7 +101,7 @@ export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: Start
       ) : null}
       {groups.map((g) => (
         <div key={g.phaseId}>
-          <h3>{g.phaseName}</h3>
+          <h3>{phaseName(g.phaseName, lists, lang)}</h3>
           <ul className="check-group-list">
             {g.items.map((item) => (
               <li key={item.index}>

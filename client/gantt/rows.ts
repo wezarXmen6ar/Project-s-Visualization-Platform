@@ -62,10 +62,13 @@ function hashString(s: string): number {
  * colour on every project without a persisted registry.
  */
 export function phaseColorFor(name: string): string {
-  // Strip a trailing bracketed acronym, e.g. "ضمان الجودة (QA)" or "QA (Quality)" both match on "ضمان الجودة"/"qa".
-  const normalized = name.trim().toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const normalized = name.trim().toLowerCase();
   const known = KNOWN_PHASE_COLORS[normalized];
   if (known) return known;
+  // A trailing bracketed acronym, e.g. "ضمان الجودة (QA)", still matches its known name — but only a known one, so a
+  // custom name like "Deployment (staging)" keeps hashing its full text and never changes colour.
+  const stripped = normalized.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  if (stripped !== normalized && KNOWN_PHASE_COLORS[stripped]) return KNOWN_PHASE_COLORS[stripped];
   return PHASE_PALETTE[hashString(normalized) % PHASE_PALETTE.length];
 }
 

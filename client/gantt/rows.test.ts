@@ -66,6 +66,19 @@ describe('rows', () => {
       expect(new Set(standard.map((name) => phaseColorFor(name))).size).toBe(standard.length);
       expect(phaseColorFor('Go-live')).toBe(phaseColorFor('Launch'));
     });
+    it('keeps hashing the full text of a custom name that ends in brackets, and only strips brackets off a known name', () => {
+      // The same 31-hash the palette uses, over the full normalised name.
+      const hashed = (s: string) => {
+        let h = 0;
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+        return PHASE_PALETTE[Math.abs(h) % PHASE_PALETTE.length];
+      };
+      // A known phase with a bracketed note is still that phase.
+      expect(phaseColorFor('Deployment (staging)')).toBe(phaseColorFor('Deployment'));
+      expect(phaseColorFor('Custom (v2)')).toBe(hashed('custom (v2)'));
+      expect(phaseColorFor('QA (Quality)')).toBe(phaseColorFor('QA'));
+    });
+
     it('recognises the Arabic default names, with or without the bracketed acronym, as the matching English phase', () => {
       expect(phaseColorFor('التطوير')).toBe(phaseColorFor('Development'));
       expect(phaseColorFor('جمع المتطلبات')).toBe(phaseColorFor('Requirements gathering'));
