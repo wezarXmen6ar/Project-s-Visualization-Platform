@@ -10,10 +10,14 @@ import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { dayDate } from '../../overloads';
 import { useAsync } from '../../useAsync';
+import { useMe } from '../../useMe';
 import { useResources } from '../../useResources';
 import { useWorkload } from '../../useWorkload';
 import { CATEGORY_LABEL, PRIORITY_LABEL, SCOPE_TABLES, beneficiaryLabel, requesterLabel } from './labels';
+import { NextUp } from './NextUp';
 import { ProjectPeople } from './ProjectPeople';
+import { ProjectToDos, useProjectToDos } from './ProjectToDos';
+import { toDoToInput } from '../../todos';
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -31,8 +35,15 @@ export function ProjectPage() {
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
   const { people } = useResources();
   const { workload, reload: reloadWorkload } = useWorkload();
+  const { me } = useMe();
+  const { todos, reload: reloadToDos } = useProjectToDos(id);
   const [saved, setSaved] = useState<ProjectRecord | null>(null);
   const today = todayLocal();
+
+  async function toggleToDoDone(t: (typeof todos)[number]) {
+    await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+    reloadToDos();
+  }
 
   if (project.error) {
     return (
@@ -76,6 +87,8 @@ export function ProjectPage() {
           <Link to={`/manage/projects/${p.id}/edit`} className="button secondary">Edit details</Link>
         </div>
       </div>
+
+      <NextUp todos={todos} me={me} onToggleDone={(t) => void toggleToDoDone(t)} />
 
       <section className="card">
         <h2>Timeline</h2>
@@ -179,6 +192,8 @@ export function ProjectPage() {
           reloadWorkload();
         }}
       />
+
+      <ProjectToDos project={p} me={me} todos={todos} reload={reloadToDos} />
     </main>
   );
 }

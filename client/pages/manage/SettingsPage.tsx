@@ -4,7 +4,9 @@ import type { ListName } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { api } from '../../api';
 import { useAsync } from '../../useAsync';
+import { useResources } from '../../useResources';
 import { ListEditor } from './ListEditor';
+import { MeSetting } from './MeSetting';
 
 const EDITORS: { list: ListName; title: string; singular: string }[] = [
   { list: 'mainProject', title: 'Main projects', singular: 'Main project' },
@@ -19,6 +21,7 @@ export function SettingsPage() {
   const [version, setVersion] = useState(0);
   const lists = useAsync(() => api.getLists(), [version]);
   const reload = () => setVersion((v) => v + 1);
+  const { people } = useResources();
 
   return (
     <main className="page">
@@ -29,6 +32,8 @@ export function SettingsPage() {
           <p className="meta-line">The lists behind the project dropdowns. A value that a project uses can be renamed but not deleted.</p>
         </div>
       </div>
+
+      <MeSetting people={people} />
 
       {lists.error ? (
         <div className="errors" role="alert">

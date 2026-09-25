@@ -2,9 +2,23 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { describe, expect, it } from 'vitest';
-import { mockFetch, sampleProject, samplePeople, sampleWorkload } from '../../testing/mockFetch';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ToDoRecord } from '../../../shared/types';
+import { mockFetch, sampleProject, samplePeople, sampleToDos, sampleWorkload } from '../../testing/mockFetch';
 import { ProjectPage } from './ProjectPage';
+
+/** sampleProject with a "Development › Increment 1" sub-phase (id 120), matching sampleToDos' phase link. */
+function projectWithSubPhase() {
+  return sampleProject({
+    phases: [
+      { id: 11, name: 'Requirements', order: 0, durationDays: 2, start: '2026-09-24', end: '2026-09-25', subPhases: [] },
+      {
+        id: 12, name: 'Development', order: 1, durationDays: 3, start: '2026-09-28', end: '2026-09-30',
+        subPhases: [{ id: 120, name: 'Increment 1', order: 0, durationDays: 3, start: '2026-09-28', end: '2026-09-30', withPrevious: false }],
+      },
+    ],
+  });
+}
 
 function renderAt(url: string) {
   return render(
@@ -21,6 +35,8 @@ describe('ProjectPage', () => {
     mockFetch({
       'GET /api/projects/1': () => ({ body: sampleProject() }),
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
     renderAt('/manage/projects/1');
     expect(await screen.findByRole('heading', { name: 'Portal' })).toBeInTheDocument();
@@ -50,6 +66,8 @@ describe('ProjectPage', () => {
         }),
       }),
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
     renderAt('/manage/projects/1');
     expect(await screen.findByText('Digital Services')).toBeInTheDocument();
@@ -75,6 +93,8 @@ describe('ProjectPage', () => {
         }),
       }),
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
     renderAt('/manage/projects/1');
     expect(await screen.findByText('Mariam Al Suwaidi')).toBeInTheDocument();
@@ -88,6 +108,8 @@ describe('ProjectPage', () => {
     mockFetch({
       'GET /api/projects/999': () => ({ status: 404, body: { error: 'Project not found' } }),
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
     renderAt('/manage/projects/999');
     expect(await screen.findByText('Project not found')).toBeInTheDocument();
@@ -106,6 +128,8 @@ describe('ProjectPage', () => {
     const fetchMock = mockFetch({
       'GET /api/projects/1': () => ({ body: withTeam }),
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
       'GET /api/resources': () => ({ body: samplePeople() }),
       'GET /api/workload': () => ({ body: workload }),
       'PUT /api/phases/11/assignments': () => ({
@@ -151,6 +175,8 @@ describe('ProjectPage', () => {
     const fetchMock = mockFetch({
       'GET /api/projects/1': () => ({ body: withSub }),
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
       'GET /api/resources': () => ({ body: samplePeople() }),
       'GET /api/workload': () => ({ body: workload }),
       'PUT /api/phases/31/assignments': () => ({
@@ -193,6 +219,8 @@ describe('ProjectPage', () => {
         }),
       }),
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
     renderAt('/manage/projects/1');
     expect(await screen.findByText(/↳ Increment 1/)).toBeInTheDocument();
@@ -200,5 +228,168 @@ describe('ProjectPage', () => {
     expect(screen.getByText(/starts with the one above/)).toBeInTheDocument();
     expect(screen.getByText(/\(from sub-phases\)/)).toBeInTheDocument();
     expect(screen.getByTestId('gantt-row-21')).toBeInTheDocument();
+  });
+});
+
+describe('ProjectPage to-dos', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows my three most urgent open to-dos in Next up, in order', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+    const me = { id: 70, name: 'Sara Ahmed' };
+    const todos = sampleToDos().map((t) => ([200, 201, 202, 204].includes(t.id) ? { ...t, assignee: me } : t));
+    mockFetch({
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
+      'GET /api/settings/me': () => ({ body: { resourceId: 70, name: 'Sara Ahmed' } }),
+    });
+    renderAt('/manage/projects/1');
+
+    const card = (await screen.findByRole('heading', { name: 'Next up' })).closest('section') as HTMLElement;
+    const titles = within(card).getAllByText(/Chase the missing contract|Book the UAT room|Draft the go-live checklist/);
+    expect(titles.map((el) => el.textContent)).toEqual([
+      'Chase the missing contract',
+      'Book the UAT room',
+      'Draft the go-live checklist',
+    ]);
+    const overdueLabel = within(card).getByText('Overdue · Thu 1 Oct');
+    expect(overdueLabel).toHaveClass('overdue');
+  });
+
+  it("shows the Settings link in Next up when I am isn't set", async () => {
+    mockFetch({
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+    });
+    renderAt('/manage/projects/1');
+
+    const card = (await screen.findByRole('heading', { name: 'Next up' })).closest('section') as HTMLElement;
+    expect(within(card).getByText(/Set who you are in/)).toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/manage/settings');
+  });
+
+  it('adds a to-do', async () => {
+    let created: ToDoRecord[] = [];
+    const fetchMock = mockFetch({
+      'GET /api/projects/1': () => ({ body: projectWithSubPhase() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: created }),
+      'GET /api/settings/me': () => ({ body: { resourceId: 70, name: 'Sara Ahmed' } }),
+      'POST /api/projects/1/todos': (init) => {
+        const input = JSON.parse(init!.body as string);
+        const record: ToDoRecord = {
+          id: 900, projectId: 1, projectName: 'Portal', title: input.title, note: input.note,
+          assignee: { id: 70, name: 'Sara Ahmed' }, dueDate: input.dueDate, done: false, doneDate: null,
+          phase: { id: 11, name: 'Requirements' }, formerPhase: null, createdAt: '2026-10-07T09:00:00.000Z',
+        };
+        created = [record];
+        return { status: 201, body: record };
+      },
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    await user.click(await screen.findByRole('button', { name: 'Add to-do' }));
+    await user.type(screen.getByLabelText('Title'), 'Chase the vendor');
+    await user.selectOptions(screen.getByLabelText('Assigned to'), 'Me — Sara Ahmed');
+    await user.selectOptions(screen.getByLabelText('Phase'), 'Requirements');
+    await user.click(screen.getByRole('button', { name: 'Save to-do' }));
+
+    expect((await screen.findAllByText('Chase the vendor')).length).toBeGreaterThan(0);
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects/1/todos' && init?.method === 'POST');
+    expect(JSON.parse(post![1]!.body as string)).toEqual({
+      title: 'Chase the vendor', note: null, assigneeId: 70, dueDate: null, phaseId: 11, done: false,
+    });
+  });
+
+  it('shows an error and sends nothing when the title is empty', async () => {
+    const fetchMock = mockFetch({
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    await user.click(await screen.findByRole('button', { name: 'Add to-do' }));
+    await user.click(screen.getByRole('button', { name: 'Save to-do' }));
+
+    expect(await screen.findByText('Write what needs doing')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url, init]) => url === '/api/projects/1/todos' && init?.method === 'POST')).toBe(false);
+  });
+
+  it('ticks a to-do as done', async () => {
+    const todos = sampleToDos();
+    const fetchMock = mockFetch({
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+      'PUT /api/todos/200': () => ({ body: { ...todos[0], done: true } }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    const toDosCard = (await screen.findByRole('heading', { name: 'To-dos' })).closest('section') as HTMLElement;
+    await user.click(within(toDosCard).getByLabelText('Done: Chase the missing contract'));
+
+    const put = await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([url, init]) => url === '/api/todos/200' && init?.method === 'PUT');
+      expect(call).toBeTruthy();
+      return call!;
+    });
+    expect(JSON.parse(put[1]!.body as string)).toMatchObject({ done: true });
+  });
+
+  it('deletes a to-do after confirming, and does nothing on Keep', async () => {
+    const todos = sampleToDos();
+    const fetchMock = mockFetch({
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+      'DELETE /api/todos/200': () => ({ status: 204, body: null }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    await screen.findByText('Chase the missing contract');
+    await user.click(screen.getByRole('button', { name: 'Delete Chase the missing contract' }));
+    expect(await screen.findByText('Delete this to-do?')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Keep' }));
+    expect(fetchMock.mock.calls.some(([url, init]) => url === '/api/todos/200' && init?.method === 'DELETE')).toBe(false);
+    expect(screen.queryByText('Delete this to-do?')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Delete Chase the missing contract' }));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(([url, init]) => url === '/api/todos/200' && init?.method === 'DELETE')).toBe(true);
+    });
+  });
+
+  it('reveals done to-dos on "Show N done"', async () => {
+    const todos = sampleToDos();
+    mockFetch({
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    await user.click(await screen.findByRole('button', { name: 'Show 1 done' }));
+    expect(screen.getByRole('button', { name: 'Hide done' })).toBeInTheDocument();
+    expect(screen.getByText('Confirm the sandbox is ready')).toBeInTheDocument();
+    expect(screen.getByText('Done Tue 22 Sep 2026')).toBeInTheDocument();
   });
 });

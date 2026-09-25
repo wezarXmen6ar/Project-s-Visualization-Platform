@@ -3,13 +3,14 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import type { ListValue } from '../../../shared/types';
-import { mockFetch, sampleLists, type MockHandler } from '../../testing/mockFetch';
+import type { ListValue, Me } from '../../../shared/types';
+import { mockFetch, sampleLists, samplePeople, type MockHandler } from '../../testing/mockFetch';
 import { SettingsPage } from './SettingsPage';
 
 /** A small in-memory stand-in for the lists API, so reloads show the change. */
 function fakeServer(): Record<string, MockHandler> {
   const lists = sampleLists();
+  let me: Me = { resourceId: null, name: null };
   return {
     'GET /api/lists': () => ({ body: structuredClone(lists) }),
     'POST /api/lists/goal': (init) => {
@@ -25,6 +26,14 @@ function fakeServer(): Record<string, MockHandler> {
     'DELETE /api/lists/department/30': () => {
       lists.department = [];
       return { status: 204, body: null };
+    },
+    'GET /api/resources': () => ({ body: samplePeople() }),
+    'GET /api/settings/me': () => ({ body: me }),
+    'PUT /api/settings/me': (init) => {
+      const resourceId = JSON.parse(init!.body as string).resourceId as number | null;
+      const person = samplePeople().find((p) => p.id === resourceId);
+      me = { resourceId, name: person?.name ?? null };
+      return { body: me };
     },
   };
 }
@@ -74,5 +83,25 @@ describe('SettingsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Delete Criminal' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('"Criminal" is used by 1 project');
     expect(screen.getByText('Criminal')).toBeInTheDocument();
+  });
+
+  it('the "I am" select lists active tech people only', async () => {
+    mockFetch(fakeServer());
+    renderPage();
+    const select = await screen.findByLabelText('I am');
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.textContent);
+    expect(options).toEqual(['Not set', 'Fatima Noor', 'Rami Saleh', 'Sara Ahmed']);
+  });
+
+  it('saves "I am" and shows Saved', async () => {
+    const fetchMock = mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderPage();
+    const select = await screen.findByLabelText('I am');
+    await user.selectOptions(select, 'Sara Ahmed');
+    expect(await screen.findByRole('status')).toHaveTextContent('Saved');
+    expect(select).toHaveValue('70');
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/settings/me' && init?.method === 'PUT');
+    expect(JSON.parse(put![1]!.body as string)).toEqual({ resourceId: 70 });
   });
 });
