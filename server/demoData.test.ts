@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CALENDAR } from '../shared/calendar';
 import { newProjectSchema } from '../shared/schemas';
+import { computeWorkload } from '../shared/capacity';
+import { workloadData } from './assignments/repo';
 import { openDb } from './db';
-import { DEMO_PROJECTS, seedDemo, toProjectInput } from './demoData';
+import { DEMO_PEOPLE, DEMO_PROJECTS, seedDemo, toProjectInput } from './demoData';
 import { getLists } from './lists/repo';
 import { listProjects } from './projects/repo';
 
@@ -10,7 +12,11 @@ describe('DEMO_PROJECTS', () => {
   it('are all valid projects with unique names', () => {
     expect(DEMO_PROJECTS.length).toBeGreaterThanOrEqual(6);
     for (const demo of DEMO_PROJECTS) {
-      expect(newProjectSchema.safeParse(toProjectInput(demo, () => 1, () => 1)).success).toBe(true);
+      expect(
+        newProjectSchema.safeParse(
+          toProjectInput(demo, () => 1, (name) => DEMO_PEOPLE.findIndex((p) => p.name === name) + 1),
+        ).success,
+      ).toBe(true);
     }
     expect(new Set(DEMO_PROJECTS.map((p) => p.name)).size).toBe(DEMO_PROJECTS.length);
   });
@@ -45,5 +51,27 @@ describe('seedDemo', () => {
     // Legacy Archive Migration still sits entirely in 2025.
     const legacy = projects.find((p) => p.name === 'Legacy Archive Migration')!;
     expect(legacy.phases[legacy.phases.length - 1].end < '2026-01-01').toBe(true);
+  });
+
+  it('staffs every demo phase and shows real overbookings and leave around October 2026', () => {
+    const db = openDb(':memory:');
+    seedDemo(db, DEFAULT_CALENDAR);
+    for (const p of listProjects(db)) {
+      for (const ph of p.phases) expect(p.assignments.some((a) => a.phaseId === ph.id)).toBe(true);
+    }
+
+    const data = workloadData(db);
+    expect(data.resources.map((r) => r.name)).not.toContain('Mariam Al Suwaidi');
+    expect(data.resources.find((r) => r.name === 'Rami Saleh')?.capacity).toBe(80);
+
+    const loads = computeWorkload(data.resources, data.assignments, { start: '2026-10-05', end: '2026-10-25' }, data.calendar);
+    const week = (name: string, weekStart: string) => loads.find((l) => l.name === name)!.weeks.find((w) => w.weekStart === weekStart)!;
+
+    // Case Management UAT (50%) + E-Services requirements gathering (100%).
+    expect(week('Aisha Khan', '2026-10-05')).toMatchObject({ load: 150, available: 100, overloaded: true });
+    // Case Management security testing (100%) during 3 days of training leave.
+    expect(week('Jonas Weber', '2026-10-19')).toMatchObject({ leaveDays: 3, load: 100, available: 40, overloaded: true });
+    // A full week of annual leave with nothing booked.
+    expect(week('Fatima Noor', '2026-10-12')).toMatchObject({ leaveDays: 5, available: 0, overloaded: false });
   });
 });

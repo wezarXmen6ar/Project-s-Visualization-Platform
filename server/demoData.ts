@@ -1,11 +1,11 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { WorkCalendar } from '../shared/calendar';
-import { newProjectSchema, resourceInputSchema, type NewProjectInput } from '../shared/schemas';
-import type { ListName, Side, Specialisation } from '../shared/types';
+import { leaveInputSchema, newProjectSchema, resourceInputSchema, type NewProjectInput } from '../shared/schemas';
+import type { AssignmentRole, ListName, Side, Specialisation } from '../shared/types';
 import { transaction } from './db';
 import { addListValue } from './lists/repo';
 import { createProject } from './projects/repo';
-import { createResource } from './resources/repo';
+import { addLeave, createResource } from './resources/repo';
 
 /** A person the demo projects name; seedDemo adds them to Resources first. */
 export interface DemoPerson {
@@ -27,7 +27,41 @@ export const DEMO_PEOPLE: DemoPerson[] = [
   { name: 'Mariam Al Suwaidi', side: 'business', phone: '+971 50 123 4567', email: 'mariam.alsuwaidi@example.com' },
   { name: 'Noura Al Hammadi', side: 'business', phone: '055 234 5678' },
   { name: 'Ahmed Al Zaabi', side: 'business', email: 'ahmed.alzaabi@example.com' },
+  { name: 'Hassan Ali', side: 'tech', role: 'Tech lead', specialisation: 'full-stack', email: 'hassan.ali@example.com' },
+  { name: 'Fatima Noor', side: 'tech', role: 'Developer', specialisation: 'front-end' },
+  { name: 'Rami Saleh', side: 'tech', role: 'Developer', specialisation: 'back-end', capacity: 80 },
+  { name: 'Aisha Khan', side: 'tech', role: 'Business analyst' },
+  { name: 'Mei Chen', side: 'tech', role: 'Designer' },
+  { name: 'Priya Das', side: 'tech', role: 'QA' },
+  { name: 'Jonas Weber', side: 'tech', role: 'InfoSec' },
 ];
+
+/** Leave booked for the demo team. */
+export const DEMO_LEAVE: { person: string; start: string; end: string; note: string }[] = [
+  { person: 'Fatima Noor', start: '2026-10-12', end: '2026-10-16', note: 'Annual leave' },
+  { person: 'Jonas Weber', start: '2026-10-19', end: '2026-10-21', note: 'Training' },
+];
+
+/** Who works on each standard phase in the demo, and how much of their week. */
+export const TEAM_BY_PHASE: Record<string, { person: string; allocation: number; role: AssignmentRole }[]> = {
+  'Requirements gathering': [{ person: 'Aisha Khan', allocation: 100, role: 'responsible' }],
+  'Business analysis': [{ person: 'Aisha Khan', allocation: 100, role: 'responsible' }],
+  'Development plan': [{ person: 'Hassan Ali', allocation: 50, role: 'responsible' }],
+  Design: [{ person: 'Mei Chen', allocation: 100, role: 'responsible' }],
+  Development: [
+    { person: 'Hassan Ali', allocation: 30, role: 'responsible' },
+    { person: 'Fatima Noor', allocation: 60, role: 'contributor' },
+    { person: 'Rami Saleh', allocation: 60, role: 'contributor' },
+  ],
+  QA: [{ person: 'Priya Das', allocation: 100, role: 'responsible' }],
+  UAT: [
+    { person: 'Aisha Khan', allocation: 50, role: 'responsible' },
+    { person: 'Priya Das', allocation: 30, role: 'contributor' },
+  ],
+  'Security testing': [{ person: 'Jonas Weber', allocation: 100, role: 'responsible' }],
+  Deployment: [{ person: 'Hassan Ali', allocation: 50, role: 'responsible' }],
+  Launch: [{ person: 'Hassan Ali', allocation: 30, role: 'responsible' }],
+};
 
 /** A demo project names its list values and people; seedDemo turns the names into ids. */
 export type DemoProject = Omit<
@@ -206,6 +240,10 @@ export function toProjectInput(
   const id = (list: ListName, name?: string) => (name ? idFor(list, name) : null);
   return {
     ...rest,
+    phases: rest.phases.map((ph) => ({
+      ...ph,
+      assignments: (TEAM_BY_PHASE[ph.name] ?? []).map((t) => ({ resourceId: personId(t.person), allocation: t.allocation, role: t.role })),
+    })),
     mainProjectId: id('mainProject', mainProject),
     projectTypeId: id('projectType', projectType),
     goalId: id('goal', goal),
@@ -237,6 +275,7 @@ export function seedDemo(db: DatabaseSync, cal: WorkCalendar): number {
       if (found === undefined) throw new Error(`Demo person missing from DEMO_PEOPLE: ${name}`);
       return found;
     };
+    for (const l of DEMO_LEAVE) addLeave(db, personId(l.person), leaveInputSchema.parse({ start: l.start, end: l.end, note: l.note }));
     for (const demo of DEMO_PROJECTS) createProject(db, cal, newProjectSchema.parse(toProjectInput(demo, idFor, personId)));
   });
   return DEMO_PROJECTS.length;
