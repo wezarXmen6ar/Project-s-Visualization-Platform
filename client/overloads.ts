@@ -1,6 +1,7 @@
 import { addDays, dayOfWeek, type DateRange, type ISODate, type WorkCalendar } from '../shared/calendar';
 import { computeWorkload, type CapacityAssignment, type WeekLoad } from '../shared/capacity';
 import type { AssignmentRole, WorkloadData } from '../shared/types';
+import { dayDate as formatDay, dayRange } from './i18n/format';
 
 /** An assignment as a form holds it: the person may not be chosen yet. */
 export interface DraftAssignment {
@@ -19,9 +20,6 @@ export interface PlannedAssignment {
   phaseName: string;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 /** A leave range as the workload carries it, with its optional note. */
 export interface LeaveRange extends DateRange {
   note?: string | null;
@@ -37,9 +35,9 @@ function weekdaysOf(weekStart: ISODate, cal: WorkCalendar): ISODate[] {
   return days;
 }
 
-/** "Mon 12 Oct". */
+/** "Mon 12 Oct". English; the language-aware form is `dayDate` in `i18n/format`. */
 export function dayDate(d: ISODate): string {
-  return `${DAYS[dayOfWeek(d)]} ${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
+  return formatDay('en', d);
 }
 
 /**
@@ -55,11 +53,7 @@ export function weekLabel(weekStart: ISODate, cal: WorkCalendar): string {
 
 /** "12–16 Oct" within a month, "28 Sep – 2 Oct" across months, or "12 Oct" for a single day. */
 export function dayRangeLabel(first: ISODate, last: ISODate): string {
-  const day = (d: ISODate) => Number(d.slice(8, 10));
-  const month = (d: ISODate) => MONTHS[Number(d.slice(5, 7)) - 1];
-  if (first === last) return `${day(first)} ${month(first)}`;
-  if (first.slice(0, 7) === last.slice(0, 7)) return `${day(first)}–${day(last)} ${month(last)}`;
-  return `${day(first)} ${month(first)} – ${day(last)} ${month(last)}`;
+  return dayRange('en', first, last);
 }
 
 /** The short form of `weekLabel`, e.g. "12–16 Oct": the first and last day of the week that are not weekend days. */

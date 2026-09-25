@@ -1,4 +1,5 @@
 import { addDays, daysBetween, dayOfWeek, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
+import { monthLabel } from '../i18n/format';
 
 export interface TimeScale {
   start: ISODate;
@@ -10,8 +11,6 @@ export interface TimeScale {
   /** One entry at the left edge (x = 0, the first visible year) and one at each 1 January inside the range. */
   years: { year: string; x: number }[];
 }
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function firstOfMonth(d: ISODate): ISODate {
   return `${d.slice(0, 7)}-01`;
@@ -33,8 +32,7 @@ export function createTimeScale(start: ISODate, end: ISODate, width: number): Ti
   let m = firstOfMonth(start);
   if (m < start) m = nextMonth(m);
   while (m <= end) {
-    const month = Number(m.slice(5, 7));
-    ticks.push({ date: m, x: x(m), label: MONTHS[month - 1] });
+    ticks.push({ date: m, x: x(m), label: monthLabel('en', m) });
     m = nextMonth(m);
   }
 

@@ -49,17 +49,19 @@ export function TrashIcon() {
   );
 }
 
+/** Points back; flips in right-to-left pages (class `icon-directional`). */
 export function ArrowLeftIcon() {
   return (
-    <svg {...base}>
+    <svg {...base} className="icon-directional">
       <path d="M19 12H5M11 6l-6 6 6 6" />
     </svg>
   );
 }
 
+/** Points forward; flips in right-to-left pages (class `icon-directional`). */
 export function ArrowRightIcon() {
   return (
-    <svg {...base}>
+    <svg {...base} className="icon-directional">
       <path d="M5 12h14M13 6l6 6-6 6" />
     </svg>
   );

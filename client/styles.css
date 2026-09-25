@@ -61,7 +61,7 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --dur: 180ms;
 
-  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Segoe UI', 'Noto Sans Arabic', Tahoma, system-ui, sans-serif;
   font-size: var(--fs-base);
   line-height: 1.5;
   color: var(--ink);
@@ -85,7 +85,7 @@ h2 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--sp-3); }
 h3 { font-size: var(--fs-base); font-weight: 600; margin: 0; }
 
 .muted { color: var(--muted); }
-.sub-phase-name { padding-left: var(--sp-4); }
+.sub-phase-name { padding-inline-start: var(--sp-4); }
 
 :focus-visible {
   outline: 2px solid var(--primary);
@@ -236,6 +236,7 @@ h3 { font-size: var(--fs-base); font-weight: 600; margin: 0; }
 }
 .tile:hover .tile-icon { background: var(--primary); color: var(--on-primary); }
 .tile:hover .tile-arrow { transform: translateX(3px); opacity: 1; }
+[dir='rtl'] .tile:hover .tile-arrow { transform: translateX(-3px); }
 
 .tile-icon {
   display: inline-flex;
@@ -254,7 +255,7 @@ h3 { font-size: var(--fs-base); font-weight: 600; margin: 0; }
 .tile-arrow {
   position: absolute;
   top: var(--sp-5);
-  right: var(--sp-5);
+  inset-inline-end: var(--sp-5);
   color: var(--muted);
   opacity: 0.6;
   transition: transform var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
@@ -283,7 +284,7 @@ h3 { font-size: var(--fs-base); font-weight: 600; margin: 0; }
  * Tables
  * ---------------------------------------------------------------------- */
 table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
-th, td { text-align: left; padding: var(--sp-3) var(--sp-2); border-bottom: 1px solid var(--border); }
+th, td { text-align: start; padding: var(--sp-3) var(--sp-2); border-bottom: 1px solid var(--border); }
 th {
   color: var(--muted);
   font-weight: 600;
@@ -339,7 +340,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 }
 input::placeholder { color: var(--muted); opacity: 1; }
 input[type='color'] { padding: 3px; height: 40px; cursor: pointer; }
-input[type='number'] { text-align: right; }
+input[type='number'] { text-align: end; }
 
 .field-hint { color: var(--muted); font-size: var(--fs-sm); margin: calc(var(--sp-3) * -1) 0 var(--sp-4); }
 
@@ -351,7 +352,7 @@ input[type='number'] { text-align: right; }
   margin-bottom: var(--sp-2);
 }
 
-.sub-phases { margin-left: var(--sp-5); display: grid; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.sub-phases { margin-inline-start: var(--sp-5); display: grid; gap: var(--sp-2); margin-bottom: var(--sp-3); }
 .sub-phase-row { display: grid; grid-template-columns: auto 1fr 6rem 12rem auto; gap: var(--sp-2); align-items: center; }
 .derived-days { color: var(--muted); font-size: 0.875rem; }
 @media (max-width: 640px) { .sub-phase-row { grid-template-columns: auto 1fr 5rem; } }
@@ -392,7 +393,7 @@ select { cursor: pointer; }
   align-items: center;
   margin-bottom: var(--sp-2);
 }
-.item-number { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.item-number { color: var(--muted); text-align: end; font-variant-numeric: tabular-nums; }
 .item-empty { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); }
 .item-add { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); }
 
@@ -417,7 +418,7 @@ textarea { resize: vertical; min-height: 6rem; line-height: 1.5; }
 
 .check-groups { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-6); margin-top: var(--sp-4); }
 .check-group { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: center; }
-.check-group legend { float: left; margin-right: var(--sp-2); padding: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
+.check-group legend { float: inline-start; margin-inline-end: var(--sp-2); padding: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--muted); }
 label.check { flex-direction: row; align-items: center; gap: var(--sp-2); color: var(--ink); font-size: var(--fs-base); font-weight: 400; cursor: pointer; }
 input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-color: var(--primary); cursor: pointer; }
 
@@ -455,7 +456,7 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .detail-line { display: block; overflow-wrap: anywhere; }
 .prose { white-space: pre-wrap; margin: var(--sp-1) 0 var(--sp-4); }
 .scope-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: var(--sp-5); }
-.scope-summary ol { margin: var(--sp-2) 0 0; padding-left: 1.4em; }
+.scope-summary ol { margin: var(--sp-2) 0 0; padding-inline-start: 1.4em; }
 .scope-summary p { margin: var(--sp-2) 0 0; }
 
 .header-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
@@ -480,8 +481,8 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
   font-size: var(--fs-sm);
 }
 .errors svg { width: 18px; height: 18px; flex: none; margin-top: 1px; color: var(--danger); }
-.errors ul { margin: 0; padding-left: 1.1em; }
-.errors ul:only-child { padding-left: 0; list-style: none; }
+.errors ul { margin: 0; padding-inline-start: 1.1em; }
+.errors ul:only-child { padding-inline-start: 0; list-style: none; }
 
 /* ---------------------------------------------------------------------- *
  * Empty & loading states
@@ -607,14 +608,14 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .phase-people, .phase-people-edit { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
 .phase-people:last-child, .phase-people-edit:last-child { border-bottom: 0; }
 .phase-people h3 { margin-bottom: var(--sp-2); }
-.sub-phase-people { margin-left: var(--sp-5); }
+.sub-phase-people { margin-inline-start: var(--sp-5); }
 .work-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--sp-3); }
 .work-list .muted { display: block; font-size: 0.875rem; }
 .work-todo-list { list-style: none; padding: 0; margin: var(--sp-1) 0 0; display: grid; gap: 0.15rem; }
 .work-todo-list li { font-size: 0.875rem; }
 .badge {
   display: inline-block;
-  margin-left: var(--sp-2);
+  margin-inline-start: var(--sp-2);
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
   background: color-mix(in oklch, var(--primary) 15%, transparent);
@@ -624,7 +625,7 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 }
 .phase-people-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); }
 .phase-dates { font-weight: 400; font-size: var(--fs-sm); }
-.people-list { margin: 0; padding-left: 1.2em; }
+.people-list { margin: 0; padding-inline-start: 1.2em; }
 .assignment { margin-bottom: var(--sp-2); }
 .assignment-row { display: grid; grid-template-columns: 1fr 6.5rem 10rem auto; gap: var(--sp-2); align-items: center; }
 .inline-number { display: flex; align-items: center; gap: var(--sp-1); }
@@ -647,7 +648,7 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .heatmap { border-collapse: separate; border-spacing: 3px; width: auto; font-size: var(--fs-sm); }
 .heatmap th, .heatmap td { border: 0; padding: 0; white-space: nowrap; }
 .heatmap thead th { font-weight: 500; color: var(--muted); padding: 0 var(--sp-1) var(--sp-1); text-align: center; line-height: 1.3; }
-.heatmap tbody th { padding-right: var(--sp-3); font-weight: 500; }
+.heatmap tbody th { padding-inline-end: var(--sp-3); font-weight: 500; }
 .heat {
   position: relative;
   display: inline-flex;
@@ -680,7 +681,7 @@ button.heat:hover { border-color: var(--border-strong); }
 .heat-over.leave { background-image: repeating-linear-gradient(135deg, transparent 0 4px, oklch(1 0 0 / 0.35) 4px 7px); }
 
 /* The person column stays in view while the days or weeks scroll sideways. */
-.heatmap .heatmap-person { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; }
+.heatmap .heatmap-person { position: sticky; inset-inline-start: 0; z-index: 1; background: var(--surface); text-align: start; }
 
 /* Weeks view: "Week 42" over "12–16 Oct", and a cell holding the booked % over a row of five day squares. */
 .heatmap-weeks thead th .week-number { display: block; font-weight: 600; color: var(--ink); }
@@ -704,10 +705,10 @@ button.heat:hover { border-color: var(--border-strong); }
 .heatmap-days th.today .day-number { color: var(--primary); }
 .heatmap-days td.today .heat.day { box-shadow: inset 0 -3px 0 var(--primary); }
 
-.view-switch { display: inline-flex; margin-right: var(--sp-2); }
+.view-switch { display: inline-flex; margin-inline-end: var(--sp-2); }
 .view-switch .button { border-radius: 0; }
-.view-switch .button:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
-.view-switch .button:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
+.view-switch .button:first-child { border-start-start-radius: var(--radius-sm); border-end-start-radius: var(--radius-sm); }
+.view-switch .button:last-child { border-start-end-radius: var(--radius-sm); border-end-end-radius: var(--radius-sm); margin-inline-start: -1px; }
 .view-switch .button[aria-pressed='true'] { border-color: var(--primary); background: var(--primary-wash); color: var(--ink); font-weight: 600; position: relative; }
 
 .overload-panel .panel-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); }
@@ -739,3 +740,38 @@ button.heat:hover { border-color: var(--border-strong); }
 .todo-note { color: var(--muted); white-space: pre-wrap; font-size: 0.875rem; }
 .todo.done .todo-title { text-decoration: line-through; color: var(--muted); }
 .overdue { color: var(--danger); font-weight: 600; }
+
+/* ---------------------------------------------------------------------- *
+ * Language: the app bar with the switch, and Arabic typography
+ * ---------------------------------------------------------------------- */
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.app-shell > .landing { flex: 1; min-height: 0; }
+.app-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--sp-2) var(--sp-4) 0;
+}
+.lang-switch { display: inline-flex; }
+.lang-switch button {
+  font: inherit;
+  font-size: var(--fs-xs);
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+.lang-switch button:first-child { border-start-start-radius: var(--radius-sm); border-end-start-radius: var(--radius-sm); }
+.lang-switch button:last-child { border-start-end-radius: var(--radius-sm); border-end-end-radius: var(--radius-sm); margin-inline-start: -1px; }
+.lang-switch button:hover { color: var(--ink); }
+.lang-switch button[aria-pressed='true'] { border-color: var(--primary); background: var(--primary-wash); color: var(--ink); font-weight: 600; position: relative; }
+
+/* Icons that point somewhere (back, next) face the other way in right-to-left pages. */
+[dir='rtl'] .icon-directional { transform: scaleX(-1); }
+
+/* Arabic reads better with a little more line height. Letter-spacing breaks joined Arabic letters, and Arabic has
+ * no capitals, so both are switched off. */
+:root:lang(ar) { line-height: 1.6; }
+:lang(ar) h1, :lang(ar) th, :lang(ar) .stat-value { letter-spacing: normal; }
+:lang(ar) th { text-transform: none; }
