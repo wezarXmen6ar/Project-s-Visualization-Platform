@@ -168,8 +168,8 @@ describe('projectDraft', () => {
         { id: 13, name: 'QA', durationDays: 5 },
       ];
       const todos = [
-        todo({ id: 300, phase: { id: 21, name: 'Development › Increment 1' } }),
-        todo({ id: 301, phase: { id: 21, name: 'Development › Increment 1' }, done: true, doneDate: '2026-10-01' }),
+        todo({ id: 300, phase: { id: 21, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' } }),
+        todo({ id: 301, phase: { id: 21, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' }, done: true, doneDate: '2026-10-01' }),
       ];
       expect(removedItems(project, phases, todos)).toEqual([
         { label: 'Development › Increment 1', people: 0, openToDos: 1, doneToDos: 1 },
@@ -182,7 +182,7 @@ describe('projectDraft', () => {
         { id: 13, name: 'QA', durationDays: 5 },
       ];
       const todos = [
-        todo({ id: 300, phase: { id: 21, name: 'Development › Increment 1' }, done: true, doneDate: '2026-10-01' }),
+        todo({ id: 300, phase: { id: 21, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' }, done: true, doneDate: '2026-10-01' }),
       ];
       expect(removedItems(project, phases, todos)).toEqual([
         { label: 'Development › Increment 1', people: 0, openToDos: 0, doneToDos: 1 },

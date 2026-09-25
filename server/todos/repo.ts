@@ -17,15 +17,21 @@ interface ToDoRow {
   due_date: string | null;
   phase_id: number | null;
   phase_name: string | null;
+  phase_top_name: string | null;
+  phase_sub_name: string | null;
   done_date: string | null;
   former_phase: string | null;
+  former_phase_top: string | null;
+  former_phase_sub: string | null;
   former_phase_removed_on: string | null;
   created_at: string;
 }
 
 const SELECT_TODOS = `
   SELECT t.*, pr.name AS project_name, r.name AS assignee_name,
-    CASE WHEN parent.id IS NULL THEN p.name ELSE parent.name || ' › ' || p.name END AS phase_name
+    CASE WHEN parent.id IS NULL THEN p.name ELSE parent.name || ' › ' || p.name END AS phase_name,
+    COALESCE(parent.name, p.name) AS phase_top_name,
+    CASE WHEN parent.id IS NULL THEN NULL ELSE p.name END AS phase_sub_name
   FROM todos t
   JOIN projects pr ON pr.id = t.project_id
   LEFT JOIN resources r ON r.id = t.assignee_id
@@ -56,8 +62,19 @@ function toToDo(row: ToDoRow): ToDoRecord {
     dueDate: row.due_date,
     done: row.done_date !== null,
     doneDate: row.done_date,
-    phase: row.phase_id === null ? null : { id: row.phase_id, name: row.phase_name! },
-    formerPhase: row.former_phase === null ? null : { name: row.former_phase, removedOn: row.former_phase_removed_on! },
+    phase:
+      row.phase_id === null
+        ? null
+        : { id: row.phase_id, name: row.phase_name!, phaseName: row.phase_top_name!, subPhaseName: row.phase_sub_name },
+    formerPhase:
+      row.former_phase === null
+        ? null
+        : {
+          name: row.former_phase,
+          phaseName: row.former_phase_top ?? row.former_phase,
+          subPhaseName: row.former_phase_sub,
+          removedOn: row.former_phase_removed_on!,
+        },
     createdAt: row.created_at,
   };
 }
@@ -157,7 +174,7 @@ export function updateToDo(db: DatabaseSync, id: number, data: ToDoData, today: 
   const clearFormer = data.phaseId !== null;
   db.prepare(
     `UPDATE todos SET title = ?, note = ?, assignee_id = ?, due_date = ?, phase_id = ?, done_date = ?${
-      clearFormer ? ', former_phase = NULL, former_phase_removed_on = NULL' : ''
+      clearFormer ? ', former_phase = NULL, former_phase_top = NULL, former_phase_sub = NULL, former_phase_removed_on = NULL' : ''
     } WHERE id = ?`,
   ).run(data.title, data.note, data.assigneeId, data.dueDate, data.phaseId, doneDate, id);
   return getToDo(db, id);
@@ -170,14 +187,15 @@ export function deleteToDo(db: DatabaseSync, id: number): boolean {
 /**
  * Handles the to-dos of phases that are about to be removed (call before deleting the phase rows, inside the same
  * transaction). Done to-dos are always deleted. Open ones are deleted when `removedToDos` is 'delete'; otherwise they
- * are unlinked and remember the removed phase, via `labelFor` (built from names read before this save).
+ * are unlinked and remember the removed phase, via `labelFor` (built from names read before this save): its phase
+ * name and, for a sub-phase, its own name. The joined "Phase › Sub-phase" text is kept too.
  */
 export function handleRemovedPhaseToDos(
   db: DatabaseSync,
   removedPhaseIds: number[],
   removedToDos: 'keep' | 'delete',
   today: ISODate,
-  labelFor: (phaseId: number) => string,
+  labelFor: (phaseId: number) => { phaseName: string; subPhaseName: string | null },
 ): void {
   if (removedPhaseIds.length === 0) return;
   const placeholders = removedPhaseIds.map(() => '?').join(', ');
@@ -185,9 +203,16 @@ export function handleRemovedPhaseToDos(
     .prepare(`SELECT id, phase_id, done_date FROM todos WHERE phase_id IN (${placeholders})`)
     .all(...removedPhaseIds) as unknown as { id: number; phase_id: number; done_date: string | null }[];
   const del = db.prepare('DELETE FROM todos WHERE id = ?');
-  const keep = db.prepare('UPDATE todos SET phase_id = NULL, former_phase = ?, former_phase_removed_on = ? WHERE id = ?');
+  const keep = db.prepare(
+    `UPDATE todos SET phase_id = NULL, former_phase = ?, former_phase_top = ?, former_phase_sub = ?, former_phase_removed_on = ?
+     WHERE id = ?`,
+  );
   for (const row of rows) {
     if (row.done_date !== null || removedToDos === 'delete') del.run(row.id);
-    else keep.run(labelFor(row.phase_id), today, row.id);
+    else {
+      const { phaseName, subPhaseName } = labelFor(row.phase_id);
+      const joined = subPhaseName === null ? phaseName : `${phaseName} › ${subPhaseName}`;
+      keep.run(joined, phaseName, subPhaseName, today, row.id);
+    }
   }
 }

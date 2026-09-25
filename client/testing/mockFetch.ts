@@ -133,11 +133,11 @@ export function sampleWorkload(): WorkloadData {
     ],
     assignments: [
       {
-        id: 500, resourceId: 71, phaseId: 900, projectId: 90, projectName: 'HR Self-Service', phaseName: 'QA',
+        id: 500, resourceId: 71, phaseId: 900, projectId: 90, projectName: 'HR Self-Service', phaseName: 'QA', topPhaseName: 'QA', subPhaseName: null,
         start: '2026-09-28', end: '2026-10-09', allocation: 100, role: 'responsible',
       },
       {
-        id: 501, resourceId: 72, phaseId: 901, projectId: 91, projectName: 'Case Management', phaseName: 'Development',
+        id: 501, resourceId: 72, phaseId: 901, projectId: 91, projectName: 'Case Management', phaseName: 'Development', topPhaseName: 'Development', subPhaseName: null,
         start: '2026-10-05', end: '2026-10-16', allocation: 60, role: 'contributor',
       },
     ],
@@ -168,7 +168,7 @@ export function sampleToDos(): ToDoRecord[] {
     base({ id: 201, title: 'Book the UAT room', dueDate: '2026-10-20' }),
     base({ id: 202, title: 'Draft the go-live checklist' }),
     base({ id: 203, title: 'Confirm the sandbox is ready', done: true, doneDate: '2026-09-22' }),
-    base({ id: 204, title: 'Review Increment 1 scope', phase: { id: 120, name: 'Development › Increment 1' } }),
+    base({ id: 204, title: 'Review Increment 1 scope', phase: { id: 120, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' } }),
     base({ id: 205, title: 'Get sign-off from the business', assignee: { id: 80, name: 'Mariam Al Suwaidi' } }),
   ];
 }
@@ -177,7 +177,7 @@ export function sampleToDos(): ToDoRecord[] {
 export function overbookedWorkload(): WorkloadData {
   const data = sampleWorkload();
   data.assignments.push({
-    id: 502, resourceId: 71, phaseId: 902, projectId: 92, projectName: 'Portal', phaseName: 'Development',
+    id: 502, resourceId: 71, phaseId: 902, projectId: 92, projectName: 'Portal', phaseName: 'Development', topPhaseName: 'Development', subPhaseName: null,
     start: '2026-10-05', end: '2026-10-09', allocation: 60, role: 'contributor',
   });
   return data;

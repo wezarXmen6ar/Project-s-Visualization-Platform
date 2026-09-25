@@ -129,9 +129,9 @@ describe('EditPhasesPage', () => {
   it('shows people and open to-dos when removing a sub-phase that has both, with Keep checked by default', async () => {
     mockFetch({
       ...baseRoutes([
-        todo({ id: 300, title: 'A', phase: { id: 21, name: 'Development › Increment 1' } }),
-        todo({ id: 301, title: 'B', phase: { id: 21, name: 'Development › Increment 1' } }),
-        todo({ id: 302, title: 'C', phase: { id: 21, name: 'Development › Increment 1' }, done: true, doneDate: '2026-09-20' }),
+        todo({ id: 300, title: 'A', phase: { id: 21, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' } }),
+        todo({ id: 301, title: 'B', phase: { id: 21, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' } }),
+        todo({ id: 302, title: 'C', phase: { id: 21, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' }, done: true, doneDate: '2026-09-20' }),
       ]),
       'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
     });
@@ -153,7 +153,7 @@ describe('EditPhasesPage', () => {
 
   it('warns about a removed sub-phase that has only done to-dos, with no keep/delete choice', async () => {
     mockFetch(baseRoutes([
-      todo({ id: 300, title: 'A', phase: { id: 22, name: 'Development › Increment 2' }, done: true, doneDate: '2026-09-20' }),
+      todo({ id: 300, title: 'A', phase: { id: 22, name: 'Development › Increment 2', phaseName: 'Development', subPhaseName: 'Increment 2' }, done: true, doneDate: '2026-09-20' }),
     ]));
     const user = userEvent.setup();
     renderPage();
@@ -170,8 +170,8 @@ describe('EditPhasesPage', () => {
   it('sends removedToDos: delete after choosing Delete them and Save anyway', async () => {
     const fetchMock = mockFetch({
       ...baseRoutes([
-        todo({ id: 300, title: 'A', phase: { id: 21, name: 'Development › Increment 1' } }),
-        todo({ id: 301, title: 'B', phase: { id: 21, name: 'Development › Increment 1' } }),
+        todo({ id: 300, title: 'A', phase: { id: 21, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' } }),
+        todo({ id: 301, title: 'B', phase: { id: 21, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' } }),
       ]),
       'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
     });
@@ -192,7 +192,7 @@ describe('EditPhasesPage', () => {
   });
 
   it('starts every new warning on Keep, even after Delete them was chosen and the warning dismissed', async () => {
-    mockFetch(baseRoutes([todo({ id: 300, title: 'A', phase: { id: 21, name: 'Development › Increment 1' } })]));
+    mockFetch(baseRoutes([todo({ id: 300, title: 'A', phase: { id: 21, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' } })]));
     const user = userEvent.setup();
     renderPage();
     await screen.findByLabelText('Phase 2 sub-phase 1 name');
@@ -209,7 +209,7 @@ describe('EditPhasesPage', () => {
   it('warns about a removed phase with to-dos but no people, without the unassigned line', async () => {
     mockFetch({
       ...baseRoutes([
-        todo({ id: 300, title: 'A', phase: { id: 11, name: 'Requirements gathering' } }),
+        todo({ id: 300, title: 'A', phase: { id: 11, name: 'Requirements gathering', phaseName: 'Requirements gathering', subPhaseName: null } }),
       ]),
       'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
     });

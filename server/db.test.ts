@@ -126,4 +126,28 @@ describe('migrate', () => {
     };
     expect(row.name_ar).toBeNull();
   });
+  it('splits an existing former phase into its phase and sub-phase names on the first " › "', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('PRAGMA foreign_keys = ON');
+    for (const m of MIGRATIONS.slice(0, 11)) db.exec(m);
+    db.exec('PRAGMA user_version = 11');
+    db.prepare("INSERT INTO projects (name, color, start_date, created_at) VALUES ('P', '#000000', '2026-01-05', 'x')").run();
+    const add = db.prepare(
+      "INSERT INTO todos (project_id, title, former_phase, former_phase_removed_on, created_at) VALUES (1, ?, ?, ?, 'x')",
+    );
+    add.run('sub', 'Development › Increment 1', '2026-09-25');
+    add.run('top', 'QA', '2026-09-25');
+    add.run('two', 'Design › Screens › Mobile', '2026-09-25');
+    add.run('none', null, null);
+
+    migrate(db);
+
+    const rows = db.prepare('SELECT title, former_phase_top, former_phase_sub FROM todos ORDER BY id').all();
+    expect(rows.map((r) => ({ ...r }))).toEqual([
+      { title: 'sub', former_phase_top: 'Development', former_phase_sub: 'Increment 1' },
+      { title: 'top', former_phase_top: 'QA', former_phase_sub: null },
+      { title: 'two', former_phase_top: 'Design', former_phase_sub: 'Screens › Mobile' },
+      { title: 'none', former_phase_top: null, former_phase_sub: null },
+    ]);
+  });
 });

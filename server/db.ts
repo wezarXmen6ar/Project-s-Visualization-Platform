@@ -227,6 +227,16 @@ export const MIGRATIONS: string[] = [
     WHEN 'goal|Digitalisation of internal operations' THEN 'رقمنة العمليات الداخلية'
   END WHERE name_ar IS NULL;
   `,
+  `
+  ALTER TABLE todos ADD COLUMN former_phase_top TEXT;
+  ALTER TABLE todos ADD COLUMN former_phase_sub TEXT;
+  UPDATE todos SET
+    former_phase_top = CASE WHEN instr(former_phase, ' › ') = 0 THEN former_phase
+      ELSE substr(former_phase, 1, instr(former_phase, ' › ') - 1) END,
+    former_phase_sub = CASE WHEN instr(former_phase, ' › ') = 0 THEN NULL
+      ELSE substr(former_phase, instr(former_phase, ' › ') + 3) END
+  WHERE former_phase IS NOT NULL;
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

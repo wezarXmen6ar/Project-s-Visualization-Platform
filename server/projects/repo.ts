@@ -288,9 +288,11 @@ export function updateSchedule(
     const oldPhases = db.prepare('SELECT id, name, parent_id FROM phases WHERE project_id = ?').all(projectId) as unknown as
       { id: number; name: string; parent_id: number | null }[];
     const oldNameById = new Map(oldPhases.map((r) => [r.id, r.name]));
-    const labelFor = (id: number): string => {
+    const labelFor = (id: number) => {
       const row = oldPhases.find((r) => r.id === id)!;
-      return row.parent_id === null ? row.name : `${oldNameById.get(row.parent_id)} › ${row.name}`;
+      return row.parent_id === null
+        ? { phaseName: row.name, subPhaseName: null }
+        : { phaseName: oldNameById.get(row.parent_id)!, subPhaseName: row.name };
     };
     const explicitIds = new Set<number>();
     input.phases.forEach((p) => {

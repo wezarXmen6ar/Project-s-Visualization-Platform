@@ -98,7 +98,9 @@ describe('checkToDo — phases', () => {
   it("accepts the project's own sub-phase, and the record reads 'Development › Increment 1'", () => {
     const sub = project.phases[0].subPhases[0];
     const created = createToDo(db, project.id, toDoInputSchema.parse({ title: 'Task', phaseId: sub.id }), '2026-09-25');
-    expect(created.phase).toEqual({ id: sub.id, name: 'Development › Increment 1' });
+    expect(created.phase).toEqual({
+      id: sub.id, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1',
+    });
   });
 
   function createProject2(): ProjectRecord {
@@ -187,7 +189,9 @@ describe('removing a phase through updateSchedule', () => {
 
     const keptOpen = getToDo(db, openToDo.id)!;
     expect(keptOpen.phase).toBeNull();
-    expect(keptOpen.formerPhase).toEqual({ name: 'Development › Increment 1', removedOn: '2026-09-25' });
+    expect(keptOpen.formerPhase).toEqual({
+      name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1', removedOn: '2026-09-25',
+    });
     expect(getToDo(db, doneToDo.id)).toBeUndefined();
   });
 
@@ -230,7 +234,9 @@ describe('removing a phase through updateSchedule', () => {
 
     const kept = getToDo(db, openToDo.id)!;
     expect(kept.phase).toBeNull();
-    expect(kept.formerPhase).toEqual({ name: 'Development › Increment 1', removedOn: '2026-09-25' });
+    expect(kept.formerPhase).toEqual({
+      name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1', removedOn: '2026-09-25',
+    });
   });
 
   it('leaves everything unchanged when updateSchedule fails validation (an unknown id)', () => {
@@ -271,7 +277,7 @@ describe('removing a phase through updateSchedule', () => {
     expect(r.ok).toBe(true);
 
     const kept = getToDo(db, onDev.id)!;
-    expect(kept.phase).toEqual({ id: dev.id, name: 'Development renamed' });
+    expect(kept.phase).toEqual({ id: dev.id, name: 'Development renamed', phaseName: 'Development renamed', subPhaseName: null });
     expect(kept.formerPhase).toBeNull();
   });
 });
@@ -290,7 +296,7 @@ describe('relinking', () => {
     expect(removed.formerPhase).not.toBeNull();
 
     const relinked = updateToDo(db, openToDo.id, toDoInputSchema.parse({ title: 'Open', phaseId: qa.id }), '2026-09-25')!;
-    expect(relinked.phase).toEqual({ id: qa.id, name: 'QA' });
+    expect(relinked.phase).toEqual({ id: qa.id, name: 'QA', phaseName: 'QA', subPhaseName: null });
     expect(relinked.formerPhase).toBeNull();
   });
 });

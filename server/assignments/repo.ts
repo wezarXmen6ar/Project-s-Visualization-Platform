@@ -152,6 +152,8 @@ export function workloadData(db: DatabaseSync): WorkloadData {
     .prepare(
       `SELECT a.id, a.resource_id, a.phase_id, a.allocation, a.role,
               CASE WHEN parent.id IS NULL THEN p.name ELSE parent.name || ' › ' || p.name END AS phase_name,
+              COALESCE(parent.name, p.name) AS top_phase_name,
+              CASE WHEN parent.id IS NULL THEN NULL ELSE p.name END AS sub_phase_name,
               p.planned_start, p.planned_end, pr.id AS project_id, pr.name AS project_name
        FROM assignments a
        JOIN phases p ON p.id = a.phase_id
@@ -166,6 +168,8 @@ export function workloadData(db: DatabaseSync): WorkloadData {
     allocation: number;
     role: AssignmentRole;
     phase_name: string;
+    top_phase_name: string;
+    sub_phase_name: string | null;
     planned_start: string;
     planned_end: string;
     project_id: number;
@@ -188,6 +192,8 @@ export function workloadData(db: DatabaseSync): WorkloadData {
         projectId: a.project_id,
         projectName: a.project_name,
         phaseName: a.phase_name,
+        topPhaseName: a.top_phase_name,
+        subPhaseName: a.sub_phase_name,
         start: a.planned_start,
         end: a.planned_end,
         allocation: a.allocation,

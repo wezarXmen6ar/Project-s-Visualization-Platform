@@ -177,16 +177,16 @@ describe('PersonPage', () => {
       resources: [{ id: 71, name: 'Fatima Noor', capacity: 100, leave: [] }],
       assignments: [
         {
-          id: 600, resourceId: 71, phaseId: 800, projectId: 85, projectName: 'Old Project', phaseName: 'Deployment',
+          id: 600, resourceId: 71, phaseId: 800, projectId: 85, projectName: 'Old Project', phaseName: 'Deployment', topPhaseName: 'Deployment', subPhaseName: null,
           start: '2026-08-01', end: '2026-08-10', allocation: 100, role: 'responsible',
         },
         {
-          id: 601, resourceId: 71, phaseId: 801, projectId: 91, projectName: 'Case Management', phaseName: 'QA',
+          id: 601, resourceId: 71, phaseId: 801, projectId: 91, projectName: 'Case Management', phaseName: 'QA', topPhaseName: 'QA', subPhaseName: null,
           start: '2026-10-05', end: '2026-10-09', allocation: 100, role: 'responsible',
         },
         {
           id: 602, resourceId: 71, phaseId: 802, projectId: 95, projectName: 'E-Services Mobile App',
-          phaseName: 'Development › Increment 3 – Payments',
+          phaseName: 'Development › Increment 3 – Payments', topPhaseName: 'Development', subPhaseName: 'Increment 3 – Payments',
           start: '2026-11-02', end: '2026-11-20', allocation: 60, role: 'responsible',
         },
       ],
@@ -295,7 +295,7 @@ describe('PersonPage', () => {
       assignments: [
         {
           id: 602, resourceId: 71, phaseId: 802, projectId: 95, projectName: 'E-Services Mobile App',
-          phaseName: 'Development › Increment 3 – Payments',
+          phaseName: 'Development › Increment 3 – Payments', topPhaseName: 'Development', subPhaseName: 'Increment 3 – Payments',
           start: '2026-11-02', end: '2026-11-20', allocation: 60, role: 'responsible',
         },
       ],
@@ -307,7 +307,7 @@ describe('PersonPage', () => {
       'GET /api/todos?assigneeId=71': () => ({
         body: [toDo({
           id: 503, title: "Review the payment provider's API documentation", dueDate: '2026-12-18',
-          projectId: 95, projectName: 'E-Services Mobile App', phase: { id: 802, name: 'Development › Increment 3 – Payments' },
+          projectId: 95, projectName: 'E-Services Mobile App', phase: { id: 802, name: 'Development › Increment 3 – Payments', phaseName: 'Development', subPhaseName: 'Increment 3 – Payments' },
         })],
       }),
     });

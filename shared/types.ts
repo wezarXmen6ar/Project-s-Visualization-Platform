@@ -126,6 +126,10 @@ export interface OverloadDecision {
 
 export interface WorkloadAssignment extends CapacityAssignment {
   role: AssignmentRole;
+  /** The top-level phase's stored name (the phase itself, or a sub-phase's parent), so the client can translate it. */
+  topPhaseName: string;
+  /** A sub-phase's own name (never translated), or null for a top-level phase. */
+  subPhaseName: string | null;
 }
 
 /** Everything the workload heatmap and the live warnings need; the browser runs computeWorkload on it. */
@@ -202,12 +206,18 @@ export interface ToDoRecord {
   done: boolean;
   /** The day it was ticked off. */
   doneDate: ISODate | null;
-  /** The phase or sub-phase it belongs to; a sub-phase's name reads "Phase › Sub-phase". */
-  phase: Ref | null;
+  /**
+   * The phase or sub-phase it belongs to; a sub-phase's `name` reads "Phase › Sub-phase". `phaseName` is the
+   * top-level phase's stored name (translatable) and `subPhaseName` a sub-phase's own name (never translated).
+   */
+  phase: (Ref & PhaseNameParts) | null;
   /** Set when the phase it was linked to was removed and the to-do was kept; cleared once it is linked again. */
-  formerPhase: { name: string; removedOn: ISODate } | null;
+  formerPhase: ({ name: string; removedOn: ISODate } & PhaseNameParts) | null;
   createdAt: string;
 }
+
+/** A phase reference's name in parts: the top-level phase's stored name, and a sub-phase's own name (or null). */
+export interface PhaseNameParts { phaseName: string; subPhaseName: string | null }
 
 /** Who "I am" is: the PM using the tool. */
 export interface Me { resourceId: number | null; name: string | null }

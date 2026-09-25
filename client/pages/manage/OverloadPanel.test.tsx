@@ -37,7 +37,7 @@ describe('OverloadPanel', () => {
   it('lists the days that are overbooked on their own, even when the week as a whole is not', () => {
     const clash = overbookedWorkload();
     clash.assignments.push({
-      id: 503, resourceId: 72, phaseId: 903, projectId: 93, projectName: 'Portal', phaseName: 'UAT',
+      id: 503, resourceId: 72, phaseId: 903, projectId: 93, projectName: 'Portal', phaseName: 'UAT', topPhaseName: 'UAT', subPhaseName: null,
       start: '2026-10-13', end: '2026-10-13', allocation: 40, role: 'contributor',
     });
     const rami = computeWorkload(clash.resources, clash.assignments, { start: '2026-10-12', end: '2026-10-18' }, clash.calendar)[1];

@@ -162,7 +162,7 @@ describe('ToDosPage', () => {
     const withFormer: ToDoRecord = {
       id: 400, projectId: 1, projectName: 'Portal', title: 'Tidy up after the removed phase', note: null,
       assignee: null, dueDate: null, done: false, doneDate: null, phase: null,
-      formerPhase: { name: 'Development › Increment 2', removedOn: '2026-09-25' }, createdAt: '2026-09-20T09:00:00.000Z',
+      formerPhase: { name: 'Development › Increment 2', phaseName: 'Development', subPhaseName: 'Increment 2', removedOn: '2026-09-25' }, createdAt: '2026-09-20T09:00:00.000Z',
     };
     mockFetch(routes([...todos(), withFormer]));
     const user = userEvent.setup();

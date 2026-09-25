@@ -108,7 +108,7 @@ describe('assignments', () => {
     ]);
     expect(data.assignments).toEqual([{
       id: expect.any(Number), resourceId: people.fatima, phaseId: p.phases[0].id, projectId: p.id, projectName: 'Portal',
-      phaseName: 'Development', start: '2026-10-05', end: '2026-10-09', allocation: 60, role: 'responsible',
+      phaseName: 'Development', topPhaseName: 'Development', subPhaseName: null, start: '2026-10-05', end: '2026-10-09', allocation: 60, role: 'responsible',
     }]);
     expect(data.decisions).toEqual([]);
   });
@@ -200,7 +200,7 @@ describe('assignments', () => {
     expect(data.assignments).toEqual([
       {
         id: expect.any(Number), resourceId: people.fatima, phaseId: subPhase.id, projectId: project.id, projectName: 'Portal',
-        phaseName: 'Development › Increment 1', start: subPhase.start, end: subPhase.end, allocation: 60, role: 'contributor',
+        phaseName: 'Development › Increment 1', topPhaseName: 'Development', subPhaseName: 'Increment 1', start: subPhase.start, end: subPhase.end, allocation: 60, role: 'contributor',
       },
     ]);
   });
