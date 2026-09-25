@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import { mockFetch, sampleProject } from '../../testing/mockFetch';
+import { mockFetch, sampleProject, samplePeople, sampleWorkload } from '../../testing/mockFetch';
 import { ProjectPage } from './ProjectPage';
 
 function renderAt(url: string) {
@@ -89,5 +90,43 @@ describe('ProjectPage', () => {
     });
     renderAt('/manage/projects/999');
     expect(await screen.findByText('Project not found')).toBeInTheDocument();
+  });
+
+  it('edits the people on a phase, warning about overbooking before saving', async () => {
+    const withTeam = sampleProject({
+      phases: [{ id: 11, name: 'Requirements', order: 0, durationDays: 5, start: '2026-10-05', end: '2026-10-09' }],
+      assignments: [{ id: 300, phaseId: 11, resource: { id: 72, name: 'Rami Saleh' }, allocation: 50, role: 'responsible' }],
+    });
+    const workload = sampleWorkload();
+    workload.assignments.push({
+      id: 300, resourceId: 72, phaseId: 11, projectId: 1, projectName: 'Portal', phaseName: 'Requirements',
+      start: '2026-10-05', end: '2026-10-09', allocation: 50, role: 'responsible',
+    });
+    const fetchMock = mockFetch({
+      'GET /api/projects/1': () => ({ body: withTeam }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/resources': () => ({ body: samplePeople() }),
+      'GET /api/workload': () => ({ body: workload }),
+      'PUT /api/phases/11/assignments': () => ({
+        body: { ...withTeam, assignments: [{ id: 301, phaseId: 11, resource: { id: 72, name: 'Rami Saleh' }, allocation: 20, role: 'responsible' }] },
+      }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    expect(await screen.findByText(/50% · Responsible/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Edit people on Requirements' }));
+    // Rami (capacity 80) is also 60% on Case Management that week: 60 + 50 = 110.
+    expect(await screen.findByText('Week of 5 Oct: 110% booked, 80% available')).toBeInTheDocument();
+
+    const allocation = screen.getByLabelText('Requirements allocation 1');
+    await user.clear(allocation);
+    await user.type(allocation, '20');
+    await waitFor(() => expect(screen.queryByText(/Week of 5 Oct/)).toBeNull());
+
+    await user.click(screen.getByRole('button', { name: 'Save people on Requirements' }));
+    expect(await screen.findByText(/20% · Responsible/)).toBeInTheDocument();
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/phases/11/assignments' && init?.method === 'PUT');
+    expect(JSON.parse(put![1]!.body as string)).toEqual({ assignments: [{ resourceId: 72, allocation: 20, role: 'responsible' }] });
   });
 });

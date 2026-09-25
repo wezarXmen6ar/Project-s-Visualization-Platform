@@ -1,6 +1,6 @@
 import type { WorkCalendar } from '../shared/calendar';
-import type { LeaveInput, NewProjectInput, ProjectDetailsInput, ResourceInput, ValidationIssue } from '../shared/schemas';
-import type { LeaveRecord, ListName, ListValue, Lists, PortfolioResponse, ProjectRecord, ResourceRecord } from '../shared/types';
+import type { AssignmentInput, LeaveInput, NewProjectInput, ProjectDetailsInput, ResourceInput, ValidationIssue } from '../shared/schemas';
+import type { LeaveRecord, ListName, ListValue, Lists, PortfolioResponse, ProjectRecord, ResourceRecord, WorkloadData } from '../shared/types';
 
 export class ApiError extends Error {
   status: number;
@@ -43,4 +43,7 @@ export const api = {
   addLeave: (resourceId: number, input: LeaveInput) =>
     request<LeaveRecord>(`/api/resources/${resourceId}/leave`, withBody('POST', input)),
   deleteLeave: (id: number) => request<void>(`/api/leave/${id}`, { method: 'DELETE' }),
+  setPhaseAssignments: (phaseId: number, assignments: AssignmentInput[]) =>
+    request<ProjectRecord>(`/api/phases/${phaseId}/assignments`, withBody('PUT', { assignments })),
+  getWorkload: () => request<WorkloadData>('/api/workload'),
 };

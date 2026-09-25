@@ -1,14 +1,18 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { DEFAULT_CALENDAR, countWorkingDays, todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
+import type { ProjectRecord } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { api } from '../../api';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useAsync } from '../../useAsync';
+import { useResources } from '../../useResources';
+import { useWorkload } from '../../useWorkload';
 import { CATEGORY_LABEL, PRIORITY_LABEL, SCOPE_TABLES, beneficiaryLabel, requesterLabel } from './labels';
+import { ProjectPeople } from './ProjectPeople';
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -24,6 +28,9 @@ export function ProjectPage() {
   const project = useAsync(() => api.getProject(id), [id]);
   const calendar = useAsync(() => api.getCalendar(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
+  const { people } = useResources();
+  const { workload, reload: reloadWorkload } = useWorkload();
+  const [saved, setSaved] = useState<ProjectRecord | null>(null);
   const today = todayLocal();
 
   if (project.error) {
@@ -47,7 +54,7 @@ export function ProjectPage() {
     );
   }
 
-  const p = project.data;
+  const p = saved ?? project.data;
   const span = projectSpan(p.phases);
   const rows = phaseRows(p);
   const cal = calendar.data ?? DEFAULT_CALENDAR;
@@ -142,6 +149,16 @@ export function ProjectPage() {
           </tbody>
         </table>
       </section>
+
+      <ProjectPeople
+        project={p}
+        people={people}
+        workload={workload}
+        onSaved={(updated) => {
+          setSaved(updated);
+          reloadWorkload();
+        }}
+      />
     </main>
   );
 }

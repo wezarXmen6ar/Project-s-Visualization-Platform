@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../../testing/mockFetch';
-import { detailsFromProject, detailsToInput, emptyDetails, firstStepWithIssue, stepOfIssue } from './projectDraft';
+import { detailsFromProject, detailsToInput, emptyDetails, firstStepWithIssue, phasesToInput, stepOfIssue } from './projectDraft';
 
 describe('projectDraft', () => {
   it('turns the four tables into one scope item list, in table order', () => {
@@ -37,5 +37,20 @@ describe('projectDraft', () => {
     expect(stepOfIssue({ path: '', message: '' })).toBe(-1);
     expect(firstStepWithIssue([{ path: 'phases', message: '' }, { path: 'summary', message: '' }])).toBe(1);
     expect(firstStepWithIssue([{ path: '', message: 'Server down' }])).toBeNull();
+  });
+
+  it('sends each phase with its people, a row with no person as 0 so the server asks for one', () => {
+    expect(phasesToInput([
+      { name: 'Build', durationDays: 5, assignments: [{ resourceId: 71, allocation: 60, role: 'responsible' }, { resourceId: null, allocation: 100, role: 'contributor' }] },
+      { name: 'QA', durationDays: 3 },
+    ])).toEqual([
+      { name: 'Build', durationDays: 5, assignments: [{ resourceId: 71, allocation: 60, role: 'responsible' }, { resourceId: 0, allocation: 100, role: 'contributor' }] },
+      { name: 'QA', durationDays: 3, assignments: [] },
+    ]);
+  });
+
+  it('sends people errors to the People step', () => {
+    expect(stepOfIssue({ path: 'phases.2.assignments.0.resourceId', message: '' })).toBe(3);
+    expect(stepOfIssue({ path: 'phases.2.name', message: '' })).toBe(2);
   });
 });

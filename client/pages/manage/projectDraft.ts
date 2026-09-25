@@ -1,6 +1,8 @@
 import type { ProjectDetailsInput, ValidationIssue } from '../../../shared/schemas';
+import type { PhaseInput } from '../../../shared/scheduler';
 import { SCOPE_KINDS, type Category, type Priority, type ProjectRecord, type ScopeKind } from '../../../shared/types';
 import type { DraftItem } from '../../components/ItemTable';
+import type { DraftAssignment } from '../../overloads';
 
 /** The project details as the form holds them: text fields are plain strings, and each scope table is its own list. */
 export interface DetailsDraft {
@@ -80,6 +82,20 @@ export function detailsToInput(d: DetailsDraft): ProjectDetailsInput {
   };
 }
 
+/** A wizard phase: its name, working days and, from Step 4, the people on it. */
+export interface PhaseDraft extends PhaseInput {
+  assignments?: DraftAssignment[];
+}
+
+/** Phases as the API takes them. A row with no person yet is sent as 0 so the server answers "Choose a person". */
+export function phasesToInput(phases: PhaseDraft[]) {
+  return phases.map(({ name, durationDays, assignments = [] }) => ({
+    name,
+    durationDays,
+    assignments: assignments.map((a) => ({ resourceId: a.resourceId ?? 0, allocation: a.allocation, role: a.role })),
+  }));
+}
+
 /** Which wizard step owns each top-level field, so an error can send the user to the right step. */
 const STEP_FIELDS: string[][] = [
   ['name', 'jiraKey', 'color', 'priority', 'projectManagerId', 'businessPmId', 'mainProjectId', 'category',
@@ -88,8 +104,9 @@ const STEP_FIELDS: string[][] = [
   ['startDate', 'phases'],
 ];
 
-/** The step (0, 1 or 2) whose field has this issue, or -1 when no step owns it (e.g. a general server error). */
+/** The step (0–3) whose field has this issue, or -1 when no step owns it (e.g. a general server error). */
 export function stepOfIssue(issue: ValidationIssue): number {
+  if (/^phases\.\d+\.assignments/.test(issue.path)) return 3;
   const field = issue.path.split('.')[0];
   return STEP_FIELDS.findIndex((fields) => fields.includes(field));
 }

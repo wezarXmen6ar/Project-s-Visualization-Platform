@@ -540,3 +540,27 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 }
 .button.danger { background: var(--danger); color: var(--on-primary); }
 .button.danger:hover { filter: brightness(0.92); }
+
+/* ---------------------------------------------------------------------- *
+ * Assignments / People
+ * ---------------------------------------------------------------------- */
+.phase-people, .phase-people-edit { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
+.phase-people:last-child, .phase-people-edit:last-child { border-bottom: 0; }
+.phase-people h3 { margin-bottom: var(--sp-2); }
+.phase-people-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); }
+.phase-dates { font-weight: 400; font-size: var(--fs-sm); }
+.people-list { margin: 0; padding-left: 1.2em; }
+.assignment { margin-bottom: var(--sp-2); }
+.assignment-row { display: grid; grid-template-columns: 1fr 6.5rem 10rem auto; gap: var(--sp-2); align-items: center; }
+.inline-number { display: flex; align-items: center; gap: var(--sp-1); }
+.inline-number input { width: 100%; }
+.warning-lines {
+  margin: var(--sp-1) 0 0;
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) 1.8em;
+  background: var(--warning-wash);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+}
+@media (max-width: 640px) {
+  .assignment-row { grid-template-columns: 1fr 5.5rem; }
+}

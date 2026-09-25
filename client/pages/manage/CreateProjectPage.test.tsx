@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import { mockFetch, sampleLists, samplePeople, sampleProject, type MockHandler } from '../../testing/mockFetch';
+import { mockFetch, sampleLists, samplePeople, sampleProject, sampleWorkload, type MockHandler } from '../../testing/mockFetch';
 import { CreateProjectPage } from './CreateProjectPage';
 
 function ProjectStub() {
@@ -26,6 +26,7 @@ const baseRoutes: Record<string, MockHandler> = {
   'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
   'GET /api/lists': () => ({ body: sampleLists() }),
   'GET /api/resources': () => ({ body: samplePeople() }),
+  'GET /api/workload': () => ({ body: sampleWorkload() }),
 };
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -33,6 +34,11 @@ type User = ReturnType<typeof userEvent.setup>;
 async function openPhasesStep(user: User) {
   await user.type(screen.getByLabelText('Project name'), 'Portal');
   await user.click(screen.getByRole('button', { name: 'Next' }));
+  await user.click(screen.getByRole('button', { name: 'Next' }));
+}
+
+async function openPeopleStep(user: User) {
+  await openPhasesStep(user);
   await user.click(screen.getByRole('button', { name: 'Next' }));
 }
 
@@ -87,6 +93,8 @@ describe('CreateProjectPage wizard', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(screen.getByRole('heading', { name: 'Phases' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Create project' }));
 
     expect(await screen.findByText('Project page 7')).toBeInTheDocument();
@@ -134,7 +142,7 @@ describe('CreateProjectPage wizard', () => {
     });
     const user = userEvent.setup();
     renderPage();
-    await openPhasesStep(user);
+    await openPeopleStep(user);
     await user.click(screen.getByRole('button', { name: 'Create project' }));
     expect(await screen.findByText('Unknown project type')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
@@ -220,5 +228,35 @@ describe('CreateProjectPage wizard', () => {
     expect(screen.getByLabelText('Phase 1 name')).toHaveDisplayValue('Business analysis');
     expect(await screen.findByTestId('gantt-row-0')).toHaveTextContent('Business analysis');
     expect(screen.getByLabelText('Reorder phase 1')).toHaveFocus();
+  });
+
+  it('assigns people on Step 4, flags overbooking straight away, and sends the assignments', async () => {
+    const fetchMock = mockFetch({
+      ...baseRoutes,
+      'POST /api/projects': () => ({ status: 201, body: sampleProject({ id: 7 }) }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-10-05' } });
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
+
+    // Requirements gathering runs 5–16 Oct; Fatima is already 100% on HR QA until 9 Oct.
+    await user.click(screen.getByRole('button', { name: 'Add person to Requirements gathering' }));
+    await screen.findByRole('option', { name: 'Fatima Noor · Developer' });
+    await user.selectOptions(screen.getByLabelText('Requirements gathering person 1'), 'Fatima Noor · Developer');
+    expect(await screen.findByText('Week of 5 Oct: 200% booked, 100% available')).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('Requirements gathering allocation 1'));
+    await user.type(screen.getByLabelText('Requirements gathering allocation 1'), '50');
+    expect(await screen.findByText('Week of 5 Oct: 150% booked, 100% available')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByText('Project page 7')).toBeInTheDocument();
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
+    const sent = JSON.parse(post![1]!.body as string);
+    expect(sent.phases[0].assignments).toEqual([{ resourceId: 71, allocation: 50, role: 'responsible' }]);
+    expect(sent.phases[1].assignments).toEqual([]);
   });
 });

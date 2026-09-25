@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Lists, ProjectRecord, ResourceRecord } from '../../shared/types';
+import type { Lists, ProjectRecord, ResourceRecord, WorkloadData } from '../../shared/types';
 
 export type MockHandler = (init?: RequestInit) => { status?: number; body: unknown };
 
@@ -81,4 +81,25 @@ export function samplePeople(): ResourceRecord[] {
     person({ id: 72, name: 'Rami Saleh', side: 'tech', role: { id: 63, name: 'Developer' }, specialisation: 'back-end', capacity: 80 }),
     person({ id: 80, name: 'Mariam Al Suwaidi', side: 'business', phone: '+971 50 123 4567', email: 'mariam@example.com' }),
   ];
+}
+
+export function sampleWorkload(): WorkloadData {
+  return {
+    calendar: { weekendDays: [0, 6], holidays: [] },
+    resources: [
+      { id: 71, name: 'Fatima Noor', capacity: 100, leave: [] },
+      { id: 72, name: 'Rami Saleh', capacity: 80, leave: [{ start: '2026-10-19', end: '2026-10-20' }] },
+    ],
+    assignments: [
+      {
+        id: 500, resourceId: 71, phaseId: 900, projectId: 90, projectName: 'HR Self-Service', phaseName: 'QA',
+        start: '2026-09-28', end: '2026-10-09', allocation: 100, role: 'responsible',
+      },
+      {
+        id: 501, resourceId: 72, phaseId: 901, projectId: 91, projectName: 'Case Management', phaseName: 'Development',
+        start: '2026-10-05', end: '2026-10-16', allocation: 60, role: 'contributor',
+      },
+    ],
+    decisions: [],
+  };
 }

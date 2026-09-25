@@ -2,32 +2,34 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { todayLocal } from '../../../shared/calendar';
 import { newProjectSchema, toIssues, type NewProjectInput, type ValidationIssue } from '../../../shared/schemas';
-import type { PhaseInput } from '../../../shared/scheduler';
 import { AlertIcon, ArrowLeftIcon, ArrowRightIcon } from '../../icons';
 import { ApiError, api } from '../../api';
 import { useLists } from '../../useLists';
 import { useResources } from '../../useResources';
+import { useWorkload } from '../../useWorkload';
 import { DetailsFields } from './DetailsFields';
+import { PeopleFields } from './PeopleFields';
 import { DEFAULT_PHASES, PhasesFields } from './PhasesFields';
 import { ScopeFields } from './ScopeFields';
-import { detailsToInput, emptyDetails, firstStepWithIssue, stepOfIssue, type DetailsDraft } from './projectDraft';
+import { detailsToInput, emptyDetails, firstStepWithIssue, phasesToInput, stepOfIssue, type DetailsDraft, type PhaseDraft } from './projectDraft';
 
-const STEPS = ['Basic info', 'Description & scope', 'Phases'];
+const STEPS = ['Basic info', 'Description & scope', 'Phases', 'People'];
 const LAST = STEPS.length - 1;
 
 export function CreateProjectPage() {
   const navigate = useNavigate();
   const { lists, error: listsError, remember } = useLists();
   const { people, error: peopleError, remember: rememberPerson } = useResources();
+  const { workload, error: workloadError } = useWorkload();
   const [step, setStep] = useState(0);
   const [details, setDetails] = useState<DetailsDraft>(emptyDetails);
   const [startDate, setStartDate] = useState(todayLocal());
-  const [phases, setPhases] = useState<PhaseInput[]>(DEFAULT_PHASES);
+  const [phases, setPhases] = useState<PhaseDraft[]>(DEFAULT_PHASES);
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [saving, setSaving] = useState(false);
 
   const patchDetails = (patch: Partial<DetailsDraft>) => setDetails((d) => ({ ...d, ...patch }));
-  const input = (): NewProjectInput => ({ ...detailsToInput(details), startDate, phases });
+  const input = (): NewProjectInput => ({ ...detailsToInput(details), startDate, phases: phasesToInput(phases) });
 
   function validate(): ValidationIssue[] {
     const parsed = newProjectSchema.safeParse(input());
@@ -112,6 +114,12 @@ export function CreateProjectPage() {
             <span>Could not load people: {peopleError.message}</span>
           </div>
         ) : null}
+        {workloadError ? (
+          <div className="errors" role="alert">
+            <AlertIcon />
+            <span>Could not load everyone's workload: {workloadError.message}</span>
+          </div>
+        ) : null}
 
         {step === 0 ? (
           <DetailsFields
@@ -132,6 +140,16 @@ export function CreateProjectPage() {
             onPhases={setPhases}
             phaseOptions={lists.phase}
             onListAdded={remember}
+          />
+        ) : null}
+        {step === 3 ? (
+          <PeopleFields
+            projectName={details.name}
+            startDate={startDate}
+            phases={phases}
+            onPhases={setPhases}
+            people={people}
+            workload={workload}
           />
         ) : null}
 
