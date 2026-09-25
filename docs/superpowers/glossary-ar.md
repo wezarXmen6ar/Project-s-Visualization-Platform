@@ -1,6 +1,6 @@
 # Arabic glossary (المسرد)
 
-**Status:** draft, first review by the user applied (2026-09-26); only "follow-on project" is still open. The app uses these terms, and only these, everywhere. Change a term here first, then in the app.
+**Status:** approved by the user (2026-09-26). New terms are added as milestones need them. The app uses these terms, and only these, everywhere. Change a term here first, then in the app.
 
 ## Style guide
 - **Modern Standard Arabic, the way UAE government and business digital services write it:** short, clear, formal but friendly. **Anything meaning "the business" (business side, business user, business contact) is مالك العملية** (user, 2026-09-26).
@@ -31,7 +31,7 @@
 | Project | مشروع | |
 | Main project | المشروع الرئيسي | |
 | Standalone | مشروع مستقل | |
-| Follow-on project | *open: مشروع تكميلي or المرحلة التالية من المشروع* | M9; waiting for the user's choice |
+| Follow-on project | مرحلة تالية من المشروع | M9 (user, 2026-09-26) |
 | Jira key | Jira key | **EN**, the whole term (user) |
 | Priority: High, Medium, Low | الأولوية: عالية، متوسطة، منخفضة | |
 | Categorisation: Strategic, Operational | التصنيف: استراتيجي، تشغيلي | |
