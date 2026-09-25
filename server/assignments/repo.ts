@@ -41,8 +41,18 @@ function toAssignment(row: AssignmentRow): AssignmentRecord {
   };
 }
 
-/** Everyone assigned must exist, be on the tech team and be active. `path` prefixes each issue, e.g. "phases.0.assignments". */
-export function checkAssignmentPeople(db: DatabaseSync, list: { resourceId: number }[], path: string): ValidationIssue[] {
+/**
+ * Everyone assigned must exist, be on the tech team and be active. `path` prefixes each issue, e.g. "phases.0.assignments".
+ * `alreadyOnPhase` lists resourceIds already saved on this phase, who may stay even if since made inactive - only a
+ * newly-added inactive person is rejected. Leave it empty (the default) when there is no existing phase to compare
+ * against, e.g. when creating a project.
+ */
+export function checkAssignmentPeople(
+  db: DatabaseSync,
+  list: { resourceId: number }[],
+  path: string,
+  alreadyOnPhase: ReadonlySet<number> = new Set(),
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   list.forEach((a, i) => {
     const person = db.prepare('SELECT name, side, active FROM resources WHERE id = ?').get(a.resourceId) as unknown as
@@ -51,9 +61,15 @@ export function checkAssignmentPeople(db: DatabaseSync, list: { resourceId: numb
     const at = `${path}.${i}.resourceId`;
     if (!person) issues.push({ path: at, message: 'Unknown person' });
     else if (person.side !== 'tech') issues.push({ path: at, message: `${person.name} is a business contact; only the tech team can be assigned` });
-    else if (person.active !== 1) issues.push({ path: at, message: `${person.name} is inactive` });
+    else if (person.active !== 1 && !alreadyOnPhase.has(a.resourceId)) issues.push({ path: at, message: `${person.name} is inactive` });
   });
   return issues;
+}
+
+/** The resourceIds currently saved on a phase, e.g. to allow them to stay even if since made inactive. */
+export function phaseAssignmentResourceIds(db: DatabaseSync, phaseId: number): Set<number> {
+  const rows = db.prepare('SELECT resource_id FROM assignments WHERE phase_id = ?').all(phaseId) as unknown as { resource_id: number }[];
+  return new Set(rows.map((r) => r.resource_id));
 }
 
 /** Replaces a phase's people. Call inside a transaction. */

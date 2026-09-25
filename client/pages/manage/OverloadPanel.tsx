@@ -34,9 +34,14 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
   const [saving, setSaving] = useState(false);
 
   const accepted = isAccepted(data.decisions, person.resourceId, week.weekStart);
+  // Who is already on the phase the moving work belongs to - the server would reject reassigning to them anyway.
+  const movingItem = week.items.find((i) => i.assignmentId === moving);
+  const alreadyOnPhase = new Set(
+    movingItem ? data.assignments.filter((a) => a.phaseId === movingItem.phaseId).map((a) => a.resourceId) : [],
+  );
   // Everyone else's load this week, to help choose who to reassign to.
   const others = computeWorkload(
-    data.resources.filter((r) => r.id !== person.resourceId),
+    data.resources.filter((r) => r.id !== person.resourceId && !alreadyOnPhase.has(r.id)),
     data.assignments,
     { start: week.weekStart, end: addDays(week.weekStart, 6) },
     data.calendar,

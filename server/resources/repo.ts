@@ -112,20 +112,42 @@ export function updateResource(db: DatabaseSync, id: number, r: ResourceData): R
   return Number(res.changes) === 0 ? undefined : getResource(db, id);
 }
 
+function usageReasons(db: DatabaseSync, id: number): string[] {
+  return USAGE.flatMap(({ sql, reason }) => {
+    const { n } = db.prepare(sql).get(id) as unknown as { n: number };
+    return n > 0 ? [reason(n)] : [];
+  });
+}
+
 export type ResourceDelete = { ok: true } | { ok: false; status: 404 | 409; error: string };
 
 export function deleteResource(db: DatabaseSync, id: number): ResourceDelete {
   const person = getResource(db, id);
   if (!person) return { ok: false, status: 404, error: 'Person not found' };
-  const reasons = USAGE.flatMap(({ sql, reason }) => {
-    const { n } = db.prepare(sql).get(id) as unknown as { n: number };
-    return n > 0 ? [reason(n)] : [];
-  });
+  const reasons = usageReasons(db, id);
   if (reasons.length > 0) {
     return { ok: false, status: 409, error: `${person.name} can't be deleted because ${reasons.join(' and ')}. Make them inactive instead.` };
   }
   db.prepare('DELETE FROM resources WHERE id = ?').run(id);
   return { ok: true };
+}
+
+export type ResourceUpdate = { ok: true; resource: ResourceRecord } | { ok: false; status: 404 | 409; error: string };
+
+/**
+ * Switching side while in use (a PM on a project, or assigned to a phase) would leave that project or phase pointing
+ * at someone on the wrong side, so it is refused the same way a delete of someone in use is refused.
+ */
+export function updateResourceChecked(db: DatabaseSync, id: number, r: ResourceData): ResourceUpdate {
+  const person = getResource(db, id);
+  if (!person) return { ok: false, status: 404, error: 'Person not found' };
+  if (r.side !== person.side) {
+    const reasons = usageReasons(db, id);
+    if (reasons.length > 0) {
+      return { ok: false, status: 409, error: `${person.name} can't change side because ${reasons.join(' and ')}.` };
+    }
+  }
+  return { ok: true, resource: updateResource(db, id, r)! };
 }
 
 /** Returns undefined when the person does not exist. */

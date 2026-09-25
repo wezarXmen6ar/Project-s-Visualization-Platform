@@ -9,13 +9,13 @@ import {
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import {
-  checkAssignmentPeople, isTechPerson, phaseProjectId, recordDecision, saveAssignments, workloadData,
+  checkAssignmentPeople, isTechPerson, phaseAssignmentResourceIds, phaseProjectId, recordDecision, saveAssignments, workloadData,
 } from './assignments/repo';
 import { transaction } from './db';
 import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
 import { checkRefs, createProject, getProject, listProjects, updateProjectDetails } from './projects/repo';
 import {
-  addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, listResources, updateResource,
+  addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, listResources, updateResourceChecked,
 } from './resources/repo';
 import { getCalendar } from './settings';
 
@@ -71,9 +71,8 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid person', issues: toIssues(parsed.error) });
     const issues = checkResourceRefs(db, parsed.data);
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid person', issues });
-    const person = updateResource(db, Number(req.params.id), parsed.data);
-    if (!person) return reply.code(404).send({ error: 'Person not found' });
-    return person;
+    const result = updateResourceChecked(db, Number(req.params.id), parsed.data);
+    return result.ok ? result.resource : reply.code(result.status).send({ error: result.error });
   });
 
   app.delete<{ Params: { id: string } }>('/api/resources/:id', async (req, reply) => {
@@ -127,7 +126,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (projectId === undefined) return reply.code(404).send({ error: 'Phase not found' });
     const parsed = assignmentsUpdateSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid assignments', issues: toIssues(parsed.error) });
-    const issues = checkAssignmentPeople(db, parsed.data.assignments, 'assignments');
+    const issues = checkAssignmentPeople(db, parsed.data.assignments, 'assignments', phaseAssignmentResourceIds(db, phaseId));
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid assignments', issues });
     transaction(db, () => saveAssignments(db, phaseId, parsed.data.assignments));
     return getProject(db, projectId);

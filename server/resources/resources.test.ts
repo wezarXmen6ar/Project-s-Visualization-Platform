@@ -80,6 +80,34 @@ describe('resources API', () => {
     expect(missing.json()).toEqual({ error: 'Person not found' });
   });
 
+  it("refuses to switch an in-use person's side, but allows other edits", async () => {
+    const pm = (await post({ name: 'Fatima', side: 'tech' })).json();
+    const project = await app.inject({
+      method: 'POST', url: '/api/projects',
+      payload: {
+        name: 'Portal', color: '#3b82f6', startDate: '2026-10-05', projectManagerId: pm.id,
+        phases: [{ name: 'Development', durationDays: 5 }],
+      },
+    });
+    expect(project.statusCode).toBe(201);
+
+    const switched = await app.inject({
+      method: 'PUT', url: `/api/resources/${pm.id}`,
+      payload: { name: 'Fatima', side: 'business' },
+    });
+    expect(switched.statusCode).toBe(409);
+    expect(switched.json()).toEqual({
+      error: "Fatima can't change side because they are a project manager on 1 project.",
+    });
+
+    const renamed = await app.inject({
+      method: 'PUT', url: `/api/resources/${pm.id}`,
+      payload: { name: 'Fatima Noor', side: 'tech' },
+    });
+    expect(renamed.statusCode).toBe(200);
+    expect(renamed.json()).toMatchObject({ name: 'Fatima Noor', side: 'tech' });
+  });
+
   it('records leave, refuses an end before the start, and removes leave', async () => {
     const person = (await post({ name: 'Fatima', side: 'tech' })).json();
     const added = await app.inject({

@@ -87,6 +87,7 @@ export function ResourcesPage() {
 
       {workload && selectedPerson && selectedWeek ? (
         <OverloadPanel
+          key={`${selectedPerson.resourceId}-${selectedWeek.weekStart}`}
           data={workload}
           person={selectedPerson}
           week={selectedWeek}

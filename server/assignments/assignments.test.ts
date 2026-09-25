@@ -138,6 +138,47 @@ describe('assignments', () => {
     expect(business.json()).toEqual({ error: 'Person not found' });
   });
 
+  it('lets a phase with an already-inactive person be saved again, but still refuses a newly-added inactive person', async () => {
+    const p = (await projectWith([
+      { resourceId: people.fatima, allocation: 60 },
+      { resourceId: people.rami, allocation: 40 },
+    ])).json();
+
+    // Fatima gets deactivated after being assigned - she should stay on the phase.
+    await app.inject({
+      method: 'PUT', url: `/api/resources/${people.fatima}`,
+      payload: { name: 'Fatima Noor', side: 'tech', active: false },
+    });
+
+    const resaved = await app.inject({
+      method: 'PUT', url: `/api/phases/${p.phases[0].id}/assignments`,
+      payload: {
+        assignments: [
+          { resourceId: people.fatima, allocation: 60 },
+          { resourceId: people.rami, allocation: 70 },
+        ],
+      },
+    });
+    expect(resaved.statusCode).toBe(200);
+    expect(resaved.json().assignments).toEqual([
+      { id: expect.any(Number), phaseId: p.phases[0].id, resource: { id: people.fatima, name: 'Fatima Noor' }, allocation: 60, role: 'contributor' },
+      { id: expect.any(Number), phaseId: p.phases[0].id, resource: { id: people.rami, name: 'Rami Saleh' }, allocation: 70, role: 'contributor' },
+    ]);
+
+    // Adding a different, already-inactive person to the same phase is still rejected.
+    const withNewInactive = await app.inject({
+      method: 'PUT', url: `/api/phases/${p.phases[0].id}/assignments`,
+      payload: {
+        assignments: [
+          { resourceId: people.fatima, allocation: 60 },
+          { resourceId: people.gone, allocation: 40 },
+        ],
+      },
+    });
+    expect(withNewInactive.statusCode).toBe(400);
+    expect(issuesOf(withNewInactive.json())).toEqual([['assignments.1.resourceId', 'Old Hand is inactive']]);
+  });
+
   it('will not delete someone who is assigned to a phase', async () => {
     await projectWith([{ resourceId: people.fatima, allocation: 60 }]);
     const res = await app.inject({ method: 'DELETE', url: `/api/resources/${people.fatima}` });
