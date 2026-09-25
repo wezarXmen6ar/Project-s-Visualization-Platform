@@ -6,14 +6,20 @@ import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { api } from '../../api';
 import { ToDoRow } from '../../components/ToDoRow';
 import { messagesOf } from '../../errors';
-import { useT } from '../../i18n/LanguageProvider';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { phaseName } from '../../i18n/listNames';
+import { withNodes } from '../../i18n/withNodes';
 import { byUrgency, toDoToInput } from '../../todos';
 import { useAsync } from '../../useAsync';
+import { useLists } from '../../useLists';
 import { useMe } from '../../useMe';
 
 /** All to-dos across every project, filterable by project, assignee, done and a removed-phase flag kept in the URL. */
 export function ToDosPage() {
   const t = useT();
+  const { lang } = useLang();
+  const { lists } = useLists();
+  const nameFor = (name: string) => phaseName(name, lists, lang);
   const [searchParams, setSearchParams] = useSearchParams();
   const { me } = useMe();
   const [version, setVersion] = useState(0);
@@ -77,10 +83,10 @@ export function ToDosPage() {
 
   return (
     <main className="page">
-      <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>
+      <Link to="/manage" className="crumb"><ArrowLeftIcon />{t('nav.projects')}</Link>
       <div className="page-header">
         <div>
-          <h1>To-dos</h1>
+          <h1>{t('nav.todos')}</h1>
         </div>
       </div>
 
@@ -100,20 +106,20 @@ export function ToDosPage() {
 
       <div className="filters">
         <label>
-          Project
+          {t('todos.project')}
           <select value={projectParam} onChange={(e) => setFilter('project', e.target.value || null)}>
-            <option value="">All projects</option>
+            <option value="">{t('todos.allProjects')}</option>
             {projects.map(([id, name]) => (
               <option key={id} value={id}>{name}</option>
             ))}
           </select>
         </label>
         <label>
-          Assigned to
+          {t('todo.assignedTo')}
           <select value={assigneeParam} onChange={(e) => setFilter('assignee', e.target.value || null)}>
-            <option value="">Anyone</option>
-            {me && me.resourceId !== null ? <option value="me">Mine</option> : null}
-            <option value="unassigned">Unassigned</option>
+            <option value="">{t('todos.anyone')}</option>
+            {me && me.resourceId !== null ? <option value="me">{t('todos.mine')}</option> : null}
+            <option value="unassigned">{t('todo.unassigned')}</option>
             {assignees.map(([id, name]) => (
               <option key={id} value={id}>{name}</option>
             ))}
@@ -125,7 +131,7 @@ export function ToDosPage() {
             checked={doneParam}
             onChange={(e) => setFilter('done', e.target.checked ? '1' : null)}
           />
-          Show done
+          {t('todos.showDone')}
         </label>
         {hasRemoved ? (
           <label className="check">
@@ -134,7 +140,7 @@ export function ToDosPage() {
               checked={removedParam}
               onChange={(e) => setFilter('removed', e.target.checked ? '1' : null)}
             />
-            From removed phases
+            {t('todos.fromRemoved')}
           </label>
         ) : null}
       </div>
@@ -142,26 +148,26 @@ export function ToDosPage() {
       {noMatches ? (
         meUnset ? (
           <p className="muted">
-            Set who you are in <Link to="/manage/settings">Settings</Link> to see your to-dos here.
+            {withNodes(t('todos.setWhoYouAre'), { settings: <Link to="/manage/settings">{t('nav.settings')}</Link> })}
           </p>
         ) : (
-          <p className="muted">No to-dos match these filters.</p>
+          <p className="muted">{t('todos.noMatches')}</p>
         )
       ) : (
         <>
           {open.length > 0 ? (
             <ul className="todo-list">
               {open.map((t) => (
-                <ToDoRow key={t.id} todo={t} today={today} showProject onToggle={(x) => void toggleDone(x)} />
+                <ToDoRow key={t.id} todo={t} today={today} showProject onToggle={(x) => void toggleDone(x)} nameFor={nameFor} />
               ))}
             </ul>
           ) : null}
           {doneParam && done.length > 0 ? (
             <>
-              <h2>Done</h2>
+              <h2>{t('todos.done')}</h2>
               <ul className="todo-list">
                 {done.map((t) => (
-                  <ToDoRow key={t.id} todo={t} today={today} showProject onToggle={(x) => void toggleDone(x)} />
+                  <ToDoRow key={t.id} todo={t} today={today} showProject onToggle={(x) => void toggleDone(x)} nameFor={nameFor} />
                 ))}
               </ul>
             </>

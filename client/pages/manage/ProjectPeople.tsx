@@ -41,7 +41,7 @@ function PhasePeopleBlock({
   if (editing === id) {
     const planned = plannedFrom(draft, { start, end }, project.name, label);
     const warnings = workload
-      ? phaseWarnings(overloadsWith(workload, planned, saved.map((a) => a.id)), { start, end }, workload.calendar)
+      ? phaseWarnings(overloadsWith(workload, planned, saved.map((a) => a.id)), { start, end }, workload.calendar, lang)
       : new Map<number, string[]>();
     return (
       <div className="phase-people-edit">

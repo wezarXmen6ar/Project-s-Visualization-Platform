@@ -3,11 +3,12 @@ import type { ListName, ListValue } from '../../../shared/types';
 import { AlertIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
-import { useT } from '../../i18n/LanguageProvider';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { listName } from '../../i18n/listNames';
 
 interface ListEditorProps {
   title: string;
-  /** Singular name used in labels, e.g. "Goal" → "New goal", "Add goal". */
+  /** Singular name used in labels, e.g. "Goal" → "New goal", "Add goal" (lower-cased in English only). */
   singular: string;
   list: ListName;
   values: ListValue[];
@@ -18,11 +19,12 @@ interface ListEditorProps {
 /** Add, rename and delete the values of one dropdown list. */
 export function ListEditor({ title, singular, list, values, onChanged }: ListEditorProps) {
   const t = useT();
+  const { lang } = useLang();
   const [newName, setNewName] = useState('');
   const [editing, setEditing] = useState<{ id: number; name: string; nameAr: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const lower = singular.toLowerCase();
+  const lower = lang === 'en' ? singular.toLowerCase() : singular;
 
   async function run(action: () => Promise<unknown>, afterSuccess?: () => void) {
     setBusy(true);
@@ -55,7 +57,7 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
       ) : null}
 
       {values.length === 0 ? (
-        <p className="muted">Nothing here yet.</p>
+        <p className="muted">{t('list.nothingYet')}</p>
       ) : (
         <ul className="list-editor">
           {values.map((v) => (
@@ -63,12 +65,13 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
               {editing?.id === v.id ? (
                 <>
                   <input
-                    aria-label={`New name for ${v.name}`}
+                    aria-label={t('list.newName', { name: listName(v, lang) })}
+                    dir="auto"
                     value={editing.name}
                     onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                   />
                   <input
-                    aria-label={`New Arabic name for ${v.name}`}
+                    aria-label={t('list.newNameAr', { name: listName(v, lang) })}
                     dir="rtl"
                     value={editing.nameAr}
                     onChange={(e) => setEditing({ ...editing, nameAr: e.target.value })}
@@ -84,26 +87,26 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
                       )
                     }
                   >
-                    Save
+                    {t('common.save')}
                   </button>
-                  <button type="button" className="button secondary" onClick={() => setEditing(null)}>Cancel</button>
+                  <button type="button" className="button secondary" onClick={() => setEditing(null)}>{t('common.cancel')}</button>
                 </>
               ) : (
                 <>
-                  <span className="list-editor-name">{v.name}</span>
+                  <span className="list-editor-name" dir="auto" data-user-content="">{v.name}</span>
                   {v.nameAr ? <span className="list-editor-name-ar" dir="rtl">{v.nameAr}</span> : null}
                   <button
                     type="button"
                     className="button secondary"
-                    aria-label={`Rename ${v.name}`}
+                    aria-label={t('list.renameAria', { name: listName(v, lang) })}
                     onClick={() => setEditing({ id: v.id, name: v.name, nameAr: v.nameAr ?? '' })}
                   >
-                    Rename
+                    {t('list.rename')}
                   </button>
                   <button
                     type="button"
                     className="button ghost-icon"
-                    aria-label={`Delete ${v.name}`}
+                    aria-label={t('list.deleteAria', { name: listName(v, lang) })}
                     disabled={busy}
                     onClick={() => void run(() => api.deleteListValue(list, v.id))}
                   >
@@ -117,9 +120,15 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
       )}
 
       <form className="list-editor-add" onSubmit={onAdd}>
-        <input aria-label={`New ${lower}`} placeholder={`Add a ${lower}…`} value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <input
+          aria-label={t('list.new', { noun: lower })}
+          placeholder={t('list.addPlaceholder', { noun: lower })}
+          dir="auto"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+        />
         <button type="submit" className="button secondary" disabled={busy || !newName.trim()}>
-          <PlusIcon />Add {lower}
+          <PlusIcon />{t('list.add', { noun: lower })}
         </button>
       </form>
     </section>

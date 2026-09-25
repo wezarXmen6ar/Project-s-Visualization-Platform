@@ -40,8 +40,8 @@ export function MeSetting({ people }: MeSettingProps) {
 
   return (
     <section className="card">
-      <h2>I am</h2>
-      <p className="field-hint">Used for Mine and My next steps.</p>
+      <h2>{t('me.title')}</h2>
+      <p className="field-hint">{t('me.hint')}</p>
       {errors.length > 0 ? (
         <div className="errors" role="alert">
           <AlertIcon />
@@ -49,13 +49,13 @@ export function MeSetting({ people }: MeSettingProps) {
         </div>
       ) : null}
       <label>
-        I am
+        {t('me.title')}
         <select value={me?.resourceId === null || me?.resourceId === undefined ? '' : String(me.resourceId)} onChange={(e) => void onChange(e.target.value)}>
-          <option value="">Not set</option>
+          <option value="">{t('common.notSet')}</option>
           {options.map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </select>
       </label>
-      {saved ? <span role="status">Saved</span> : null}
+      {saved ? <span role="status">{t('common.saved')}</span> : null}
     </section>
   );
 }

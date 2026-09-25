@@ -9,6 +9,7 @@ import { Gantt } from '../../gantt/Gantt';
 import { portfolioRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useLang, useT } from '../../i18n/LanguageProvider';
+import { formatDate } from '../../i18n/format';
 import { phaseName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { useLists } from '../../useLists';
@@ -26,12 +27,16 @@ export function ManageDashboardPage() {
   const today = todayLocal();
   const { workload } = useWorkload();
   const thisWeek = weekStartOf(today);
+  const NOTICE_WEEKS = 4;
   const overbooked = workload
-    ? computeWorkload(workload.resources, workload.assignments, { start: thisWeek, end: addDays(thisWeek, 27) }, workload.calendar)
+    ? computeWorkload(workload.resources, workload.assignments, { start: thisWeek, end: addDays(thisWeek, NOTICE_WEEKS * 7 - 1) }, workload.calendar)
         .filter((p) => p.weeks.some((w) => w.overloaded && !isAccepted(workload.decisions, p.resourceId, w.weekStart)))
     : [];
   const list = projects.data ?? [];
   const rows = portfolioRows(list, (name) => phaseName(name, lists, lang));
+  // English keeps the ISO dates it always showed; Arabic reads them as "الخميس 24 سبتمبر 2026".
+  const spanDate = (d: string) => (lang === 'ar' ? formatDate(lang, d) : d);
+  const within = t('dashboard.withinWeeks', { count: NOTICE_WEEKS });
 
   return (
     <main className="page page-wide">
@@ -55,14 +60,15 @@ export function ManageDashboardPage() {
         </div>
       ) : null}
 
-      {/* The overbooking notice is translated with the workload views (M6 Task 6). */}
       {overbooked.length > 0 ? (
         <div className="notice" role="status">
           <AlertIcon />
           <span>
-            {overbooked.length === 1 ? `${overbooked[0].name} is` : `${overbooked.length} people are`} overbooked in the next 4 weeks.
+            {overbooked.length === 1
+              ? t('dashboard.overbookedOne', { name: overbooked[0].name, within })
+              : t('dashboard.overbookedMany', { count: overbooked.length, within })}
           </span>
-          <Link to="/manage/resources">See the workload</Link>
+          <Link to="/manage/resources">{t('dashboard.seeWorkload')}</Link>
         </div>
       ) : null}
 
@@ -121,8 +127,8 @@ export function ManageDashboardPage() {
                     <tr key={p.id}>
                       <td><Link to={`/manage/projects/${p.id}`} dir="auto" data-user-content="">{p.name}</Link></td>
                       <td>{p.jiraKey ? <span dir="ltr">{p.jiraKey}</span> : '—'}</td>
-                      <td>{span?.start ?? '—'}</td>
-                      <td>{span?.end ?? '—'}</td>
+                      <td>{span ? spanDate(span.start) : '—'}</td>
+                      <td>{span ? spanDate(span.end) : '—'}</td>
                       <td>{p.phases.length}</td>
                     </tr>
                   );

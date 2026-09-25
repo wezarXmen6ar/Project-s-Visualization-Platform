@@ -142,6 +142,31 @@
 | New project (button) / New project (page title) | إضافة مشروع جديد / مشروع جديد |
 | Active now / Finished in 2026 / Scheduled to start in 2026 | قيد التنفيذ حالياً / انتهت في 2026 / مقرر أن تبدأ في 2026 |
 
+### Added in M6 Task 6 (for the user's review)
+| English | Arabic | Note |
+|---|---|---|
+| Aisha Khan is overbooked in the next 4 weeks. | تجاوز الحِمل لدى Aisha Khan خلال الأسابيع الـ4 القادمة. | **gender-neutral**: "تجاوز الحِمل لدى {name}" avoids "فوق طاقته/طاقتها", since a person's gender isn't known. The week count uses the Arabic plural: "خلال الأسبوع القادم"، "خلال الأسبوعين القادمين"، "خلال الأسابيع الـ4 القادمة" |
+| 3 people are overbooked … | تجاوز الحِمل لدى 3 أشخاص … | "لدى شخصين"، "لدى 11 شخصاً" |
+| See the workload | عرض عبء العمل | |
+| Mon 5 Oct – Fri 9 Oct: 150% booked, 100% available | الاثنين 5 أكتوبر – الجمعة 9 أكتوبر: محجوز 150% من أصل 100% متاح | follows "محجوز … من أصل … متاح"; leave adds "(يوما إجازة)", "(3 أيام إجازة)" |
+| On leave Mon 19 Oct | في إجازة الاثنين 19 أكتوبر | |
+| Heatmap legend: Light, Booked, Full, Overbooked, Accepted, Leave | خفيف، محجوز، مكتمل، فوق الطاقة، مقبول، إجازة | |
+| free / not working / lightly booked / fully booked (cell labels) | غير محجوز / خارج أيام العمل / محجوز جزئياً / محجوز بالكامل | read by screen readers |
+| This week is overbooked. What do you want to do? | هذا الأسبوع فوق الطاقة. ما الإجراء الذي تريده؟ | |
+| Pause a project / Delay a phase | إيقاف مشروع مؤقتاً / تأجيل مرحلة | follows "إيقاف مؤقت" |
+| Days overbooked on their own | أيام فوق الطاقة بمفردها | |
+| Give it to (reassign) | المكلَّف الجديد | |
+| Side (tech team or business side) | الجهة | |
+| Contact / Status | التواصل / الحالة | People table columns |
+| (finished) project | (منتهٍ) | |
+| Leave (card title) | الإجازات | |
+| Now (badge) | حالياً | |
+| Mine (to-dos filter) / Anyone | مهامي / الجميع | |
+| Business users (departments), in Settings | ملّاك العمليات (الإدارات) | plural of مالك العملية |
+| New goal / Add goal (Settings) | الاسم الجديد – هدف / إضافة هدف | one pattern for every list: هدف، مرحلة، دور، نوع مشروع، مشروع رئيسي، مالك عملية |
+| Rename | إعادة تسمية | |
+| Last backup: … · 3 kept in the backups folder. | آخر نسخة احتياطية: … · 3 نسخ محفوظة في مجلد النسخ الاحتياطية. | |
+
 ## Common actions and states
 | English | Arabic |
 |---|---|

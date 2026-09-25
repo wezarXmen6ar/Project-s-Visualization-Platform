@@ -1,6 +1,7 @@
 import { addDays, dayOfWeek, type DateRange, type ISODate, type WorkCalendar } from '../shared/calendar';
 import { computeWorkload, type CapacityAssignment, type WeekLoad } from '../shared/capacity';
 import type { AssignmentRole, WorkloadData } from '../shared/types';
+import { translate } from '../shared/i18n/translate';
 import type { Lang } from '../shared/i18n/types';
 import { dayDate as formatDay, dayRange } from './i18n/format';
 
@@ -111,16 +112,24 @@ export function overloadsWith(data: WorkloadData, planned: PlannedAssignment[], 
   return result;
 }
 
+/**
+ * "Mon 5 Oct: 150% booked, 100% available" / "الاثنين 5 أكتوبر: محجوز 150% من أصل 100% متاح", for a week or a day
+ * (`when` is its label), with " (2 days of leave)" / " (يوما إجازة)" after it when `leaveDays` is more than 0.
+ */
+export function bookedLine(lang: Lang, when: string, load: number, available: number, leaveDays = 0): string {
+  const line = translate(lang, 'workload.line', { when, load: Math.round(load), available: Math.round(available) });
+  return leaveDays > 0 ? `${line} (${translate(lang, 'workload.leaveDays', { count: leaveDays })})` : line;
+}
+
 /** One line per overbooked week that touches the phase, e.g. "Mon 5 Oct – Fri 9 Oct: 150% booked, 100% available". */
-export function phaseWarnings(overloads: Map<number, WeekLoad[]>, phase: DateRange, cal: WorkCalendar): Map<number, string[]> {
+export function phaseWarnings(
+  overloads: Map<number, WeekLoad[]>, phase: DateRange, cal: WorkCalendar, lang: Lang = 'en',
+): Map<number, string[]> {
   const out = new Map<number, string[]>();
   for (const [resourceId, weeks] of overloads) {
     const lines = weeks
       .filter((w) => w.weekStart <= phase.end && addDays(w.weekStart, 6) >= phase.start)
-      .map((w) => {
-        const leave = w.leaveDays > 0 ? ` (${w.leaveDays} day${w.leaveDays === 1 ? '' : 's'} of leave)` : '';
-        return `${weekLabel(w.weekStart, cal)}: ${Math.round(w.load)}% booked, ${Math.round(w.available)}% available${leave}`;
-      });
+      .map((w) => bookedLine(lang, weekLabel(w.weekStart, cal, lang), w.load, w.available, w.leaveDays));
     if (lines.length > 0) out.set(resourceId, lines);
   }
   return out;

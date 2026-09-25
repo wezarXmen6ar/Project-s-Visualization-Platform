@@ -7,28 +7,31 @@ import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
 import { ToDoRow } from '../../components/ToDoRow';
 import { messageFor, messagesOf } from '../../errors';
-import { useT } from '../../i18n/LanguageProvider';
-import { byUrgency, toDoToInput } from '../../todos';
+import { formatDate } from '../../i18n/format';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { listName, phaseName } from '../../i18n/listNames';
+import { byUrgency, toDoToInput, type PhaseNameFor } from '../../todos';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
-import { SPECIALISATION_LABEL, formatDate } from './labels';
+import { SIDE_KEY, SPECIALISATION_KEY } from './labels';
 import { PersonWork } from './PersonWork';
 
 /** A person's open to-dos across every project. */
 function PersonToDos({
-  todos, today, onToggle, errors = [],
-}: { todos: ToDoRecord[]; today: string; onToggle: (t: ToDoRecord) => void; errors?: string[] }) {
-  const open = byUrgency(todos.filter((t) => !t.done));
+  todos, today, onToggle, errors = [], nameFor,
+}: { todos: ToDoRecord[]; today: string; onToggle: (t: ToDoRecord) => void; errors?: string[]; nameFor?: PhaseNameFor }) {
+  const t = useT();
+  const open = byUrgency(todos.filter((x) => !x.done));
   return (
     <section className="card">
-      <h2>To-dos</h2>
+      <h2>{t('nav.todos')}</h2>
       {errors.length > 0 ? <Errors messages={errors} /> : null}
       {open.length === 0 ? (
-        <p className="muted">No open to-dos.</p>
+        <p className="muted">{t('person.noOpenToDos')}</p>
       ) : (
         <ul className="todo-list">
-          {open.map((t) => (
-            <ToDoRow key={t.id} todo={t} today={today} showProject onToggle={onToggle} />
+          {open.map((x) => (
+            <ToDoRow key={x.id} todo={x} today={today} showProject onToggle={onToggle} nameFor={nameFor} />
           ))}
         </ul>
       )}
@@ -74,11 +77,10 @@ function Errors({ messages }: { messages: string[] }) {
   );
 }
 
-const workingDaysLabel = (n: number) => `${n} working day${n === 1 ? '' : 's'}`;
-
 /** Leave for one tech-team person: listed, added and removed right away. */
 function LeaveCard({ person, onChanged, calendar }: { person: ResourceRecord; onChanged: () => void; calendar: WorkCalendar }) {
   const t = useT();
+  const { lang } = useLang();
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [note, setNote] = useState('');
@@ -110,23 +112,24 @@ function LeaveCard({ person, onChanged, calendar }: { person: ResourceRecord; on
 
   return (
     <section className="card">
-      <h2>Leave</h2>
-      <p className="muted">Days on leave count as unavailable on the workload heatmap.</p>
+      <h2>{t('person.leave')}</h2>
+      <p className="muted">{t('person.leaveHint')}</p>
       <Errors messages={errors} />
       {person.leave.length === 0 ? (
-        <p className="muted">No leave booked.</p>
+        <p className="muted">{t('person.noLeave')}</p>
       ) : (
         <ul className="list-editor">
           {person.leave.map((l) => (
             <li key={l.id} className="list-editor-row">
               <span className="list-editor-name">
-                {formatDate(l.start)} → {formatDate(l.end)}{l.note ? ` · ${l.note}` : ''} ·{' '}
-                {workingDaysLabel(countWorkingDays(l.start, l.end, calendar))}
+                {t('person.leaveRange', { start: formatDate(lang, l.start), end: formatDate(lang, l.end) })}
+                {l.note ? ` · ${l.note}` : ''} ·{' '}
+                {t('person.workingDays', { count: countWorkingDays(l.start, l.end, calendar) })}
               </span>
               <button
                 type="button"
                 className="button ghost-icon"
-                aria-label={`Remove leave from ${formatDate(l.start)}`}
+                aria-label={t('person.removeLeave', { date: formatDate(lang, l.start) })}
                 onClick={() => void remove(l.id)}
               >
                 <TrashIcon />
@@ -136,11 +139,14 @@ function LeaveCard({ person, onChanged, calendar }: { person: ResourceRecord; on
         </ul>
       )}
       <form className="leave-add" onSubmit={add}>
-        <label>Leave from<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
-        <label>Leave to<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
-        <label>Note<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Annual leave" /></label>
+        <label>{t('person.leaveFrom')}<input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
+        <label>{t('person.leaveTo')}<input type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+        <label>
+          {t('person.note')}
+          <input dir="auto" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('person.notePlaceholder')} />
+        </label>
         <button type="submit" className="button secondary" disabled={!start || !end}>
-          <PlusIcon />Add leave
+          <PlusIcon />{t('person.addLeave')}
         </button>
       </form>
     </section>
@@ -168,6 +174,8 @@ export function PersonPage() {
   const todos = todosLoaded.data ?? [];
   const [todoErrors, setTodoErrors] = useState<string[]>([]);
   const t = useT();
+  const { lang } = useLang();
+  const nameFor = (name: string) => (lists.data ? phaseName(name, lists.data, lang) : name);
   async function toggleToDo(toDo: ToDoRecord) {
     setTodoErrors([]);
     try {
@@ -179,12 +187,12 @@ export function PersonPage() {
   }
 
   const existing = isNew ? undefined : people.data?.find((p) => p.id === id);
-  const back = <Link to="/manage/resources" className="crumb"><ArrowLeftIcon />Resources</Link>;
+  const back = <Link to="/manage/resources" className="crumb"><ArrowLeftIcon />{t('nav.resources')}</Link>;
 
   if (!isNew && people.error) {
     return <main className="page">{back}<Errors messages={messagesOf(people.error, t)} /></main>;
   }
-  if (!isNew && !people.data) return <main className="page"><p className="muted">Loading…</p></main>;
+  if (!isNew && !people.data) return <main className="page"><p className="muted">{t('common.loading')}</p></main>;
   if (!isNew && !existing) return <main className="page">{back}<Errors messages={[t('error.personNotFound')]} /></main>;
 
   // Until the user changes something, the form shows the saved person (or an empty one).
@@ -228,58 +236,58 @@ export function PersonPage() {
       <div className="page-header">
         <div>
           {back}
-          <h1>{existing ? existing.name : 'Add person'}</h1>
+          {existing ? <h1 dir="auto" data-user-content="">{existing.name}</h1> : <h1>{t('resources.addPerson')}</h1>}
         </div>
       </div>
 
       <form onSubmit={onSubmit} noValidate>
         <Errors messages={issues} />
         <section className="card">
-          <h2>Details</h2>
+          <h2>{t('project.details')}</h2>
           <fieldset className="check-group side-choice">
-            <legend>Side</legend>
+            <legend>{t('resources.side')}</legend>
             <label className="check">
               <input type="radio" name="side" checked={draft.side === 'tech'} onChange={() => patch({ side: 'tech' })} />
-              Tech team
+              {t(SIDE_KEY.tech)}
             </label>
             <label className="check">
               <input type="radio" name="side" checked={draft.side === 'business'} onChange={() => patch({ side: 'business' })} />
-              Business side
+              {t(SIDE_KEY.business)}
             </label>
           </fieldset>
           <div className="form-grid">
             <label>
-              Name
-              <input value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
+              {t('person.name')}
+              <input dir="auto" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
             </label>
             {draft.side === 'tech' ? (
               <>
                 <label>
-                  Role
+                  {t('resources.role')}
                   <select
                     value={draft.roleId === null ? '' : String(draft.roleId)}
                     onChange={(e) => patch({ roleId: e.target.value === '' ? null : Number(e.target.value) })}
                   >
-                    <option value="">Not set</option>
+                    <option value="">{t('common.notSet')}</option>
                     {(lists.data?.role ?? []).map((r) => (
-                      <option key={r.id} value={String(r.id)}>{r.name}</option>
+                      <option key={r.id} value={String(r.id)}>{listName(r, lang)}</option>
                     ))}
                   </select>
                 </label>
                 <label>
-                  Specialisation
+                  {t('person.specialisation')}
                   <select
                     value={draft.specialisation ?? ''}
                     onChange={(e) => patch({ specialisation: e.target.value === '' ? null : (e.target.value as Specialisation) })}
                   >
-                    <option value="">Not set</option>
-                    {Object.entries(SPECIALISATION_LABEL).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
+                    <option value="">{t('common.notSet')}</option>
+                    {Object.entries(SPECIALISATION_KEY).map(([key, label]) => (
+                      <option key={key} value={key}>{t(label)}</option>
                     ))}
                   </select>
                 </label>
                 <label>
-                  Capacity (%)
+                  {t('person.capacity')}
                   <input
                     type="number"
                     min={1}
@@ -291,47 +299,43 @@ export function PersonPage() {
               </>
             ) : null}
             <label>
-              Email
-              <input type="email" value={draft.email} onChange={(e) => patch({ email: e.target.value })} />
+              {t('person.email')}
+              <input type="email" dir="ltr" value={draft.email} onChange={(e) => patch({ email: e.target.value })} />
             </label>
             <label>
-              Phone (UAE mobile)
-              <input type="tel" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="+971 50 123 4567" />
+              {t('person.phone')}
+              <input type="tel" dir="ltr" value={draft.phone} onChange={(e) => patch({ phone: e.target.value })} placeholder="+971 50 123 4567" />
             </label>
           </div>
           <label className="check active-toggle">
             <input type="checkbox" checked={draft.active} onChange={(e) => patch({ active: e.target.checked })} />
-            Active
+            {t('person.active')}
           </label>
-          <p className="muted">
-            {draft.side === 'tech'
-              ? 'Only active tech-team people can be assigned to phases and appear on the workload heatmap.'
-              : 'Business contacts can be chosen as a project’s business project manager. They are not counted in workload.'}
-          </p>
+          <p className="muted">{draft.side === 'tech' ? t('person.techHint') : t('person.businessHint')}</p>
         </section>
 
         <div className="wizard-actions">
           {existing ? (
-            <button type="button" className="button danger" onClick={() => void onDelete()}>Delete person</button>
+            <button type="button" className="button danger" onClick={() => void onDelete()}>{t('person.delete')}</button>
           ) : (
-            <Link to="/manage/resources" className="button secondary">Cancel</Link>
+            <Link to="/manage/resources" className="button secondary">{t('common.cancel')}</Link>
           )}
           <button type="submit" className="button" disabled={saving}>
-            {saving ? 'Saving…' : existing ? 'Save changes' : 'Add person'}
+            {saving ? t('common.saving') : existing ? t('edit.saveChanges') : t('resources.addPerson')}
           </button>
         </div>
       </form>
 
       {existing && existing.side === 'tech' ? (
         <>
-          <PersonWork personId={existing.id} workload={workload} today={todayLocal()} todos={todos} />
-          <PersonToDos todos={todos} today={todayLocal()} onToggle={(t) => void toggleToDo(t)} errors={todoErrors} />
+          <PersonWork personId={existing.id} workload={workload} today={todayLocal()} todos={todos} nameFor={nameFor} />
+          <PersonToDos todos={todos} today={todayLocal()} onToggle={(x) => void toggleToDo(x)} errors={todoErrors} nameFor={nameFor} />
           <LeaveCard person={existing} onChanged={() => setVersion((v) => v + 1)} calendar={calendar.data ?? DEFAULT_CALENDAR} />
         </>
       ) : null}
 
       {existing && existing.side !== 'tech' ? (
-        <PersonToDos todos={todos} today={todayLocal()} onToggle={(t) => void toggleToDo(t)} errors={todoErrors} />
+        <PersonToDos todos={todos} today={todayLocal()} onToggle={(x) => void toggleToDo(x)} errors={todoErrors} nameFor={nameFor} />
       ) : null}
     </main>
   );

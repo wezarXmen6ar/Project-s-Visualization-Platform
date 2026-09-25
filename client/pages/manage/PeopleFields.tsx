@@ -51,7 +51,7 @@ export function PeopleFields({
             people={people}
             value={phases[i].assignments ?? []}
             onChange={(value) => onPhases(phases.map((p, j) => (j === i ? { ...p, assignments: value } : p)))}
-            warnings={phaseWarnings(overloads, s, cal)}
+            warnings={phaseWarnings(overloads, s, cal, lang)}
           />
           {s.subPhases.map((sub, j) => (
             <div className="sub-phase-people" key={j}>
@@ -69,7 +69,7 @@ export function PeopleFields({
                     ),
                   )
                 }
-                warnings={phaseWarnings(overloads, sub, cal)}
+                warnings={phaseWarnings(overloads, sub, cal, lang)}
               />
             </div>
           ))}

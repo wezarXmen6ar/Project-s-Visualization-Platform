@@ -103,7 +103,12 @@ export function ProjectPage() {
             {p.jiraKey ? <span dir="ltr">{p.jiraKey}</span> : null}
             {p.jiraKey ? ' · ' : ''}
             {span
-              ? t('project.span', { start: span.start, end: span.end, count: countWorkingDays(span.start, span.end, cal) })
+              ? t('project.span', {
+                // English keeps the ISO dates its tests assert; Arabic reads "الاثنين 5 أكتوبر 2026".
+                start: lang === 'ar' ? formatDate(span.start) : span.start,
+                end: lang === 'ar' ? formatDate(span.end) : span.end,
+                count: countWorkingDays(span.start, span.end, cal),
+              })
               : t('project.noPhases')}
           </p>
         </div>

@@ -231,11 +231,11 @@ describe('SettingsPage', () => {
     const fetchMock = mockFetch(fakeServer());
     const user = userEvent.setup();
     renderArabic();
-    await user.click(await screen.findByRole('button', { name: 'Rename Development' }));
-    const arabicInput = screen.getByLabelText('New Arabic name for Development');
+    await user.click(await screen.findByRole('button', { name: 'إعادة تسمية التطوير' }));
+    const arabicInput = screen.getByLabelText('الاسم العربي الجديد لـ التطوير');
     await user.clear(arabicInput);
     await user.type(arabicInput, 'تطوير جديد');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByRole('button', { name: 'حفظ' }));
     expect(await screen.findByText('تطوير جديد')).toBeInTheDocument();
     const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/lists/phase/53' && init?.method === 'PUT');
     expect(JSON.parse(put![1]!.body as string)).toEqual({ name: 'Development', nameAr: 'تطوير جديد' });

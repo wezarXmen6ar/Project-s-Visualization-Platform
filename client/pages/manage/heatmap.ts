@@ -1,19 +1,25 @@
 import { addDays, dayOfWeek, daysBetween, type ISODate } from '../../../shared/calendar';
 import type { DayLoad, WeekLoad } from '../../../shared/capacity';
+import type { MessageKey } from '../../../shared/i18n/en';
+import { translate } from '../../../shared/i18n/translate';
 import type { OverloadDecision } from '../../../shared/types';
 
 export type HeatLevel = 'none' | 'off' | 'low' | 'mid' | 'full' | 'over' | 'accepted';
 
-/** How each level reads in a cell's aria-label. */
-export const LEVEL_TEXT: Record<HeatLevel, string> = {
-  none: 'free',
-  off: 'not working',
-  low: 'lightly booked',
-  mid: 'booked',
-  full: 'fully booked',
-  over: 'overbooked',
-  accepted: 'overbooked (accepted)',
+/** Catalogue keys for how each level reads in a cell's aria-label; `LEVEL_TEXT` is their English text. */
+export const LEVEL_KEY: Record<HeatLevel, MessageKey> = {
+  none: 'heatmap.levelNone',
+  off: 'heatmap.levelOff',
+  low: 'heatmap.levelLow',
+  mid: 'heatmap.levelMid',
+  full: 'heatmap.levelFull',
+  over: 'heatmap.levelOver',
+  accepted: 'heatmap.levelAccepted',
 };
+
+export const LEVEL_TEXT = Object.fromEntries(
+  Object.entries(LEVEL_KEY).map(([level, key]) => [level, translate('en', key)]),
+) as Record<HeatLevel, string>;
 
 /** True when the latest decision about this person's week is to accept the overbooking. */
 export function isAccepted(decisions: OverloadDecision[], resourceId: number, weekStart: string): boolean {

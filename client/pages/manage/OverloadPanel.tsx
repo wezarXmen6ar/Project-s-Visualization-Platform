@@ -6,8 +6,9 @@ import type { OverloadDecisionKind, WorkloadAssignment, WorkloadData } from '../
 import { AlertIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
-import { useT } from '../../i18n/LanguageProvider';
-import { dayDate, leaveInWeek, weekLabel } from '../../overloads';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { bookedLine, dayDate, leaveInWeek, weekLabel } from '../../overloads';
+import { phaseRefLabel, type PhaseNameFor } from '../../todos';
 import { isAccepted } from './heatmap';
 
 interface OverloadPanelProps {
@@ -17,16 +18,18 @@ interface OverloadPanelProps {
   onClose: () => void;
   /** Called after a change is saved, so the page reloads the workload. */
   onChanged: () => void;
+  /** Maps a top-level phase's stored name to its display name (e.g. its Arabic name). Sub-phase names never change. */
+  nameFor?: PhaseNameFor;
 }
 
 type Mode = 'split' | 'reassign' | 'accept' | null;
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const keep = (a: WorkloadAssignment): AssignmentInput => ({ resourceId: a.resourceId, allocation: a.allocation, role: a.role });
 
 /** One person's week: what is booked, and, when it is overbooked, a prompt to split, reassign or accept. */
-export function OverloadPanel({ data, person, week, onClose, onChanged }: OverloadPanelProps) {
+export function OverloadPanel({ data, person, week, onClose, onChanged, nameFor }: OverloadPanelProps) {
   const t = useT();
+  const { lang } = useLang();
   const [mode, setMode] = useState<Mode>(null);
   const [allocations, setAllocations] = useState<Record<number, number>>({});
   const [moving, setMoving] = useState<number | null>(null);
@@ -56,6 +59,12 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
     weekRange,
     data.calendar,
   );
+
+  /** A week item's phase name, with the top-level phase translated through `nameFor`. */
+  const phaseOf = (item: { assignmentId: number; phaseName: string }) => {
+    const a = data.assignments.find((x) => x.id === item.assignmentId);
+    return a ? phaseRefLabel({ phaseName: a.topPhaseName, subPhaseName: a.subPhaseName }, nameFor) : item.phaseName;
+  };
 
   /** The whole phase's people as the API expects them, with one assignment changed. */
   const phaseList = (phaseId: number, change: (a: WorkloadAssignment) => AssignmentInput) =>
@@ -107,35 +116,44 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
   return (
     <aside className="card overload-panel">
       <div className="panel-head">
-        <h2>{person.name} · {weekLabel(week.weekStart, data.calendar)}</h2>
-        <button type="button" className="button secondary" onClick={onClose}>Close</button>
+        <h2>{person.name} · {weekLabel(week.weekStart, data.calendar, lang)}</h2>
+        <button type="button" className="button secondary" onClick={onClose}>{t('common.close')}</button>
       </div>
       <p>
-        {Math.round(week.load)}% booked of {Math.round(week.available)}% available
-        {week.leaveDays > 0 ? ` · ${plural(week.leaveDays, 'day')} of leave` : ''}
+        {t('overload.booked', { load: Math.round(week.load), available: Math.round(week.available) })}
+        {week.leaveDays > 0 ? ` · ${t('workload.leaveDays', { count: week.leaveDays })}` : ''}
       </p>
       {leaveThisWeek.map((l) => (
         <p key={`${l.start}-${l.end}`} className="muted">
-          On leave {l.start === l.end ? dayDate(l.start) : `${dayDate(l.start)} – ${dayDate(l.end)}`}
+          {t('overload.onLeave', {
+            range: l.start === l.end ? dayDate(l.start, lang) : `${dayDate(l.start, lang)} – ${dayDate(l.end, lang)}`,
+          })}
           {l.note ? ` · ${l.note}` : ''}
         </p>
       ))}
       {week.items.length === 0 ? (
-        <p className="muted">Nothing booked this week.</p>
+        <p className="muted">{t('overload.nothingBooked')}</p>
       ) : (
         <ul className="people-list">
           {week.items.map((i) => (
-            <li key={i.assignmentId}>{i.projectName} · {i.phaseName}: {i.allocation}% for {plural(i.days, 'day')}</li>
+            <li key={i.assignmentId}>
+              {t('overload.item', {
+                project: i.projectName,
+                phase: phaseOf(i),
+                allocation: i.allocation,
+                days: t('overload.days', { count: i.days }),
+              })}
+            </li>
           ))}
         </ul>
       )}
 
       {dayClashes.length > 0 ? (
         <>
-          <h3 id={clashesId}>Days overbooked on their own</h3>
+          <h3 id={clashesId}>{t('overload.dayClashes')}</h3>
           <ul className="people-list" aria-labelledby={clashesId}>
             {dayClashes.map((d) => (
-              <li key={d.date}>{`${dayDate(d.date)}: ${Math.round(d.load)}% booked, ${Math.round(d.available)}% available`}</li>
+              <li key={d.date}>{bookedLine(lang, dayDate(d.date, lang), d.load, d.available)}</li>
             ))}
           </ul>
         </>
@@ -150,10 +168,10 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
 
       {week.overloaded ? (
         <div className="decision">
-          <h3>{accepted ? 'Overbooked, and accepted' : 'This week is overbooked. What do you want to do?'}</h3>
+          <h3>{accepted ? t('overload.acceptedTitle') : t('overload.question')}</h3>
           <div className="decision-options">
             <button type="button" className="button secondary" aria-pressed={mode === 'split'} onClick={() => setMode('split')}>
-              Split the time
+              {t('overload.split')}
             </button>
             <button
               type="button"
@@ -162,21 +180,21 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
               disabled={week.items.length === 0}
               onClick={() => setMode('reassign')}
             >
-              Reassign work
+              {t('overload.reassignWork')}
             </button>
             <button type="button" className="button secondary" aria-pressed={mode === 'accept'} onClick={() => setMode('accept')}>
-              Accept the risk
+              {t('overload.accept')}
             </button>
-            <button type="button" className="button secondary" disabled>Pause a project</button>
-            <button type="button" className="button secondary" disabled>Delay a phase</button>
+            <button type="button" className="button secondary" disabled>{t('overload.pause')}</button>
+            <button type="button" className="button secondary" disabled>{t('overload.delay')}</button>
           </div>
-          <p className="muted">Pausing a project and delaying a phase arrive with holds and phase changes in later milestones.</p>
+          <p className="muted">{t('overload.laterNote')}</p>
 
           {mode === 'split' ? (
             <div className="decision-form">
               {week.items.map((i) => (
                 <label key={i.assignmentId}>
-                  Allocation for {i.projectName} · {i.phaseName} (%)
+                  {t('overload.allocationFor', { project: i.projectName, phase: phaseOf(i) })}
                   <input
                     type="number"
                     min={1}
@@ -186,28 +204,28 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
                   />
                 </label>
               ))}
-              <button type="button" className="button" disabled={saving} onClick={() => void saveSplit()}>Save new allocations</button>
+              <button type="button" className="button" disabled={saving} onClick={() => void saveSplit()}>{t('overload.saveAllocations')}</button>
             </div>
           ) : null}
 
           {mode === 'reassign' ? (
             <div className="decision-form">
               <label>
-                Work to move
+                {t('overload.workToMove')}
                 <select value={moving ?? ''} onChange={(e) => setMoving(e.target.value === '' ? null : Number(e.target.value))}>
-                  <option value="">Choose…</option>
+                  <option value="">{t('common.choose')}</option>
                   {week.items.map((i) => (
-                    <option key={i.assignmentId} value={i.assignmentId}>{i.projectName} · {i.phaseName} ({i.allocation}%)</option>
+                    <option key={i.assignmentId} value={i.assignmentId}>{i.projectName} · {phaseOf(i)} ({i.allocation}%)</option>
                   ))}
                 </select>
               </label>
               <label>
-                Give it to
+                {t('overload.giveTo')}
                 <select value={to ?? ''} onChange={(e) => setTo(e.target.value === '' ? null : Number(e.target.value))}>
-                  <option value="">Choose a person…</option>
+                  <option value="">{t('common.choosePerson')}</option>
                   {others.map((o) => (
                     <option key={o.resourceId} value={o.resourceId}>
-                      {o.name} ({Math.round(o.weeks[0]?.load ?? 0)}% booked this week)
+                      {t('overload.otherLoad', { name: o.name, load: Math.round(o.weeks[0]?.load ?? 0) })}
                     </option>
                   ))}
                 </select>
@@ -218,7 +236,7 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
                 disabled={saving || moving === null || to === null}
                 onClick={() => void saveReassign()}
               >
-                Reassign
+                {t('overload.reassign')}
               </button>
             </div>
           ) : null}
@@ -226,10 +244,10 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
           {mode === 'accept' ? (
             <div className="decision-form">
               <label>
-                Why is this OK? (optional)
-                <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+                {t('overload.why')}
+                <textarea rows={2} dir="auto" value={note} onChange={(e) => setNote(e.target.value)} />
               </label>
-              <button type="button" className="button" disabled={saving} onClick={() => void saveAccept()}>Record the decision</button>
+              <button type="button" className="button" disabled={saving} onClick={() => void saveAccept()}>{t('overload.record')}</button>
             </div>
           ) : null}
         </div>

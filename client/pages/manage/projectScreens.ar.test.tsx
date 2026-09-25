@@ -119,7 +119,7 @@ describe('the project screens in Arabic', () => {
     expect(screen.getByRole('link', { name: 'تعديل المراحل' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'المهام' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'خطواتي القادمة' })).toBeInTheDocument();
-    expect(screen.getByText(/2026-09-24 ← 2026-09-30 · 5 أيام عمل/)).toBeInTheDocument();
+    expect(screen.getByText(/الخميس 24 سبتمبر 2026 ← الأربعاء 30 سبتمبر 2026 · 5 أيام عمل/)).toBeInTheDocument();
     expect(screen.getByText('عالية')).toBeInTheDocument();
     expect(screen.getByText('استراتيجي')).toBeInTheDocument();
     expect(screen.getByText('الموظفين والجمهور')).toBeInTheDocument();

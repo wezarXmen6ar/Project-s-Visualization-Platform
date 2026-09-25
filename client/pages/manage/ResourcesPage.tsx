@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { addDays, todayLocal } from '../../../shared/calendar';
 import { computeDailyLoad, computeWorkload, weekStartOf } from '../../../shared/capacity';
+import type { MessageKey } from '../../../shared/i18n/en';
 import type { ResourceRecord, Side } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
-import { useT } from '../../i18n/LanguageProvider';
+import { useLang, useT } from '../../i18n/LanguageProvider';
+import { listName, phaseName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
-import { SIDE_LABEL, SPECIALISATION_LABEL } from './labels';
+import { SIDE_KEY, SPECIALISATION_KEY } from './labels';
 import { OverloadPanel } from './OverloadPanel';
-import { sortPeople, workingOn, type SortDir, type SortKey } from './peopleTable';
+import { roleName, sortPeople, workingOn, type SortDir, type SortKey } from './peopleTable';
 import { DayHeatmap } from './DayHeatmap';
 import { WorkloadHeatmap } from './WorkloadHeatmap';
 
@@ -42,14 +44,24 @@ function saveView(view: WorkloadView) {
   }
 }
 
-const COLUMNS: { key: SortKey; label: string }[] = [
-  { key: 'name', label: 'Name' },
-  { key: 'side', label: 'Side' },
-  { key: 'role', label: 'Role' },
-  { key: 'projects', label: 'Projects' },
-  { key: 'capacity', label: 'Capacity' },
-  { key: 'contact', label: 'Contact' },
-  { key: 'status', label: 'Status' },
+const COLUMNS: { key: SortKey; label: MessageKey }[] = [
+  { key: 'name', label: 'resources.colName' },
+  { key: 'side', label: 'resources.side' },
+  { key: 'role', label: 'resources.role' },
+  { key: 'projects', label: 'resources.colProjects' },
+  { key: 'capacity', label: 'resources.colCapacity' },
+  { key: 'contact', label: 'resources.colContact' },
+  { key: 'status', label: 'resources.colStatus' },
+];
+
+/** The heatmap legend: each level's class and its catalogue key. */
+const LEGEND: { className: string; label: MessageKey }[] = [
+  { className: 'heat heat-low', label: 'heatmap.legendLight' },
+  { className: 'heat heat-mid', label: 'heatmap.legendBooked' },
+  { className: 'heat heat-full', label: 'heatmap.legendFull' },
+  { className: 'heat heat-over', label: 'heatmap.legendOverbooked' },
+  { className: 'heat heat-accepted', label: 'heatmap.legendAccepted' },
+  { className: 'heat heat-off leave', label: 'heatmap.legendLeave' },
 ];
 
 /** Every project appearing in anyone's list, sorted by name, for the "Working on" filter. */
@@ -61,6 +73,7 @@ function projectOptions(people: ResourceRecord[]): { id: number; name: string }[
 
 export function ResourcesPage() {
   const t = useT();
+  const { lang } = useLang();
   const people = useAsync(() => api.listResources(), []);
   const lists = useAsync(() => api.getLists(), []);
   const [side, setSide] = useState<Side | 'all'>('all');
@@ -103,18 +116,20 @@ export function ResourcesPage() {
       (roleId === null || p.role?.id === roleId) &&
       (projectId === null || workingOn(p, projectId)),
   );
-  const shown = sortPeople(filtered, sort.key, sort.dir);
+  const roles = lists.data?.role ?? [];
+  const shown = sortPeople(filtered, sort.key, sort.dir, lang, roles);
+  const nameFor = (name: string) => (lists.data ? phaseName(name, lists.data, lang) : name);
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
 
   return (
     <main className="page">
       <div className="page-header">
         <div>
-          <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>
-          <h1>Resources</h1>
-          <p className="meta-line">Your tech team, who can be assigned to phases, and your business-side contacts.</p>
+          <Link to="/manage" className="crumb"><ArrowLeftIcon />{t('nav.projects')}</Link>
+          <h1>{t('nav.resources')}</h1>
+          <p className="meta-line">{t('resources.intro')}</p>
         </div>
-        <Link to="/manage/resources/new" className="button"><PlusIcon />Add person</Link>
+        <Link to="/manage/resources/new" className="button"><PlusIcon />{t('resources.addPerson')}</Link>
       </div>
 
       {people.error ? (
@@ -126,9 +141,9 @@ export function ResourcesPage() {
 
       <section className="card">
         <div className="card-head">
-          <h2>Workload</h2>
+          <h2>{t('resources.workload')}</h2>
           <div className="year-nav">
-            <div className="view-switch" role="group" aria-label="Show the workload by">
+            <div className="view-switch" role="group" aria-label={t('resources.showBy')}>
               {(['days', 'weeks'] as const).map((v) => (
                 <button
                   key={v}
@@ -137,33 +152,28 @@ export function ResourcesPage() {
                   aria-pressed={view === v}
                   onClick={() => chooseView(v)}
                 >
-                  {v === 'days' ? 'Days' : 'Weeks'}
+                  {v === 'days' ? t('resources.days') : t('resources.weeks')}
                 </button>
               ))}
             </div>
-            <button type="button" className="button secondary" aria-label="Earlier weeks" onClick={() => shift(-step)}>‹</button>
+            <button type="button" className="button secondary" aria-label={t('resources.earlier')} onClick={() => shift(-step)}>‹</button>
             <button
               type="button"
               className="button secondary"
               onClick={() => setFrom((f) => ({ ...f, [view]: defaultStart(view) }))}
             >
-              This week
+              {t('resources.thisWeek')}
             </button>
-            <button type="button" className="button secondary" aria-label="Later weeks" onClick={() => shift(step)}>›</button>
+            <button type="button" className="button secondary" aria-label={t('resources.later')} onClick={() => shift(step)}>›</button>
           </div>
         </div>
         <p className="muted">
-          {view === 'days'
-            ? 'How much of each working day is booked. Click a day to see its week and to sort out an overbooking.'
-            : 'How much of each week is booked. Click a week to see what is in it and to sort out an overbooking.'}
+          {view === 'days' ? t('resources.daysHint') : t('resources.weeksHint')}
         </p>
         <div className="heat-legend" aria-hidden="true">
-          <span className="heat heat-low">Light</span>
-          <span className="heat heat-mid">Booked</span>
-          <span className="heat heat-full">Full</span>
-          <span className="heat heat-over">Overbooked</span>
-          <span className="heat heat-accepted">Accepted</span>
-          <span className="heat heat-off leave">Leave</span>
+          {LEGEND.map((l) => (
+            <span key={l.label} className={l.className}>{t(l.label)}</span>
+          ))}
         </div>
         {workloadError ? (
           <div className="errors" role="alert">
@@ -171,7 +181,7 @@ export function ResourcesPage() {
             <span>{messagesOf(workloadError, t)[0]}</span>
           </div>
         ) : null}
-        {!workload && !workloadError ? <p className="muted">Loading…</p> : null}
+        {!workload && !workloadError ? <p className="muted">{t('common.loading')}</p> : null}
         {workload && view === 'days' ? (
           <DayHeatmap people={days} decisions={workload.decisions} selected={selected} onSelect={select} />
         ) : null}
@@ -195,39 +205,40 @@ export function ResourcesPage() {
           week={selectedWeek}
           onClose={() => setSelected(null)}
           onChanged={reload}
+          nameFor={nameFor}
         />
       ) : null}
 
       <section className="card">
-        <h2>People</h2>
+        <h2>{t('resources.people')}</h2>
         <div className="filters">
           <label>
-            Side
+            {t('resources.side')}
             <select value={side} onChange={(e) => setSide(e.target.value as Side | 'all')}>
-              <option value="all">Everyone</option>
-              <option value="tech">{SIDE_LABEL.tech}</option>
-              <option value="business">{SIDE_LABEL.business}</option>
+              <option value="all">{t('resources.everyone')}</option>
+              <option value="tech">{t(SIDE_KEY.tech)}</option>
+              <option value="business">{t(SIDE_KEY.business)}</option>
             </select>
           </label>
           <label>
-            Role
+            {t('resources.role')}
             <select
               value={roleId === null ? '' : String(roleId)}
               onChange={(e) => setRoleId(e.target.value === '' ? null : Number(e.target.value))}
             >
-              <option value="">All roles</option>
-              {(lists.data?.role ?? []).map((r) => (
-                <option key={r.id} value={String(r.id)}>{r.name}</option>
+              <option value="">{t('resources.allRoles')}</option>
+              {roles.map((r) => (
+                <option key={r.id} value={String(r.id)}>{listName(r, lang)}</option>
               ))}
             </select>
           </label>
           <label>
-            Working on
+            {t('resources.workingOn')}
             <select
               value={projectId === null ? '' : String(projectId)}
               onChange={(e) => setProjectId(e.target.value === '' ? null : Number(e.target.value))}
             >
-              <option value="">Any project</option>
+              <option value="">{t('resources.anyProject')}</option>
               {projectOptions(all).map((p) => (
                 <option key={p.id} value={String(p.id)}>{p.name}</option>
               ))}
@@ -235,18 +246,18 @@ export function ResourcesPage() {
           </label>
         </div>
 
-        {!people.data && !people.error ? <p className="muted">Loading…</p> : null}
-        {people.data && all.length === 0 ? <p className="muted">No one yet. Add your team and your business-side contacts.</p> : null}
-        {people.data && all.length > 0 && shown.length === 0 ? <p className="muted">No one matches these filters.</p> : null}
+        {!people.data && !people.error ? <p className="muted">{t('common.loading')}</p> : null}
+        {people.data && all.length === 0 ? <p className="muted">{t('resources.noOneYet')}</p> : null}
+        {people.data && all.length > 0 && shown.length === 0 ? <p className="muted">{t('resources.noMatches')}</p> : null}
 
         {shown.length > 0 ? (
-          <table aria-label="People">
+          <table aria-label={t('resources.people')}>
             <thead>
               <tr>
                 {COLUMNS.map(({ key, label }) => (
                   <th key={key} aria-sort={sort.key === key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                     <button type="button" className="sort-button" onClick={() => toggleSort(key)}>
-                      {label}
+                      {t(label)}
                       {sort.key === key ? <span aria-hidden="true"> {sort.dir === 'asc' ? '▲' : '▼'}</span> : null}
                     </button>
                   </th>
@@ -256,11 +267,11 @@ export function ResourcesPage() {
             <tbody>
               {shown.map((p) => (
                 <tr key={p.id}>
-                  <td><Link to={`/manage/resources/${p.id}`}>{p.name}</Link></td>
-                  <td>{SIDE_LABEL[p.side]}</td>
+                  <td><Link to={`/manage/resources/${p.id}`} dir="auto" data-user-content="">{p.name}</Link></td>
+                  <td>{t(SIDE_KEY[p.side])}</td>
                   <td>
-                    {p.role?.name ?? '—'}
-                    {p.specialisation ? ` · ${SPECIALISATION_LABEL[p.specialisation]}` : ''}
+                    {p.role ? roleName(p.role, roles, lang) : '—'}
+                    {p.specialisation ? ` · ${t(SPECIALISATION_KEY[p.specialisation])}` : ''}
                   </td>
                   <td>
                     {p.projects.length === 0 ? (
@@ -269,17 +280,19 @@ export function ResourcesPage() {
                       p.projects.map((proj, i) => (
                         <span key={proj.id}>
                           {i > 0 ? ', ' : ''}
-                          <Link to={`/manage/projects/${proj.id}`} className={proj.finished ? 'muted' : undefined}>
+                          <Link to={`/manage/projects/${proj.id}`} className={proj.finished ? 'muted' : undefined} dir="auto" data-user-content="">
                             {proj.name}
                           </Link>
-                          {proj.finished ? ' (finished)' : ''}
+                          {proj.finished ? ` ${t('resources.finished')}` : ''}
                         </span>
                       ))
                     )}
                   </td>
                   <td>{p.side === 'tech' ? `${p.capacity}%` : '—'}</td>
-                  <td>{[p.phone, p.email].filter(Boolean).join(' · ') || '—'}</td>
-                  <td>{p.active ? 'Active' : 'Inactive'}</td>
+                  <td>
+                    {p.phone || p.email ? <span dir="ltr">{[p.phone, p.email].filter(Boolean).join(' · ')}</span> : '—'}
+                  </td>
+                  <td>{t(p.active ? 'person.active' : 'person.inactive')}</td>
                 </tr>
               ))}
             </tbody>

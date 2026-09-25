@@ -47,13 +47,19 @@ export function beneficiaryLabel(b: { employees: boolean; customers: boolean }, 
   return '—';
 }
 
-export const SIDE_LABEL: Record<Side, string> = { tech: 'Tech team', business: 'Business side' };
+/** Catalogue keys for each side; `SIDE_LABEL` is their English text. */
+export const SIDE_KEY: Record<Side, MessageKey> = { tech: 'person.sideTech', business: 'person.sideBusiness' };
 
-export const SPECIALISATION_LABEL: Record<Specialisation, string> = {
-  'front-end': 'Front end',
-  'back-end': 'Back end',
-  'full-stack': 'Full stack',
+export const SIDE_LABEL: Record<Side, string> = english(SIDE_KEY);
+
+/** Catalogue keys for each specialisation; `SPECIALISATION_LABEL` is their English text. */
+export const SPECIALISATION_KEY: Record<Specialisation, MessageKey> = {
+  'front-end': 'person.specFrontEnd',
+  'back-end': 'person.specBackEnd',
+  'full-stack': 'person.specFullStack',
 };
+
+export const SPECIALISATION_LABEL: Record<Specialisation, string> = english(SPECIALISATION_KEY);
 
 /** "Mon 12 Oct 2026". English; the language-aware form is `formatDate` in `i18n/format`. */
 export function formatDate(d: ISODate): string {
