@@ -224,6 +224,10 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
   // The header is drawn in the chart area's own coordinates (translated past the name column in LTR).
   const headerX = (x: number) => (rtl ? chartW - x : x);
   const box = (b: PieceBox): PieceBox => ({ ...b, x: X(b.x, b.w) });
+  // User content (names typed by the user) may be Latin inside the right-to-left chart. A FIRST-STRONG ISOLATE lets
+  // each label take its own direction from its first letter, so a truncated "Increment 3…" keeps its "…" at its end
+  // instead of the bidi algorithm moving it to the left. Only in RTL, so the English chart's text is unchanged.
+  const userText = (text: string) => (rtl ? `⁨${text}⁩` : text);
 
   const showYear = thinLabels(scale.years.map((y) => y.x), MIN_MONTH_LABEL_GAP);
   const showMonth = thinLabels(scale.ticks.map((t) => t.x), MIN_MONTH_LABEL_GAP);
@@ -371,7 +375,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                     {...pieceProps(`label-${row.id}`, labelDetail, { x: 0, w: LABEL_W, top: y, bottom: y + rowH })}
                   >
                     <title>{row.label}</title>
-                    {truncate(row.label, row.kind === 'child' ? 26 : 28)}
+                    {userText(truncate(row.label, row.kind === 'child' ? 26 : 28))}
                   </text>
                 );
               })() : null}
@@ -477,11 +481,11 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                       const maxChars = Math.floor((sw - 12) / APPROX_CHAR_W);
                       if (maxChars < MIN_TRUNCATED_LABEL_CHARS) return null;
                       return (
-                        <text key={seg.id} x={X(sx + 6)} y={textY} className="gantt-bar-label">{truncate(seg.label, maxChars)}</text>
+                        <text key={seg.id} x={X(sx + 6)} y={textY} className="gantt-bar-label">{userText(truncate(seg.label, maxChars))}</text>
                       );
                     })}
                     {showLabel ? (
-                      <text x={X(x + 6)} y={textY} className="gantt-bar-label">{bar.label}</text>
+                      <text x={X(x + 6)} y={textY} className="gantt-bar-label">{userText(bar.label ?? '')}</text>
                     ) : null}
                     {dateLabel ? (
                       <text x={X(dateLabel.x)} y={textY} textAnchor={dateLabel.anchor} className="gantt-bar-dates">

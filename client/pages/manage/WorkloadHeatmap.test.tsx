@@ -146,8 +146,8 @@ describe('WorkloadHeatmap in Arabic', () => {
         </MemoryRouter>
       </LanguageProvider>,
     );
-    const header = screen.getByRole('columnheader', { name: /5–9 أكتوبر/ });
+    const header = screen.getByRole('columnheader', { name: /⁦5–9⁩ أكتوبر/ });
     expect(header.querySelector('.week-number')).toHaveTextContent('الأسبوع 41');
-    expect(header.querySelector('.week-dates')).toHaveTextContent('5–9 أكتوبر');
+    expect(header.querySelector('.week-dates')).toHaveTextContent('⁦5–9⁩ أكتوبر');
   });
 });

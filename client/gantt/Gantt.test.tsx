@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -336,7 +336,7 @@ describe('Gantt in Arabic (right to left)', () => {
 
   it('puts the name column on the right, with right-to-left text', () => {
     renderAr(<Gantt rows={twoPhases} range={range} width={300} />);
-    const label = screen.getByText('Requirements', { selector: '.gantt-label' });
+    const label = screen.getByText('⁨Requirements⁩', { selector: '.gantt-label' });
     expect(Number(label.getAttribute('x'))).toBeGreaterThan(100);
     expect(screen.getByRole('img', { name: 'Gantt chart' })).toHaveAttribute('direction', 'rtl');
   });
@@ -384,6 +384,50 @@ describe('Gantt in Arabic (right to left)', () => {
     const nine = screen.getByText('9', { selector: '.gantt-week-tick' });
     const sixteen = screen.getByText('16', { selector: '.gantt-week-tick' });
     expect(Number(nine.getAttribute('x'))).toBeGreaterThan(Number(sixteen.getAttribute('x')));
+  });
+
+  it('isolates a truncated Latin segment label so its "…" stays at its end', () => {
+    const narrowRows: GanttRow[] = [{
+      id: 'dev', label: 'Development',
+      bars: [{
+        id: 'dev', start: '2026-01-01', end: '2026-01-02', color: '#3b82f6',
+        segments: [
+          { id: 's1', start: '2026-01-01', end: '2026-01-01', label: 'Increment 3 – Payments and receipts' },
+          { id: 's2', start: '2026-01-02', end: '2026-01-02', label: 'Increment 4' },
+        ],
+      }],
+    }];
+    renderAr(<Gantt rows={narrowRows} range={{ start: '2026-01-01', end: '2026-01-02' }} width={400} />);
+    const labels = screen.getByTestId('gantt-bar-dev').querySelectorAll('.gantt-bar-label');
+    const truncated = [...labels].map((l) => l.textContent ?? '').find((t) => t.includes('Increment 3'))!;
+    expect(truncated.startsWith('⁨Increment 3')).toBe(true);
+    expect(truncated.endsWith('…⁩')).toBe(true);
+    // The row name label is isolated too.
+    expect(screen.getByText('⁨Development⁩', { selector: '.gantt-label' })).toBeInTheDocument();
+  });
+
+  it('anchors the details card on the mirrored side: an early bar opens it in the right half', () => {
+    // jsdom has no layout: give the wrapper and its scroller the chart's own box so the card's clamping is a no-op.
+    const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, left: 0, top: 0, right: 600, bottom: 200, width: 600, height: 200, toJSON: () => ({}),
+    } as DOMRect);
+    try {
+      const early: GanttRow[] = [{
+        id: 'e', label: 'Requirements',
+        bars: [{ id: 'e1', start: '2026-01-01', end: '2026-01-02', color: '#3b82f6', detail: { title: 'Requirements', lines: ['1–2 Jan'] } }],
+      }];
+      // chartW = 400, 40px a day: Jan 1–2 is drawn at x 320–400, so its centre is 360 (LTR would be 240).
+      renderAr(<Gantt rows={early} range={range} width={600} />);
+      const bar = barRect('e1');
+      expect(bar).toHaveAttribute('x', '320');
+      act(() => bar.focus());
+      const card = screen.getByRole('tooltip');
+      const left = parseFloat(card.style.left);
+      expect(left).toBe(360);
+      expect(left).toBeGreaterThan(400 / 2);
+    } finally {
+      rectSpy.mockRestore();
+    }
   });
 
   it('takes the direction from a dir prop too', () => {

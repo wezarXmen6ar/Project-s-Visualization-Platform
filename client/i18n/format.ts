@@ -66,10 +66,25 @@ export function barDates(lang: Lang, start: ISODate, end: ISODate): string {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-/** "12–16 Oct" within a month, "28 Sep – 2 Oct" across months, or "12 Oct" for a single day. */
+// LEFT-TO-RIGHT ISOLATE … POP DIRECTIONAL ISOLATE. A bare "14–18" inside right-to-left text would otherwise be
+// reordered by the bidi algorithm (the en dash is a neutral), showing "18–14".
+const LRI = '⁦';
+const PDI = '⁩';
+
+/** Two numbers joined by an en dash, kept in left-to-right order in Arabic: "⁦14–18⁩". English is left as is. */
+function numberRange(lang: Lang, a: number, b: number): string {
+  const range = `${a}–${b}`;
+  return lang === 'ar' ? `${LRI}${range}${PDI}` : range;
+}
+
+/**
+ * "12–16 Oct" within a month, "28 Sep – 2 Oct" across months, or "12 Oct" for a single day. In Arabic the numbers of
+ * the first form are wrapped in a left-to-right isolate ("⁦12–16⁩ أكتوبر"); the other forms keep their order because
+ * month names separate the numbers.
+ */
 export function dayRange(lang: Lang, first: ISODate, last: ISODate): string {
   if (first === last) return shortDate(lang, first);
-  if (first.slice(0, 7) === last.slice(0, 7)) return `${day(first)}–${day(last)} ${monthLabel(lang, last)}`;
+  if (first.slice(0, 7) === last.slice(0, 7)) return `${numberRange(lang, day(first), day(last))} ${monthLabel(lang, last)}`;
   return `${shortDate(lang, first)} – ${shortDate(lang, last)}`;
 }
 

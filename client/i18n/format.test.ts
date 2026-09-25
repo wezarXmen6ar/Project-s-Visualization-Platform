@@ -44,7 +44,7 @@ describe('format, Arabic', () => {
     expect(across).toContain('2026');
     expect(across).toContain('2027');
     expect(across).toBe('30 نوفمبر 2026 – 19 فبراير 2027');
-    expect(dayRange('ar', '2026-10-12', '2026-10-16')).toBe('12–16 أكتوبر');
+    expect(dayRange('ar', '2026-10-12', '2026-10-16')).toBe('⁦12–16⁩ أكتوبر');
     expect(percent('ar', 60)).toBe('60%');
   });
 
@@ -60,5 +60,18 @@ describe('format, Arabic', () => {
       percent('ar', 60),
     ];
     for (const s of outputs) expect(s).not.toMatch(ARABIC_INDIC);
+  });
+
+  it('keeps an Arabic day range like "14–18" left to right with an isolate, and English without one', () => {
+    const ar = dayRange('ar', '2026-09-14', '2026-09-18');
+    expect(ar).toBe('⁦14–18⁩ سبتمبر');
+    expect(ar.indexOf('⁦')).toBe(0);
+    expect(ar.indexOf('⁩')).toBe(6);
+    // Month names already separate the numbers of a range across months, so it needs no isolate.
+    expect(dayRange('ar', '2026-09-28', '2026-10-02')).toBe('28 سبتمبر – 2 أكتوبر');
+    expect(barDates('ar', '2026-09-08', '2026-09-19')).not.toMatch(/[⁦-⁩]/);
+    const en = [dayRange('en', '2026-09-14', '2026-09-18'), barDates('en', '2026-09-14', '2026-09-18'), dayRange('en', '2026-09-28', '2026-10-02')];
+    expect(en).toEqual(['14–18 Sep', '14 Sep – 18 Sep', '28 Sep – 2 Oct']);
+    for (const s of en) expect(s).not.toMatch(/[⁦-⁩]/);
   });
 });

@@ -111,7 +111,7 @@ describe('DayHeatmap in Arabic', () => {
         </MemoryRouter>
       </LanguageProvider>,
     );
-    const group = screen.getByRole('columnheader', { name: '12–16 أكتوبر' });
+    const group = screen.getByRole('columnheader', { name: '⁦12–16⁩ أكتوبر' });
     expect(group).toHaveAttribute('colspan', '5');
     const monday = screen.getByRole('columnheader', { name: 'الاثنين 12 أكتوبر' });
     expect(monday.querySelector('.day-letter')).toHaveTextContent('ن');
