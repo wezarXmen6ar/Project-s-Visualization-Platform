@@ -171,7 +171,7 @@ Saving creates Baseline 1.
     - A day is coloured by that day's own load: booked % = the total allocation of the person's assignments that cover the day; available % = their capacity, or 0 on a leave day.
     - Leave days are striped and say "Leave", so Fatima's 12–16 Oct shows five striped blocks and Jonas's 19–21 Oct shows three. Public holidays (M7) will cover their days the same way, in their own style.
     - A day is red when its booked % is more than its available %. A red day inside a week that is not overbooked overall still shows red, because it is a real clash on that day. The panel explains it, but it does not count in the dashboard notice, which stays weekly.
-    - Clicking any day opens that week's panel, so Split, Reassign and Accept work as before. Days in a week whose overbooking was accepted show the accepted style.
+    - Clicking any day opens that week's panel, so Split, Reassign and Accept work as before. In a week whose overbooking was accepted, the overbooked days show the accepted style, and the other days keep their normal colour.
   - **Weeks view:**
     - One block per week, for looking further ahead (13 weeks). The column heading reads "Week 42" over "12–16 Oct".
     - Each cell shows the week's booked %, plus a row of five clearly visible day squares, with leave days striped.

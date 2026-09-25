@@ -5124,7 +5124,7 @@ Do this with two queries and a small TypeScript fold in `server/resources/repo.t
 - **Range and navigation:** 4 weeks at a time, starting from this week's Monday minus one week. The arrows move 1 week, and "This week" resets.
 - **Clicking a day** selects that person's week and opens the existing `OverloadPanel` for that week.
   - The panel now also lists the days in that week that are overbooked on their own, e.g. "Tue 6 Oct: 150% booked, 100% available".
-  - A week that is accepted (`isAccepted` for that week) shows all its days in the accepted style.
+  - In a week that is accepted (`isAccepted` for that week), the days that are overloaded show the accepted style, and the other days keep their normal colour (controller decision at build time).
 - **Legend:** Light, Booked, Full, Overbooked, Accepted, Leave, each as a small block in its real style.
 
 **Weeks view:**
