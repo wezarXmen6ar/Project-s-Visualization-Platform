@@ -1903,6 +1903,169 @@ git commit -m "feat: demo increments, the PM's to-dos and starter checklists"
 
 ---
 
+### Task 12: Readable Gantt charts — a year row, full page width, work-week lines and bar dates (M5 review, 2026-09-25)
+
+**Why:** in review, the user found three problems with the Gantt charts.
+- The month labels run into each other ("Sep 2025Oct", "Jan 2026Feb").
+- The charts are squeezed into the centre of the page, with empty space on both sides.
+- A project's chart only shows months, so you can't tell the exact day a phase starts or ends.
+
+**Files:**
+- Modify: `client/gantt/scale.ts`, `client/gantt/Gantt.tsx`, `client/styles.css`, and each page that shows a timeline chart:
+  - `client/pages/manage/ProjectPage.tsx`, `PhasesFields.tsx` (the preview) and `ManageDashboardPage.tsx`;
+  - `client/pages/present/FocusPage.tsx` and `PortfolioPage.tsx`.
+- Test: `client/gantt/scale.test.ts` (create it if missing), `client/gantt/Gantt.test.tsx` (create it if missing), `client/pages/manage/ProjectPage.test.tsx`
+
+**Interfaces:**
+- `client/gantt/scale.ts`:
+  - `ticks` labels become the month only ("Sep", "Oct", …), never with a year.
+  - New `years: { year: string; x: number }[]`, with one entry at the left edge (x = 0, the first visible year) and one at each 1 January inside the range.
+  - New `export function workWeekEnds(range: DateRange, cal: WorkCalendar): ISODate[]`. It returns, for each Monday-to-Sunday week that overlaps the range, the **last day of that week that isn't a weekend day in `cal.weekendDays`**. With the default calendar that is the Friday; with a Friday/Saturday weekend it is the Thursday. Holidays don't change it. Only dates inside the range are returned.
+- `GanttProps` gains:
+  - `calendar?: WorkCalendar`;
+  - `detail?: 'months' | 'weeks'` (default `'months'`);
+  - `showDates?: boolean` (default `false`).
+
+**What the user sees:**
+- **The header** has two rows: years on top, months under them. With `detail="weeks"` there is a third row. Labels can never overlap.
+- **Work-week lines** (`detail="weeks"`): for every work-week end day, there is a faint vertical line at the **end** of that day, and its day-of-month number ("2", "9", "16", …) in the third header row, centred on that day. The week lines are lighter than the month lines.
+- **Bar dates** (`showDates`): each bar gets a small muted label with its dates, e.g. "8 Sep – 19 Sep". Add the year only when the two dates are in different years: "30 Nov 2026 – 19 Feb 2027". The label goes right after the bar's end if it fits before the chart's right edge; otherwise just before the bar's start; otherwise it isn't drawn. The label never covers another bar in the same row.
+- **Where these show:**
+  - `detail="weeks"` and `showDates` are used on a single project's charts: the project page, the wizard and Edit phases preview (`PhasesFields`), and the focus view.
+  - The portfolio and dashboard charts keep `detail="months"` with no dates, because they cover a whole year.
+  - The calendar comes from the page's existing calendar source (`api.getCalendar()` or `workload.calendar`), falling back to `DEFAULT_CALENDAR`.
+- **Full width:** pages with a timeline (the project page, dashboard, focus view, portfolio, the wizard and Edit phases) add the class `page-wide`, with `.page.page-wide { max-width: min(1600px, 100%); }`. Other pages keep 1200px. The chart already fills its card through `useElementWidth`.
+
+- [ ] **Step 1: Write the failing tests**
+  - `scale.test.ts`:
+    - for 2025-09-01 → 2026-03-31, `ticks` labels are `['Sep','Oct','Nov','Dec','Jan','Feb','Mar']`, and `years` are `2025` at x 0 and `2026` at the x of 2026-01-01;
+    - `workWeekEnds({ start: '2026-10-01', end: '2026-10-31' }, DEFAULT_CALENDAR)` is `['2026-10-02','2026-10-09','2026-10-16','2026-10-23','2026-10-30']`;
+    - with `{ weekendDays: [5, 6], holidays: [] }` it is the Thursdays `['2026-10-01','2026-10-08','2026-10-15','2026-10-22','2026-10-29']`.
+  - `Gantt.test.tsx`:
+    - with `detail="weeks"`, the header shows the texts "9" and "16" for an October range, and there are no "Sep 2025"-style labels;
+    - with `showDates`, a bar from 2026-09-08 to 2026-09-19 shows "8 Sep – 19 Sep";
+    - a bar ending at the chart's right edge puts its dates before its start;
+    - a bar from 2026-11-30 to 2027-02-19 shows "30 Nov 2026 – 19 Feb 2027".
+  - `ProjectPage.test.tsx`: the page's `main` has class `page-wide`, and the project chart shows a bar-dates label.
+- [ ] **Step 2:** Run the tests and confirm they FAIL.
+- [ ] **Step 3:** Implement. Increase `HEADER_H` so each header row gets about 16px. Keep the existing today line, the group and child rows, and the test ids unchanged.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass. Existing tests that asserted "Sep 2025"-style tick labels are updated to the new year row, not deleted.
+- [ ] **Step 5:** Commit with `fix: readable Gantt charts with a year row, full-width timelines, Friday work-week lines and the dates beside each bar`.
+
+---
+
+### Task 13: Sub-phases inside their phase's bar, parallel ones on extra rows, and details on hover (M5 review, 2026-09-25)
+
+**Why:** Task 3 drew every sub-phase on its own indented row. The user wants each phase to stay **one bar, divided into its sub-phases**. Only sub-phases that run in parallel go onto an extra row under it, and hovering over any piece shows its details. This replaces Task 3's sub-phase rows. The phases **table** on the project page is unchanged.
+
+**Files:**
+- Modify: `client/gantt/Gantt.tsx`, `client/gantt/rows.ts`, `client/pages/manage/ProjectPage.tsx`, `client/pages/present/FocusPage.tsx`, `client/pages/manage/PhasesFields.tsx` (if it builds rows itself), `client/styles.css`
+- Test: `client/gantt/rows.test.ts`, `client/gantt/Gantt.test.tsx`, `client/pages/manage/ProjectPage.test.tsx`, `client/pages/present/FocusPage.test.tsx`
+
+**Interfaces:**
+- `client/gantt/Gantt.tsx`:
+  ```ts
+  export interface GanttDetail { title: string; lines: string[] }
+  export interface GanttSegment { id: string; start: ISODate; end: ISODate; label: string; detail?: GanttDetail }
+  // GanttBar gains: segments?: GanttSegment[]; detail?: GanttDetail
+  // GanttRow.kind gains 'lane': an extra row for parallel sub-phases, with no label text, drawn tight under its phase
+  ```
+- `client/gantt/rows.ts`:
+  - `export function assignLanes<T extends { start: ISODate; end: ISODate }>(subs: T[]): number[]` gives each sub-phase, in order, the lowest lane (from 0) in which it doesn't overlap any sub-phase already placed in that lane. Two sub-phases overlap when they share at least one day.
+  - `phaseRows(project, options?: { people?: AssignmentRecord[] })`:
+    - For each phase, one row whose bar spans the phase. Sub-phases in lane 0 become that bar's `segments`.
+    - For each extra lane in use, one `kind: 'lane'` row (id `"<phase id or order>-lane-<n>"`), whose bars are that lane's sub-phases, in the parent's colour.
+    - A phase without sub-phases is drawn exactly as before.
+
+**Details (the `GanttDetail` for a phase bar, a segment, or a sub-phase bar on a lane row):**
+- `title`: the phase name, or "Phase › Sub-phase" (use `subPhaseLabel`).
+- `lines`:
+  1. the dates with weekday and year, and the working days: "Mon 30 Nov 2026 – Fri 18 Dec 2026 · 15 working days";
+  2. one line per person assigned to exactly that phase or sub-phase: "Fatima Noor · 60% · Responsible". This line appears only when `options.people` is given.
+- The project page passes `people: project.assignments`. The **focus view doesn't pass people**, because the stakeholder side shows no names.
+- From M7 a percentage line is added. Don't add a placeholder now.
+
+**What the user sees:**
+- **A divided bar:** E-Services' Development is one bar divided into Increment 1, Increment 3 and Increment 4, with thin dividers (2px, in the card background colour) at the boundaries. Each piece shows its name where it fits. Directly under it is **one** lane row, holding Increment 2's bar, because it runs alongside Increment 1.
+- **A plain bar:** a phase whose sub-phases all run one after another has no lane rows.
+- **Details:**
+  - Hovering over (or focusing) any bar, segment or lane bar shows a small card near the pointer, with the title in bold and the lines under it. It disappears on mouse leave or blur.
+  - Clicking or tapping toggles the card, so it works on a phone. Escape closes it.
+  - The pieces are focusable (`tabIndex={0}`), with `aria-label` set to the title followed by the first line.
+  - The card is an HTML element positioned over the chart (a wrapper `div` with `position: relative`), not an SVG `<title>`. Keep the SVG `<title>` elements for any tests that use them.
+
+- [ ] **Step 1: Write the failing tests**
+  - `rows.test.ts`:
+    - `assignLanes` for the demo increments (Inc 1 30 Nov–18 Dec, Inc 2 30 Nov–18 Dec, Inc 3 21 Dec–22 Jan, Inc 4 25 Jan–19 Feb) is `[0, 1, 0, 0]`;
+    - three sub-phases running one after another are all 0;
+    - `phaseRows` for such a project gives the Development row with segment labels `['Increment 1 – Sign-in and profile', 'Increment 3 – Payments', 'Increment 4 – Notifications']`, followed by exactly one `lane` row holding Increment 2;
+    - a phase with only sequential sub-phases has no lane row;
+    - the segment details list the right people when `people` is given, and no people lines when it isn't.
+
+    Replace Task 3's "indented child row per sub-phase" tests with these.
+  - `Gantt.test.tsx`: hovering over a segment shows its title and date line; mouse leave hides them; clicking toggles them; Escape closes them.
+  - `ProjectPage.test.tsx`: the chart has no separate row per sequential sub-phase, and hovering over a sub-phase shows its person line.
+  - `FocusPage.test.tsx`: hovering over a sub-phase shows its title and dates and **no** person names. Keep the read-only guard: the details card adds no buttons or links.
+- [ ] **Step 2:** Run the tests and confirm they FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
+- [ ] **Step 5:** Commit with `feat: sub-phases drawn inside their phase's bar, parallel ones on extra rows, with details on hover or tap`.
+
+---
+
+### Task 14: Visible drag handles, and dragging with a finger (M5 review, 2026-09-25)
+
+**Why:** the user couldn't find the drag handle for reordering phases and sub-phases. It has a transparent background, no border and a faint icon (`.drag-handle` in `client/styles.css`). Dragging also doesn't work with a finger on a phone, where the user often reviews.
+
+**Files:**
+- Modify: `client/useReorder.ts`, `client/styles.css`, and any component that spreads `handleProps` or `rowProps` if its markup needs the new data attributes (the `useReorder` return values carry them): `PhasesFields.tsx`, `SubPhaseList.tsx` and `ItemTable.tsx`
+- Test: `client/useReorder.test.tsx`
+
+**What the user sees:**
+- **The handle is clearly a handle:**
+  - a visible border (`var(--line)` or the existing border token) and the surface background;
+  - an icon in the normal text colour;
+  - `cursor: grab` (and `grabbing` while dragging);
+  - an accent-coloured border on hover and focus;
+  - at least 32×32px, and 44×44px on touch screens (`@media (pointer: coarse)`).
+- **While dragging** (mouse or finger), the row being moved gets class `dragging` (lower opacity), and the row it would drop onto gets class `drop-target`, with a 2px accent line at the top or bottom of that row, whichever side it will land.
+- **With a finger**, you press the handle and slide up or down, and the item lands where you let go.
+  - The handle has `touch-action: none`.
+  - For `pointerType` `touch` or `pen`, `useReorder` handles `pointerdown`, `pointermove` and `pointerup` on the handle (capturing the pointer). It finds the row under the finger with `document.elementFromPoint`, using `data-reorder-list` and `data-reorder-index` attributes that `rowProps` now adds, and calls `move(from, to)` on release.
+  - A list only accepts drops from its own handles, as today, so a sub-phase can't be dropped into the phase list.
+  - Mouse dragging keeps the native drag and drop, which works, and gains the `dragging` and `drop-target` classes.
+- Keyboard ArrowUp and ArrowDown keep working unchanged.
+
+- [ ] **Step 1: Write the failing tests** in `client/useReorder.test.tsx`, with a small harness list of 3 rows. `jsdom` has no `elementFromPoint`, so stub `document.elementFromPoint` to return the third row.
+  - A touch `pointerdown` on row 1's handle, then `pointermove`, then `pointerup` moves item 1 to position 3.
+  - During the move, row 1 has class `dragging` and row 3 has `drop-target`; both are removed after release.
+  - The `rowProps` output includes `data-reorder-index`.
+  - Existing keyboard and drag-and-drop tests still pass.
+- [ ] **Step 2:** Run the tests and confirm they FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
+- [ ] **Step 5:** Commit with `fix: clearly visible drag handles with drop indicators, and reordering with a finger on touch screens`.
+
+---
+
+### Task 15: People's names on to-dos link to their page (M5 review, 2026-09-25)
+
+**Why:** the user wants to click the person on a to-do and see their page.
+
+**Files:**
+- Modify: `client/components/ToDoMetaLine.tsx` (the one shared meta line, used everywhere a to-do is listed)
+- Test: `client/components/ToDoMetaLine.test.tsx` (create it), plus whichever page test first breaks
+
+**What the user sees:** wherever a to-do's meta line shows its assignee, the name is a `Link` to `/manage/resources/<id>`. "Unassigned" stays plain text.
+
+- [ ] **Step 1:** Write the failing test. With an assignee `{ id: 11, name: 'Rami Saleh' }`, the meta line has a link named "Rami Saleh" pointing to `/manage/resources/11`. Unassigned shows plain "Unassigned".
+- [ ] **Step 2:** Run it and confirm it FAILS.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass. Page tests that find the name with `getByText` still work, because the link's text is the name.
+- [ ] **Step 5:** Commit with `feat: a to-do's person links to their page`.
+
+---
+
 ### ✅ M5 checkpoint: stop and demo to the user
 
 Start from a fresh demo database. An existing `data/pm.db` upgrades automatically (migrations 8–10), but only a fresh one has the M5 demo data.

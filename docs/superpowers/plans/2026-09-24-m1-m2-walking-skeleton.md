@@ -42,14 +42,15 @@ Every milestone ends with something the user can run and try in the browser. Aft
 | M4 | Resources and workload | Resources page, assigning people to phases, workload heatmap, overload decision prompt, leave; weekday labels, leave day slices, Projects column, sortable columns |
 | M5 | Sub-phases and to-dos | Edit phases after creation; sub-phases (can run in parallel) with people assigned to them, shown on the Gantt, the person page and the workload; to-dos for yourself or anyone on the project, Next up card, My next steps, To-dos page, optional starter checklists per phase, "I am" in Settings; daily backups |
 | M6 | Meetings, updates, attachments | Add meetings and updates with effective dates, upload files, meetings create to-dos, click a Gantt bar to open the side panel timeline; highlighted entries appear in the stakeholder focus view |
-| M7 | Progress and decisions | Baseline 1 for every project; actual dates, % complete, pace indicator, late detection, early/late shift prompts with cause and responsibility; Delay a phase switches on; "Needs your decision" inbox; holidays with shift prompt; original plan and actual dates for past projects; first **Why did the end date move?** and **Where did the time go?** charts |
+| M7 | Progress and decisions | Baseline 1 for every project; actual dates, % complete (each phase and sub-phase bar fills in a darker shade of its colour as it progresses, with the % in its hover details), pace indicator, late detection, early/late shift prompts with cause and responsibility; Delay a phase switches on; "Needs your decision" inbox; holidays with shift prompt; original plan and actual dates for past projects; first **Why did the end date move?** and **Where did the time go?** charts |
 | M8 | Holds and project links | Record a hold, hatched hold bar with an arrow on the portfolio, Pause a project switches on, dependency arrows, **follow-on projects** (pre-filled wizard, carry-over, project family strip); first end-to-end browser tests; holds added to the stakeholder charts |
-| M9 | Change requests and requirements | Change requests, new baselines with dashed outlines, requirement fields on development sub-phases (source, date received), weights and the development % rule; change requests added to the stakeholder charts |
-| M10 | Requirement readiness | Incomplete/Ready with evidence, waiting clock, Clarification to-dos, start at risk, grey waiting segments; waiting time added to the stakeholder charts |
-| M11 | Stakeholder insight | Health model, ⭐ milestones and upcoming milestones, the finished charts with drill-down |
-| M12 | Playback | Play single project and portfolio, pop-ups with documents, auto-pause |
-| M13 | What-if sandbox | Stacked hypothetical changes, hypothetical projects, anonymous resource picking, conflicts, price tag panel, save as proposed |
-| M14 | Polish for presenting | PDF export, presenter mode |
+| M9 | Layout pass | Rework page layouts from the user's collected layout comments (spec §7): cards arranged side by side in a grid that uses the page width, sized by their content, instead of one long column; applied to every page built so far |
+| M10 | Change requests and requirements | Change requests, new baselines with dashed outlines, requirement fields on development sub-phases (source, date received), weights and the development % rule; change requests added to the stakeholder charts |
+| M11 | Requirement readiness | Incomplete/Ready with evidence, waiting clock, Clarification to-dos, start at risk, grey waiting segments; waiting time added to the stakeholder charts |
+| M12 | Stakeholder insight | Health model, ⭐ milestones and upcoming milestones, the finished charts with drill-down |
+| M13 | Playback | Play single project and portfolio, pop-ups with documents, auto-pause |
+| M14 | What-if sandbox | Stacked hypothetical changes, hypothetical projects, anonymous resource picking, conflicts, price tag panel, save as proposed |
+| M15 | Polish for presenting | PDF export, presenter mode |
 
 ## File Structure (after M1–M2)
 

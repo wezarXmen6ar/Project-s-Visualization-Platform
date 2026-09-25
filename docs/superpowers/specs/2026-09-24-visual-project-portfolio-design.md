@@ -50,11 +50,11 @@ client/   React + Vite
   4. What-if sandbox
 - The data model covers all four from the start.
 - This spec is the umbrella design. The first implementation plan covers **sub-project 1 only**. Sub-projects 2–4 each get a short follow-up spec that refines the relevant section here.
-- **Delivery principles (roadmap review, 2026-09-25).** The build runs as milestones M1–M14 (the roadmap table lives in the M1–M2 plan). Each one:
+- **Delivery principles (roadmap review, 2026-09-25).** The build runs as milestones M1–M15 (the roadmap table lives in the M1–M2 plan). Each one:
   - ends with something new to try on **both** sides where it makes sense, a management screen and what stakeholders see, and extends the **demo portfolio** so the new feature has real-looking data to test;
   - records history completely from the moment a feature exists. Every date change is an `Event` with its cause, delay days, responsibility and the dates before and after (from M7). History that was never recorded can't be rebuilt later for playback or the charts;
   - lets its own items be **recorded with a past date** (record-history mode), with no decision prompts for past-dated items, rather than leaving all of record-history to one late milestone;
-  - grows the stakeholder charts. **Why did the end date move?** and **Where did the time go?** first appear in M7, with late finishes and holidays, and each later milestone adds its own cause: holds in M8, change requests in M9, and waiting for requirement information in M10.
+  - grows the stakeholder charts. **Why did the end date move?** and **Where did the time go?** first appear in M7, with late finishes and holidays, and each later milestone adds its own cause: holds in M8, change requests in M10, and waiting for requirement information in M11.
 
 ## 2. Data model (APPROVED)
 
@@ -66,10 +66,10 @@ client/   React + Vite
 - `Project`: the fields listed in §3.2, plus status (**proposed**, planned, active, on hold, done, cancelled) and a reference to its main project. *Proposed* projects come from the sandbox and are left out of capacity checks and the real portfolio until promoted to *Planned*.
 - `MainProject`: name. Can be created inline.
 - `ScopeItem`: project, kind (scope, out-of-scope, problem, objective), text, order, `addedByChangeRequestId` (nullable), date added.
-- `Phase`: project, name, order, planned start and end, duration in working days, actual start and end, % complete, `parentId` (sub-phases are optional on **any** phase and one level deep), weight. **Sub-phases arrive in M5 (M4 review, 2026-09-25)**, moved forward because nothing else they need comes later. They break a phase into named pieces (such as a development phase's 20 increments), each with its own working days inside its parent. **Sub-phases may run at the same time** (user decision, 2026-09-25): by default a new sub-phase starts after the previous one, and it can be set to start with another instead. It is not expected to be used often, but the flexibility is there. The parent phase spans from its first sub-phase's start to its last sub-phase's end. People can be assigned to a sub-phase as well as to a whole phase, so a person's page and the workload panel say exactly what they are on ("Case Management › Development › Increment 7 – Payment gateway"). Sub-phase weights, the development % rule and requirement fields on development sub-phases come in M9.
+- `Phase`: project, name, order, planned start and end, duration in working days, actual start and end, % complete, `parentId` (sub-phases are optional on **any** phase and one level deep), weight. **Sub-phases arrive in M5 (M4 review, 2026-09-25)**, moved forward because nothing else they need comes later. They break a phase into named pieces (such as a development phase's 20 increments), each with its own working days inside its parent. **Sub-phases may run at the same time** (user decision, 2026-09-25): by default a new sub-phase starts after the previous one, and it can be set to start with another instead. It is not expected to be used often, but the flexibility is there. The parent phase spans from its first sub-phase's start to its last sub-phase's end. **On a Gantt chart (M5 review, 2026-09-25), a phase with sub-phases stays one bar, divided into its sub-phases.** Thin dividers separate the pieces, and each piece carries its name where it fits. Only sub-phases that run at the same time as another drop onto an extra row directly under the phase, and only as many rows as the overlap needs. Hovering over a sub-phase (or tapping it on a phone) shows its details: its name as "Phase › Sub-phase", its dates, its working days and the people on it. From M7, each phase and sub-phase also fills from the left in a darker shade of its colour as its % complete grows, and the details show the percentage. People can be assigned to a sub-phase as well as to a whole phase, so a person's page and the workload panel say exactly what they are on ("Case Management › Development › Increment 7 – Payment gateway"). Sub-phase weights, the development % rule and requirement fields on development sub-phases come in M10.
 - **Phases can be edited after a project is created from M5.** Adding sub-phases to an existing project needs this. You can add, remove, reorder and resize phases and sub-phases. Before Baseline 1 exists this simply changes the plan. From M7, a change to a project that has started is recorded as an `Event`, with its cause.
 - **Phase colour (post-M1-demo feedback, 2026-09-24):** not a field on `Phase`. Every Gantt bar is coloured from a **fixed palette keyed by the phase's name** (normalised: trimmed, case-insensitive) — "Requirements" is always the same colour, "Development" is always another, "UAT" another, and so on — shared across every project and every screen (project page, wizard live preview, portfolio, focus view). A set of standard phase names (Requirements, Analysis, Design, Development plan, Development, Testing/QA, UAT, Security testing, Deployment, Launch — with Go-live as an alias of Launch) is mapped to a 10-colour palette up front, neighbouring lifecycle phases getting clearly different hues; a phase named something else still gets a colour, deterministically derived from its name so the same custom name always lands on the same colour everywhere, without needing a name registry. A project's own `colour` (§3.2 Step 1) plays no part in this — it identifies the project elsewhere (lists, tags), not its phase bars.
-- **Requirement fields** (M9, on sub-phases under development): source (original or added later), date received, linked change request, linked scope item, readiness (incomplete or ready), start-at-risk flag and reason.
+- **Requirement fields** (M10, on sub-phases under development): source (original or added later), date received, linked change request, linked scope item, readiness (incomplete or ready), start-at-risk flag and reason.
 - `RequirementEvidence`: requirement, then **either** an attachment **or** an entry (a meeting), plus a confirmation date. A requirement can have several pieces of evidence. Readiness counts from the earliest one.
 - `Assignment`: phase, resource, allocation %, role (responsible or contributor).
 
@@ -83,7 +83,7 @@ client/   React + Vite
 - **Responsibility** (on change requests, requirements, holds, slip causes, waiting periods, and the delay days of each `Event`): one or more of **Technical team · Business user · Decision makers · External** (list editable in Settings), plus Calendar (automatic, for holidays only). When several parties share responsibility, delay days are split evenly by default and the split can be adjusted. Defaults: change request, requirement and waiting period → Business user; hold → Decision makers; holiday → Calendar; late-phase cause → chosen in the prompt.
 - `Milestone`: either a ⭐ flag on a phase or requirement end, with a stakeholder-friendly name, or a standalone milestone (date and name, no duration). A flagged milestone's date follows the plan automatically.
 - `ChangeRequest`: project, requested by, description, extra days by role, status (proposed, approved, rejected), approval attachment.
-- `Baseline`: a numbered snapshot of all phase dates. **Baseline 1 is created when a project is saved, from M7.** Projects that already exist then get theirs from their plan as it stands, and past projects get theirs from the original plan entered in record-history mode. A new baseline is created for each approved change request (M9).
+- `Baseline`: a numbered snapshot of all phase dates. **Baseline 1 is created when a project is saved, from M7.** Projects that already exist then get theirs from their plan as it stands, and past projects get theirs from the original plan entered in record-history mode. A new baseline is created for each approved change request (M10).
 - `ProjectLink`: finish-to-start dependency between phases in different projects.
 - **Follow-on projects (M8):** `Project.followsProjectId` points at the project this one continues, for example a new phase of a launched project. See §3.10.
 
@@ -140,6 +140,14 @@ Saving creates Baseline 1.
 - **Project family (M8):** when a project follows another or has follow-ons, a strip shows the chain, e.g. "Case Management (launched Mar 2026) → Case Management Phase 2 (planned)".
 - **Gantt chart as the centrepiece.** Clicking a bar opens a **slide-in side panel** with a chronological, collapsible timeline (grouped by week or type) of the phase's entries, to-dos and attachments.
 - Tabs: Timeline, Attachments (filter by type or phase), To-dos, **Requirements**, Change requests, Baselines.
+
+- **Gantt readability (M5 review, 2026-09-25):**
+  - Years sit on their own row above the months, so labels never run into each other.
+  - Timeline charts use the full page width, not the narrow centre column.
+  - A single project's chart (the project page, the wizard preview and the focus view) also shows **work-week lines**. Each work week is marked by its last working day, the Friday with the default weekend, so the line and its date ("11", "18", "25") fall on Friday and never on Saturday or Sunday. It also shows each bar's **exact dates** beside it, e.g. "8 Sep – 19 Sep".
+  - The portfolio chart keeps months only, because it covers a whole year.
+- **Reordering handles are clearly visible** (M5 review): the grip button has a visible icon, border and hover state, and a grab cursor. Dragging also works with a finger on a phone.
+- **People's names on to-dos link to their page** (M5 review), wherever a to-do is shown.
 
 ### 3.5 Requirements (development sub-phases)
 - Each requirement has: source (Original scope / Added later), date received, progress 0–100%, readiness.
@@ -214,7 +222,7 @@ Weekend days, holidays, attachment types, roles, dropdown lists (main projects, 
   - Its **open to-dos** can be moved across.
 - **Start after the original:** optionally, the follow-on's first phase is linked to the original's last phase as a finish-to-start `ProjectLink`, so it moves if the launch slips, and the portfolio draws the arrow.
 - **Stakeholders:** the focus view shows the project-family strip, so the story reads across phases.
-- **Sandbox:** in the sandbox (M13), "Save as proposed project" can also mark the new project as a follow-on.
+- **Sandbox:** in the sandbox (M14), "Save as proposed project" can also mark the new project as a follow-on.
 
 ## 4. Presentation screens (APPROVED)
 
@@ -294,8 +302,12 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
 ### 5.4 Testing
 - **Engines** (calendar, scheduler, capacity, baselines, timeline): thorough Vitest unit tests using realistic scenarios, for example a hold during Eid while a change request is approved.
 - **API:** integration tests against a temporary SQLite database.
-- **End-to-end** (Playwright, a small number, set up in M8 when the first full flow exists): create a project → record a hold → the portfolio shows the arrow. Playback is added to the flow in M12.
+- **End-to-end** (Playwright, a small number, set up in M8 when the first full flow exists): create a project → record a hold → the portfolio shows the arrow. Playback is added to the flow in M13.
 - **Built-in demo portfolio**, with holds, change requests, waiting requirements and a completed historical project, used for tests and for rehearsing presentations.
+
+## 7. Layout backlog (collected from the user's reviews, worked through in M9)
+The user sends layout comments as they notice them. They are kept here, and M9 (layout pass) works through them. Functional readability problems, such as overlapping text, are fixed straight away in the milestone where they are found, not left for M9.
+1. **Use the page width (2026-09-25).** Pages stack full-width cards one under another (for example the dashboard: My next steps, then Timeline, then Projects), so you keep scrolling while most of the screen is empty. Arrange cards side by side in a grid, for example a larger box beside a smaller one, each sized by how much it holds. This applies to almost every page.
 
 ## 6. Out of scope (for now)
 - Money or cost figures (these could be added later from rates per role).
