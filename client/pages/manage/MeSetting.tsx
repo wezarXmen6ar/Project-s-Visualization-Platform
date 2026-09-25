@@ -9,7 +9,7 @@ interface MeSettingProps {
   people: ResourceRecord[];
 }
 
-/** Who "I am": an active tech-team person, used for Mine, Next up and My next steps. */
+/** Who "I am": an active tech-team person, used for Mine and My next steps. */
 export function MeSetting({ people }: MeSettingProps) {
   const { me, reload } = useMe();
   const [saved, setSaved] = useState(false);
@@ -39,7 +39,7 @@ export function MeSetting({ people }: MeSettingProps) {
   return (
     <section className="card">
       <h2>I am</h2>
-      <p className="field-hint">Used for Mine, Next up and My next steps.</p>
+      <p className="field-hint">Used for Mine and My next steps.</p>
       {errors.length > 0 ? (
         <div className="errors" role="alert">
           <AlertIcon />

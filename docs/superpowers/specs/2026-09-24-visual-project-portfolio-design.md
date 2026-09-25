@@ -136,7 +136,7 @@ Saving creates Baseline 1.
 ### 3.4 Project page
 - Header: status, pace, baseline end vs current end.
 - Buttons: Add to-do, Add meeting, Add update, Upload attachment, Record hold, Change request, Update progress, **Create follow-on project**.
-- **Next up (M5):** a card with your three most urgent open to-dos on this project.
+- **My next steps (M5):** a card with your three most urgent open to-dos on this project. It was first called "Next up"; the user asked for the dashboard's wording (2026-09-26).
 - **Project family (M8):** when a project follows another or has follow-ons, a strip shows the chain, e.g. "Case Management (launched Mar 2026) → Case Management Phase 2 (planned)".
 - **Gantt chart as the centrepiece.** Clicking a bar opens a **slide-in side panel** with a chronological, collapsible timeline (grouped by week or type) of the phase's entries, to-dos and attachments.
 - Tabs: Timeline, Attachments (filter by type or phase), To-dos, **Requirements**, Change requests, Baselines.
@@ -309,6 +309,7 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
 The user sends layout comments as they notice them. They are kept here, and M9 (layout pass) works through them. Functional readability problems, such as overlapping text, are fixed straight away in the milestone where they are found, not left for M9.
 1. **Use the page width (2026-09-25).** Pages stack full-width cards one under another (for example the dashboard: My next steps, then Timeline, then Projects), so you keep scrolling while most of the screen is empty. Arrange cards side by side in a grid, for example a larger box beside a smaller one, each sized by how much it holds. This applies to almost every page.
 2. **Gantt on a phone (2026-09-25, found in review).** The phase-name column takes about half of a phone's width, so the bars get squeezed into the rest. On narrow screens, the name column should shrink (or the names move onto the bars) so the timeline gets most of the width.
+3. **Smaller to-do cards (2026-09-26).** The project page's "My next steps" card, and the to-do cards generally, take up far more room than three short lines need. Make them compact, for example a narrow box beside the timeline instead of a full-width card above it.
 
 ## 6. Out of scope (for now)
 - Money or cost figures (these could be added later from rates per role).

@@ -266,7 +266,7 @@ describe('ProjectPage to-dos', () => {
     });
     renderAt('/manage/projects/1');
 
-    const card = (await screen.findByRole('heading', { name: 'Next up' })).closest('section') as HTMLElement;
+    const card = (await screen.findByRole('heading', { name: 'My next steps' })).closest('section') as HTMLElement;
     const titles = within(card).getAllByText(/Chase the missing contract|Book the UAT room|Draft the go-live checklist/);
     expect(titles.map((el) => el.textContent)).toEqual([
       'Chase the missing contract',
@@ -286,7 +286,7 @@ describe('ProjectPage to-dos', () => {
     });
     renderAt('/manage/projects/1');
 
-    const card = (await screen.findByRole('heading', { name: 'Next up' })).closest('section') as HTMLElement;
+    const card = (await screen.findByRole('heading', { name: 'My next steps' })).closest('section') as HTMLElement;
     expect(within(card).getByText(/Set who you are in/)).toBeInTheDocument();
     expect(within(card).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/manage/settings');
   });
@@ -447,7 +447,7 @@ describe('ProjectPage to-dos', () => {
     });
     renderAt('/manage/projects/1');
 
-    const card = (await screen.findByRole('heading', { name: 'Next up' })).closest('section') as HTMLElement;
+    const card = (await screen.findByRole('heading', { name: 'My next steps' })).closest('section') as HTMLElement;
     expect(within(card).getByText('Task with phase')).toBeInTheDocument();
     expect(within(card).getByText('Due Thu 1 Oct')).toBeInTheDocument();
     expect(within(card).getByText(/Increment 1/)).toBeInTheDocument();

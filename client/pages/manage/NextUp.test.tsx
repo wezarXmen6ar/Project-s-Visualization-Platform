@@ -11,7 +11,7 @@ describe('NextUp', () => {
         <NextUp todos={[]} me={undefined} onToggleDone={vi.fn()} />
       </MemoryRouter>,
     );
-    expect(screen.getByRole('heading', { name: 'Next up' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'My next steps' })).toBeInTheDocument();
     expect(screen.queryByText(/Set who you are in/)).toBeNull();
   });
 

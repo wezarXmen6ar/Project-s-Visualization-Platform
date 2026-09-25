@@ -18,7 +18,7 @@ export function NextUp({ todos, me, onToggleDone }: NextUpProps) {
   if (me === undefined) {
     return (
       <section className="card">
-        <h2>Next up</h2>
+        <h2>My next steps</h2>
       </section>
     );
   }
@@ -26,7 +26,7 @@ export function NextUp({ todos, me, onToggleDone }: NextUpProps) {
   if (me.resourceId === null) {
     return (
       <section className="card">
-        <h2>Next up</h2>
+        <h2>My next steps</h2>
         <p className="muted">
           Set who you are in <Link to="/manage/settings">Settings</Link> to see your next steps here.
         </p>
@@ -38,7 +38,7 @@ export function NextUp({ todos, me, onToggleDone }: NextUpProps) {
 
   return (
     <section className="card">
-      <h2>Next up</h2>
+      <h2>My next steps</h2>
       {mine.length === 0 ? (
         <p className="muted">Nothing on your list for this project.</p>
       ) : (
