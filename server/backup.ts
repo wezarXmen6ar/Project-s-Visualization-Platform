@@ -2,10 +2,9 @@ import { mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { isISODate, type ISODate } from '../shared/calendar';
+import type { BackupStatus } from '../shared/types';
 
 export const KEEP_BACKUPS = 14;
-
-export interface BackupStatus { latest: ISODate | null; count: number }
 
 const BACKUP_RE = /^pm-\d{4}-\d{2}-\d{2}\.db$/;
 
