@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { isISODate } from './calendar';
-import { CATEGORIES, PRIORITIES, SCOPE_KINDS, SIDES, SPECIALISATIONS } from './types';
+import { dayOfWeek, isISODate } from './calendar';
+import { ASSIGNMENT_ROLES, CATEGORIES, OVERLOAD_DECISIONS, PRIORITIES, SCOPE_KINDS, SIDES, SPECIALISATIONS } from './types';
 
 export const isoDate = z.string().refine(isISODate, 'Must be a valid date (YYYY-MM-DD)');
 
@@ -56,6 +56,33 @@ const optionalEmail = z
   .transform((v) => (v ? v : null))
   .refine((v) => v === null || z.string().email().safeParse(v).success, 'Enter a valid email address');
 
+export const assignmentInputSchema = z.object({
+  resourceId: z
+    .number({ required_error: 'Choose a person', invalid_type_error: 'Choose a person' })
+    .int('Choose a person')
+    .positive('Choose a person'),
+  allocation: z
+    .number({ invalid_type_error: 'Allocation must be a number' })
+    .int('Allocation must be a whole number')
+    .min(1, 'Allocation must be between 1% and 100%')
+    .max(100, 'Allocation must be between 1% and 100%'),
+  role: z.enum(ASSIGNMENT_ROLES).default('contributor'),
+});
+
+/** A phase's people: each person at most once. */
+export const phaseAssignmentsSchema = z
+  .array(assignmentInputSchema)
+  .max(50)
+  .superRefine((list, ctx) => {
+    const seen = new Set<number>();
+    list.forEach((a, i) => {
+      if (seen.has(a.resourceId)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'The same person is assigned twice to this phase', path: [i, 'resourceId'] });
+      }
+      seen.add(a.resourceId);
+    });
+  });
+
 export const phaseInputSchema = z.object({
   name: z.string().trim().min(1, 'Phase name is required').max(200),
   durationDays: z
@@ -63,6 +90,7 @@ export const phaseInputSchema = z.object({
     .int('Duration must be a whole number of days')
     .min(1, 'Duration must be at least 1 working day')
     .max(2000, 'Duration is too long'),
+  assignments: phaseAssignmentsSchema.default([]),
 });
 
 export const scopeItemInputSchema = z.object({
@@ -148,3 +176,17 @@ export type ResourceInput = z.input<typeof resourceInputSchema>;
 export type ResourceData = z.output<typeof resourceInputSchema>;
 export type LeaveInput = z.input<typeof leaveInputSchema>;
 export type LeaveData = z.output<typeof leaveInputSchema>;
+
+export const assignmentsUpdateSchema = z.object({ assignments: phaseAssignmentsSchema });
+
+export const overloadDecisionSchema = z.object({
+  resourceId: z.number().int().positive(),
+  weekStart: isoDate.refine((d) => !isISODate(d) || dayOfWeek(d) === 1, 'Week must start on a Monday'),
+  decision: z.enum(OVERLOAD_DECISIONS),
+  note: optionalText(500),
+});
+
+export type AssignmentInput = z.input<typeof assignmentInputSchema>;
+export type AssignmentData = z.output<typeof assignmentInputSchema>;
+export type OverloadDecisionInput = z.input<typeof overloadDecisionSchema>;
+export type OverloadDecisionData = z.output<typeof overloadDecisionSchema>;

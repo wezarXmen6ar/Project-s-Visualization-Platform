@@ -39,6 +39,10 @@ const USAGE: { sql: string; reason: (n: number) => string }[] = [
     sql: 'SELECT COUNT(*) AS n FROM projects WHERE ? IN (project_manager_id, business_pm_id)',
     reason: (n) => `they are a project manager on ${n} project${n === 1 ? '' : 's'}`,
   },
+  {
+    sql: 'SELECT COUNT(*) AS n FROM assignments WHERE resource_id = ?',
+    reason: (n) => `they are assigned to ${n} phase${n === 1 ? '' : 's'}`,
+  },
 ];
 
 function toLeave(row: LeaveRow): LeaveRecord {

@@ -3,8 +3,9 @@ import { todayLocal, type ISODate, type WorkCalendar } from '../../shared/calend
 import type { NewProject, ProjectDetails, ValidationIssue } from '../../shared/schemas';
 import { schedulePhases } from '../../shared/scheduler';
 import type {
-  BusinessContact, Category, ListName, PhaseRecord, Priority, ProjectRecord, Ref, ScopeItem, ScopeKind, Side,
+  AssignmentRecord, BusinessContact, Category, ListName, PhaseRecord, Priority, ProjectRecord, Ref, ScopeItem, ScopeKind, Side,
 } from '../../shared/types';
+import { assignmentsByProject, projectAssignments, saveAssignments } from '../assignments/repo';
 import { transaction } from '../db';
 import { getListValue } from '../lists/repo';
 
@@ -126,6 +127,7 @@ function peopleById(db: DatabaseSync): Map<number, BusinessContact> {
 
 function toProject(
   row: ProjectRow, phases: PhaseRecord[], scopeItems: ScopeItem[], names: Map<number, string>, people: Map<number, BusinessContact>,
+  assignments: AssignmentRecord[],
 ): ProjectRecord {
   return {
     id: row.id,
@@ -149,6 +151,7 @@ function toProject(
     background: row.background,
     summary: row.summary,
     scopeItems,
+    assignments,
     phases,
   };
 }
@@ -190,7 +193,10 @@ export function createProject(db: DatabaseSync, cal: WorkCalendar, input: NewPro
     const insertPhase = db.prepare(
       'INSERT INTO phases (project_id, name, sort_order, duration_days, planned_start, planned_end) VALUES (?, ?, ?, ?, ?, ?)',
     );
-    for (const p of scheduled) insertPhase.run(projectId, p.name, p.order, p.durationDays, p.start, p.end);
+    scheduled.forEach((p, i) => {
+      const phaseId = Number(insertPhase.run(projectId, p.name, p.order, p.durationDays, p.start, p.end).lastInsertRowid);
+      saveAssignments(db, phaseId, input.phases[i].assignments);
+    });
     saveScopeItems(db, projectId, input.scopeItems, today);
     return projectId;
   });
@@ -219,7 +225,7 @@ export function getProject(db: DatabaseSync, id: number): ProjectRecord | undefi
   const scope = db
     .prepare('SELECT * FROM scope_items WHERE project_id = ? ORDER BY kind, sort_order')
     .all(id) as unknown as ScopeRow[];
-  return toProject(row, phases.map(toPhase), scope.map(toScopeItem), listNames(db), peopleById(db));
+  return toProject(row, phases.map(toPhase), scope.map(toScopeItem), listNames(db), peopleById(db), projectAssignments(db, id));
 }
 
 function byProject<R extends { project_id: number }, T>(rows: R[], map: (row: R) => T): Map<number, T[]> {
@@ -244,5 +250,6 @@ export function listProjects(db: DatabaseSync): ProjectRecord[] {
   );
   const names = listNames(db);
   const people = peopleById(db);
-  return rows.map((r) => toProject(r, phases.get(r.id) ?? [], scope.get(r.id) ?? [], names, people));
+  const assignments = assignmentsByProject(db);
+  return rows.map((r) => toProject(r, phases.get(r.id) ?? [], scope.get(r.id) ?? [], names, people, assignments.get(r.id) ?? []));
 }

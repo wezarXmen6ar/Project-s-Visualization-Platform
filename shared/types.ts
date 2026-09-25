@@ -1,4 +1,5 @@
-import type { ISODate } from './calendar';
+import type { ISODate, WorkCalendar } from './calendar';
+import type { CapacityAssignment, CapacityResource } from './capacity';
 import type { PortfolioStats } from './portfolio';
 
 /** The editable dropdown lists (managed in Settings). A main project is just a name, so it is a list too. */
@@ -79,6 +80,47 @@ export interface BusinessContact {
   email: string | null;
 }
 
+export const ASSIGNMENT_ROLES = ['responsible', 'contributor'] as const;
+export type AssignmentRole = (typeof ASSIGNMENT_ROLES)[number];
+
+/** A tech-team person working on a phase for part of their week. */
+export interface AssignmentRecord {
+  id: number;
+  phaseId: number;
+  resource: Ref;
+  /** % of the person's day. */
+  allocation: number;
+  role: AssignmentRole;
+}
+
+export const OVERLOAD_DECISIONS = ['split', 'reassign', 'accept'] as const;
+export type OverloadDecisionKind = (typeof OVERLOAD_DECISIONS)[number];
+
+/** A recorded answer to an overbooked week. */
+export interface OverloadDecision {
+  id: number;
+  resourceId: number;
+  /** Monday of the overbooked week. */
+  weekStart: ISODate;
+  decision: OverloadDecisionKind;
+  note: string | null;
+  /** When the decision was made. */
+  date: ISODate;
+}
+
+export interface WorkloadAssignment extends CapacityAssignment {
+  role: AssignmentRole;
+}
+
+/** Everything the workload heatmap and the live warnings need; the browser runs computeWorkload on it. */
+export interface WorkloadData {
+  calendar: WorkCalendar;
+  /** Active tech-team people only. */
+  resources: CapacityResource[];
+  assignments: WorkloadAssignment[];
+  decisions: OverloadDecision[];
+}
+
 export interface PhaseRecord {
   id: number;
   name: string;
@@ -110,6 +152,8 @@ export interface ProjectRecord {
   summary: string;
   /** Ordered by kind, then by order within the kind. */
   scopeItems: ScopeItem[];
+  /** Who works on which phase; each has the phaseId it belongs to. Ordered by phase, then id. */
+  assignments: AssignmentRecord[];
   phases: PhaseRecord[];
 }
 

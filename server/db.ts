@@ -145,6 +145,29 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE projects DROP COLUMN business_pm_phone;
   ALTER TABLE projects DROP COLUMN business_pm_email;
   `,
+  `
+  CREATE TABLE assignments (
+    id INTEGER PRIMARY KEY,
+    phase_id INTEGER NOT NULL REFERENCES phases(id) ON DELETE CASCADE,
+    resource_id INTEGER NOT NULL REFERENCES resources(id),
+    allocation INTEGER NOT NULL,
+    role TEXT NOT NULL
+  );
+  CREATE INDEX assignments_phase ON assignments(phase_id);
+  CREATE INDEX assignments_resource ON assignments(resource_id);
+
+  CREATE TABLE events (
+    id INTEGER PRIMARY KEY,
+    type TEXT NOT NULL,
+    effective_date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    resource_id INTEGER REFERENCES resources(id) ON DELETE CASCADE,
+    week_start TEXT,
+    decision TEXT,
+    note TEXT
+  );
+  CREATE INDEX events_type ON events(type);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

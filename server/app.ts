@@ -4,9 +4,14 @@ import { todayLocal, type ISODate } from '../shared/calendar';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
-  leaveInputSchema, listValueInputSchema, newProjectSchema, projectDetailsSchema, resourceInputSchema, toIssues,
+  assignmentsUpdateSchema, leaveInputSchema, listValueInputSchema, newProjectSchema, overloadDecisionSchema, projectDetailsSchema,
+  resourceInputSchema, toIssues,
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
+import {
+  checkAssignmentPeople, isTechPerson, phaseProjectId, recordDecision, saveAssignments, workloadData,
+} from './assignments/repo';
+import { transaction } from './db';
 import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
 import { checkRefs, createProject, getProject, listProjects, updateProjectDetails } from './projects/repo';
 import {
@@ -98,7 +103,10 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.post('/api/projects', async (req, reply) => {
     const parsed = newProjectSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid project', issues: toIssues(parsed.error) });
-    const issues = checkRefs(db, parsed.data);
+    const issues = [
+      ...checkRefs(db, parsed.data),
+      ...parsed.data.phases.flatMap((p, i) => checkAssignmentPeople(db, p.assignments, `phases.${i}.assignments`)),
+    ];
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid project', issues });
     return reply.code(201).send(createProject(db, getCalendar(db), parsed.data, today()));
   });
@@ -111,6 +119,27 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const project = updateProjectDetails(db, Number(req.params.id), parsed.data, today());
     if (!project) return reply.code(404).send({ error: 'Project not found' });
     return project;
+  });
+
+  app.put<{ Params: { id: string } }>('/api/phases/:id/assignments', async (req, reply) => {
+    const phaseId = Number(req.params.id);
+    const projectId = phaseProjectId(db, phaseId);
+    if (projectId === undefined) return reply.code(404).send({ error: 'Phase not found' });
+    const parsed = assignmentsUpdateSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid assignments', issues: toIssues(parsed.error) });
+    const issues = checkAssignmentPeople(db, parsed.data.assignments, 'assignments');
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid assignments', issues });
+    transaction(db, () => saveAssignments(db, phaseId, parsed.data.assignments));
+    return getProject(db, projectId);
+  });
+
+  app.get('/api/workload', async () => workloadData(db));
+
+  app.post('/api/overloads/decisions', async (req, reply) => {
+    const parsed = overloadDecisionSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid decision', issues: toIssues(parsed.error) });
+    if (!isTechPerson(db, parsed.data.resourceId)) return reply.code(404).send({ error: 'Person not found' });
+    return reply.code(201).send(recordDecision(db, parsed.data, today()));
   });
 
   app.get<{ Querystring: { year?: string } }>('/api/portfolio', async (req, reply) => {
