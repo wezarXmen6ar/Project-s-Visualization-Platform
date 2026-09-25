@@ -54,7 +54,7 @@ client/   React + Vite
 ## 2. Data model (APPROVED)
 
 **People and calendar**
-- `Resource`: name, role (PM, tech lead, BA, developer, designer, QA, DB engineer, InfoSec, business owner), specialisation (front end, back end or full stack), email, capacity % (default 100), active flag.
+- `Resource`: name, **side** (Tech team or Business side), role, specialisation (front end, back end or full stack), email, phone (UAE mobile), capacity % (default 100), active flag. Roles are an editable list (Project manager, Tech lead, Business analyst, Developer, Designer, QA, DB engineer, InfoSec). **Business-side people (M4 decision, 2026-09-25)** are contacts, such as a project's business PM: they have a phone and email but no role, specialisation or capacity, are never assigned to phases and are not counted in workload. A person in use is made inactive rather than deleted.
 - `Holiday`: name, start date, end date. `Leave`: resource, start date, end date. Weekend days are a setting.
 
 **Projects**
@@ -96,7 +96,7 @@ Two tiles: **Project Management** and **Project Presentation**.
   - **Project manager (tech)** — from the technical team (the user's side).
   - **Business project manager** — the business owner's representative, with an optional **UAE mobile** (accepts +971 / 00971 / 971 / 0 in front of 5X XXX XXXX, with spaces or dashes; stored and shown as `+971 5X XXX XXXX`) and an optional **email**. Name, phone and email are each optional.
   - **Business owner** is the **Business user (department)** below, i.e. the department that owns the business side. There is no separate business-owner field.
-  - Both PM names are free text until the Resources list arrives (M4).
+  - From M4 both PMs are **chosen from Resources**: the tech PM from the tech team, the business PM from business-side contacts, whose phone and email live on their Resources entry. "+ Add new person…" adds someone inline.
 - Main project: Standalone, or Part of a main project (dropdown, with **+ Add new** inline).
 - Categorisation: Strategic / Operational.
 - Project type: Criminal / Customer / Management. **"Other" adds a new value to the list.**
@@ -113,7 +113,7 @@ Two tiles: **Project Management** and **Project Presentation**.
 
 **Step 3: Phases.** Each phase name is **chosen from a dropdown** over an editable **Phases** list (Settings), with **"Other…"** adding a new name to the list (post-M3-demo feedback, 2026-09-25). New projects start with nine phases: **Requirements gathering, Business analysis, Development plan, Development, QA, UAT, Security testing, Deployment, Launch**. "Design" stays in the list for projects that need it but is not a default. Ordered phases with durations in working days, **reordered by dragging** the row (post-M1-demo feedback, 2026-09-24 — not up/down buttons, to keep it to one motion). End dates are calculated from the working calendar and recompute immediately when the order changes. Optional sub-phases on any phase. Live Gantt preview: each bar is coloured by the shared, name-keyed palette (§2) — renaming a phase to a recognised name (e.g. typing "UAT") updates its colour live — and shows the **phase name written on the bar itself**, hidden only when the bar is too narrow to fit it.
 
-**Step 4: People.** Assign resources to phases with an allocation %. Overload warnings appear immediately.
+**Step 4: People.** Assign tech-team people to phases with an allocation % (1–100) and a role (responsible or contributor). Overload warnings appear immediately. The same editor is on the project page, where people can be changed at any time.
 
 **Step 5: History.** Only shown if any dates are in the past (record-history mode).
 
@@ -149,7 +149,9 @@ Saving creates Baseline 1.
 
 ### 3.7 Resources page
 - A simple table with add and edit, filtered by role.
-- A **workload heatmap** of people by weeks, coloured by allocation %. Clicking a cell shows the conflict and opens the decision prompt.
+- A **workload heatmap** of people by weeks (Monday to Sunday), coloured by how much of each week is booked. Booked % = each assignment's allocation × the working days it covers that week ÷ the week's working days. Available % = capacity reduced by leave days. A week is overbooked when booked is more than available. Clicking a cell shows the conflict and opens the decision prompt.
+- **Decision prompt (M4):** Split the time, Reassign work (with each person's load that week shown), or Accept the risk (with an optional reason); each is recorded as a dated event. Pause a project and Delay a phase are shown but switch on with holds (M7) and phase changes (M8). An accepted overbooking stays visible in its own style and no longer counts in the dashboard warning.
+- Personal **leave** (dates and an optional note) is kept per person; leave days reduce what they can give that week.
 
 ### 3.8 Actions page
 All actions across projects, filtered by assignee (including "Mine") and sorted by due date.
