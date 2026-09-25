@@ -84,6 +84,38 @@ export const MIGRATIONS: string[] = [
     ('phase', 'Launch', 8),
     ('phase', 'Design', 9);
   `,
+  `
+  INSERT INTO list_values (list, name, sort_order) VALUES
+    ('role', 'Project manager', 0),
+    ('role', 'Tech lead', 1),
+    ('role', 'Business analyst', 2),
+    ('role', 'Developer', 3),
+    ('role', 'Designer', 4),
+    ('role', 'QA', 5),
+    ('role', 'DB engineer', 6),
+    ('role', 'InfoSec', 7);
+
+  CREATE TABLE resources (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    side TEXT NOT NULL,
+    role_id INTEGER REFERENCES list_values(id),
+    specialisation TEXT,
+    email TEXT,
+    phone TEXT,
+    capacity INTEGER NOT NULL DEFAULT 100,
+    active INTEGER NOT NULL DEFAULT 1
+  );
+
+  CREATE TABLE leave (
+    id INTEGER PRIMARY KEY,
+    resource_id INTEGER NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    note TEXT
+  );
+  CREATE INDEX leave_resource ON leave(resource_id);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

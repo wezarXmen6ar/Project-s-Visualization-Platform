@@ -67,5 +67,8 @@ export function sampleLists(): Lists {
       'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
       'Security testing', 'Deployment', 'Launch', 'Design',
     ].map((name, i) => ({ id: 50 + i, list: 'phase' as const, name, order: i })),
+    role: [
+      'Project manager', 'Tech lead', 'Business analyst', 'Developer', 'Designer', 'QA', 'DB engineer', 'InfoSec',
+    ].map((name, i) => ({ id: 60 + i, list: 'role' as const, name, order: i })),
   };
 }

@@ -2,7 +2,7 @@ import type { ISODate } from './calendar';
 import type { PortfolioStats } from './portfolio';
 
 /** The editable dropdown lists (managed in Settings). A main project is just a name, so it is a list too. */
-export const LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department', 'phase'] as const;
+export const LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department', 'phase', 'role'] as const;
 export type ListName = (typeof LIST_NAMES)[number];
 
 export interface ListValue {
@@ -37,6 +37,38 @@ export interface ScopeItem {
   order: number;
   /** When the item was first added; kept across edits (feeds scope-growth views later). */
   dateAdded: ISODate;
+}
+
+/** 'tech': your team, counted in workload and assignable to phases. 'business': business-side contacts, not counted. */
+export const SIDES = ['tech', 'business'] as const;
+export type Side = (typeof SIDES)[number];
+
+export const SPECIALISATIONS = ['front-end', 'back-end', 'full-stack'] as const;
+export type Specialisation = (typeof SPECIALISATIONS)[number];
+
+export interface LeaveRecord {
+  id: number;
+  start: ISODate;
+  end: ISODate;
+  note: string | null;
+}
+
+export interface ResourceRecord {
+  id: number;
+  name: string;
+  side: Side;
+  /** Tech side only. */
+  role: Ref | null;
+  /** Tech side only. */
+  specialisation: Specialisation | null;
+  email: string | null;
+  /** Normalised UAE mobile, "+971 5X XXX XXXX". */
+  phone: string | null;
+  /** % of a full working week this person can give (tech side; business contacts are always 100). */
+  capacity: number;
+  active: boolean;
+  /** Ordered by start date. */
+  leave: LeaveRecord[];
 }
 
 export interface PhaseRecord {

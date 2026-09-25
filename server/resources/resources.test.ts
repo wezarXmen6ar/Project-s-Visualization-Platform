@@ -1,0 +1,125 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import type { DatabaseSync } from 'node:sqlite';
+import { buildApp } from '../app';
+import { openDb } from '../db';
+
+let db: DatabaseSync;
+let app: ReturnType<typeof buildApp>;
+let roles: Record<string, number>;
+
+beforeEach(async () => {
+  db = openDb(':memory:');
+  app = buildApp(db);
+  const lists = (await app.inject({ method: 'GET', url: '/api/lists' })).json();
+  roles = Object.fromEntries(lists.role.map((v: { id: number; name: string }) => [v.name, v.id]));
+});
+
+const post = (payload: object) => app.inject({ method: 'POST', url: '/api/resources', payload });
+
+describe('resources API', () => {
+  it('starts with the default roles', () => {
+    expect(Object.keys(roles)).toEqual([
+      'Project manager', 'Tech lead', 'Business analyst', 'Developer', 'Designer', 'QA', 'DB engineer', 'InfoSec',
+    ]);
+  });
+
+  it('adds a tech-team person with a role, specialisation and capacity', async () => {
+    const res = await post({
+      name: ' Fatima Noor ', side: 'tech', roleId: roles.Developer, specialisation: 'front-end',
+      email: 'fatima@example.com', capacity: 80,
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toEqual({
+      id: expect.any(Number), name: 'Fatima Noor', side: 'tech', role: { id: roles.Developer, name: 'Developer' },
+      specialisation: 'front-end', email: 'fatima@example.com', phone: null, capacity: 80, active: true, leave: [],
+    });
+  });
+
+  it('adds a business-side contact with a normalised UAE mobile, ignoring role, specialisation and capacity', async () => {
+    const res = await post({
+      name: 'Mariam Al Suwaidi', side: 'business', roleId: roles.Developer, specialisation: 'back-end', capacity: 50,
+      phone: '050 123 4567',
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({ side: 'business', role: null, specialisation: null, capacity: 100, phone: '+971 50 123 4567' });
+  });
+
+  it('rejects a missing name, a bad phone, a capacity out of range and a role from another list', async () => {
+    const bad = await post({ name: ' ', side: 'tech', capacity: 0, phone: '04 123 4567' });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().issues.map((i: { path: string; message: string }) => [i.path, i.message])).toEqual([
+      ['name', 'Name is required'],
+      ['phone', 'Enter a UAE mobile number, e.g. +971 50 123 4567'],
+      ['capacity', 'Capacity must be between 1% and 100%'],
+    ]);
+
+    const goal = (await app.inject({ method: 'GET', url: '/api/lists' })).json().goal[0];
+    const wrongList = await post({ name: 'X', side: 'tech', roleId: goal.id });
+    expect(wrongList.statusCode).toBe(400);
+    expect(wrongList.json().issues).toEqual([{ path: 'roleId', message: 'Unknown role' }]);
+  });
+
+  it('lists the tech team first, then business contacts, each by name', async () => {
+    await post({ name: 'Zaid', side: 'business' });
+    await post({ name: 'Omar', side: 'tech' });
+    await post({ name: 'aisha', side: 'tech' });
+    const names = (await app.inject({ method: 'GET', url: '/api/resources' })).json().map((r: { name: string }) => r.name);
+    expect(names).toEqual(['aisha', 'Omar', 'Zaid']);
+  });
+
+  it('updates a person and returns 404 for an unknown one', async () => {
+    const created = (await post({ name: 'Omar', side: 'tech' })).json();
+    const res = await app.inject({
+      method: 'PUT', url: `/api/resources/${created.id}`,
+      payload: { name: 'Omar Haddad', side: 'tech', roleId: roles['Project manager'], active: false },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ name: 'Omar Haddad', role: { name: 'Project manager' }, active: false });
+    const missing = await app.inject({ method: 'PUT', url: '/api/resources/999', payload: { name: 'X', side: 'tech' } });
+    expect(missing.statusCode).toBe(404);
+    expect(missing.json()).toEqual({ error: 'Person not found' });
+  });
+
+  it('records leave, refuses an end before the start, and removes leave', async () => {
+    const person = (await post({ name: 'Fatima', side: 'tech' })).json();
+    const added = await app.inject({
+      method: 'POST', url: `/api/resources/${person.id}/leave`,
+      payload: { start: '2026-10-12', end: '2026-10-16', note: 'Annual leave' },
+    });
+    expect(added.statusCode).toBe(201);
+    expect(added.json()).toEqual({ id: expect.any(Number), start: '2026-10-12', end: '2026-10-16', note: 'Annual leave' });
+
+    const backwards = await app.inject({
+      method: 'POST', url: `/api/resources/${person.id}/leave`, payload: { start: '2026-10-16', end: '2026-10-12' },
+    });
+    expect(backwards.statusCode).toBe(400);
+    expect(backwards.json().issues).toEqual([{ path: 'end', message: 'End date must be on or after the start date' }]);
+
+    const noPerson = await app.inject({
+      method: 'POST', url: '/api/resources/999/leave', payload: { start: '2026-10-12', end: '2026-10-12' },
+    });
+    expect(noPerson.statusCode).toBe(404);
+
+    const listed = (await app.inject({ method: 'GET', url: '/api/resources' })).json()[0];
+    expect(listed.leave).toEqual([added.json()]);
+    expect((await app.inject({ method: 'DELETE', url: `/api/leave/${added.json().id}` })).statusCode).toBe(204);
+    const again = await app.inject({ method: 'DELETE', url: `/api/leave/${added.json().id}` });
+    expect(again.statusCode).toBe(404);
+    expect(again.json()).toEqual({ error: 'Leave not found' });
+  });
+
+  it('deletes a person together with their leave', async () => {
+    const person = (await post({ name: 'Temp', side: 'tech' })).json();
+    await app.inject({ method: 'POST', url: `/api/resources/${person.id}/leave`, payload: { start: '2026-10-12', end: '2026-10-12' } });
+    expect((await app.inject({ method: 'DELETE', url: `/api/resources/${person.id}` })).statusCode).toBe(204);
+    expect((await app.inject({ method: 'GET', url: '/api/resources' })).json()).toEqual([]);
+    expect((await app.inject({ method: 'DELETE', url: `/api/resources/${person.id}` })).statusCode).toBe(404);
+  });
+
+  it('will not delete a role that a person has', async () => {
+    await post({ name: 'Fatima', side: 'tech', roleId: roles.Developer });
+    const res = await app.inject({ method: 'DELETE', url: `/api/lists/role/${roles.Developer}` });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ error: '"Developer" is used by 1 person' });
+  });
+});

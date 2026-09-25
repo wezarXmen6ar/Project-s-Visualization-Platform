@@ -3,10 +3,15 @@ import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate } from '../shared/calendar';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
-import { listValueInputSchema, newProjectSchema, projectDetailsSchema, toIssues } from '../shared/schemas';
+import {
+  leaveInputSchema, listValueInputSchema, newProjectSchema, projectDetailsSchema, resourceInputSchema, toIssues,
+} from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
 import { checkListRefs, createProject, getProject, listProjects, updateProjectDetails } from './projects/repo';
+import {
+  addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, listResources, updateResource,
+} from './resources/repo';
 import { getCalendar } from './settings';
 
 export interface AppOptions {
@@ -45,6 +50,42 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const result = deleteListValue(db, req.params.list, Number(req.params.id));
     return result.ok ? reply.code(204).send() : reply.code(result.status).send({ error: result.error });
   });
+
+  app.get('/api/resources', async () => listResources(db));
+
+  app.post('/api/resources', async (req, reply) => {
+    const parsed = resourceInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid person', issues: toIssues(parsed.error) });
+    const issues = checkResourceRefs(db, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid person', issues });
+    return reply.code(201).send(createResource(db, parsed.data));
+  });
+
+  app.put<{ Params: { id: string } }>('/api/resources/:id', async (req, reply) => {
+    const parsed = resourceInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid person', issues: toIssues(parsed.error) });
+    const issues = checkResourceRefs(db, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid person', issues });
+    const person = updateResource(db, Number(req.params.id), parsed.data);
+    if (!person) return reply.code(404).send({ error: 'Person not found' });
+    return person;
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/resources/:id', async (req, reply) => {
+    const result = deleteResource(db, Number(req.params.id));
+    return result.ok ? reply.code(204).send() : reply.code(result.status).send({ error: result.error });
+  });
+
+  app.post<{ Params: { id: string } }>('/api/resources/:id/leave', async (req, reply) => {
+    const parsed = leaveInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid leave', issues: toIssues(parsed.error) });
+    const leave = addLeave(db, Number(req.params.id), parsed.data);
+    if (!leave) return reply.code(404).send({ error: 'Person not found' });
+    return reply.code(201).send(leave);
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/leave/:id', async (req, reply) =>
+    deleteLeave(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send({ error: 'Leave not found' }));
 
   app.get('/api/projects', async () => listProjects(db));
 

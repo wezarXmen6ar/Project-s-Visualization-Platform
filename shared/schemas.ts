@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isISODate } from './calendar';
-import { CATEGORIES, PRIORITIES, SCOPE_KINDS } from './types';
+import { CATEGORIES, PRIORITIES, SCOPE_KINDS, SIDES, SPECIALISATIONS } from './types';
 
 export const isoDate = z.string().refine(isISODate, 'Must be a valid date (YYYY-MM-DD)');
 
@@ -119,3 +119,34 @@ export interface ValidationIssue {
 export function toIssues(error: z.ZodError): ValidationIssue[] {
   return error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }));
 }
+
+export const resourceInputSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Name is required').max(200),
+    side: z.enum(SIDES),
+    roleId: optionalId,
+    specialisation: z
+      .enum(SPECIALISATIONS)
+      .nullish()
+      .transform((v) => v ?? null),
+    email: optionalEmail,
+    phone: optionalUaeMobile,
+    capacity: z
+      .number({ invalid_type_error: 'Capacity must be a number' })
+      .int('Capacity must be a whole number')
+      .min(1, 'Capacity must be between 1% and 100%')
+      .max(100, 'Capacity must be between 1% and 100%')
+      .default(100),
+    active: z.boolean().default(true),
+  })
+  // Business contacts have no role or specialisation, and are not counted in workload.
+  .transform((r) => (r.side === 'business' ? { ...r, roleId: null, specialisation: null, capacity: 100 } : r));
+
+export const leaveInputSchema = z
+  .object({ start: isoDate, end: isoDate, note: optionalText(200) })
+  .refine((l) => l.end >= l.start, { message: 'End date must be on or after the start date', path: ['end'] });
+
+export type ResourceInput = z.input<typeof resourceInputSchema>;
+export type ResourceData = z.output<typeof resourceInputSchema>;
+export type LeaveInput = z.input<typeof leaveInputSchema>;
+export type LeaveData = z.output<typeof leaveInputSchema>;
