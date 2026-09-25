@@ -1,0 +1,39 @@
+import { Link } from 'react-router';
+import type { ISODate } from '../../../shared/calendar';
+import type { WorkloadData } from '../../../shared/types';
+import { dayDate } from '../../overloads';
+import { ASSIGNMENT_ROLE_LABEL } from './labels';
+
+interface PersonWorkProps {
+  personId: number;
+  workload: WorkloadData | undefined;
+  today: ISODate;
+}
+
+/** What this person is currently and about to be working on: every assignment that has not ended yet. */
+export function PersonWork({ personId, workload, today }: PersonWorkProps) {
+  const items = (workload?.assignments ?? [])
+    .filter((a) => a.resourceId === personId && a.end >= today)
+    .sort((a, b) => a.start.localeCompare(b.start) || a.projectName.localeCompare(b.projectName));
+
+  return (
+    <section className="card">
+      <h2>Working on</h2>
+      {items.length === 0 ? (
+        <p className="muted item-empty">Nothing booked from today on.</p>
+      ) : (
+        <ul className="work-list">
+          {items.map((a) => (
+            <li key={a.id}>
+              <Link to={`/manage/projects/${a.projectId}`}>{a.projectName}</Link> › {a.phaseName}
+              {a.start <= today && today <= a.end ? <span className="badge">Now</span> : null}
+              <span className="muted">
+                {dayDate(a.start)} – {dayDate(a.end)} · {a.allocation}% · {ASSIGNMENT_ROLE_LABEL[a.role]}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

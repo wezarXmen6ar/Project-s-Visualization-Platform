@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { describe, expect, it } from 'vitest';
-import type { LeaveRecord, ResourceRecord } from '../../../shared/types';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { LeaveRecord, ResourceRecord, WorkloadData } from '../../../shared/types';
 import type { WorkCalendar } from '../../../shared/calendar';
-import { mockFetch, sampleLists, samplePeople, type MockHandler } from '../../testing/mockFetch';
+import { mockFetch, sampleLists, samplePeople, sampleWorkload, type MockHandler } from '../../testing/mockFetch';
 import { PersonPage } from './PersonPage';
 
 function renderAt(url: string) {
@@ -44,10 +44,15 @@ function fakeServer(calendar: WorkCalendar = { weekendDays: [0, 6], holidays: []
       fatima().leave = [];
       return { status: 204, body: null };
     },
+    'GET /api/workload': () => ({ body: sampleWorkload() }),
   };
 }
 
 describe('PersonPage', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('adds a tech-team person', async () => {
     const fetchMock = mockFetch(fakeServer());
     const user = userEvent.setup();
@@ -151,5 +156,64 @@ describe('PersonPage', () => {
     mockFetch(fakeServer());
     renderAt('/manage/resources/999');
     expect(await screen.findByText('Person not found')).toBeInTheDocument();
+  });
+
+  it('shows what the person is working on, running first, soonest next, and not what is past', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+    const workload: WorkloadData = {
+      calendar: { weekendDays: [0, 6], holidays: [] },
+      resources: [{ id: 71, name: 'Fatima Noor', capacity: 100, leave: [] }],
+      assignments: [
+        {
+          id: 600, resourceId: 71, phaseId: 800, projectId: 85, projectName: 'Old Project', phaseName: 'Deployment',
+          start: '2026-08-01', end: '2026-08-10', allocation: 100, role: 'responsible',
+        },
+        {
+          id: 601, resourceId: 71, phaseId: 801, projectId: 91, projectName: 'Case Management', phaseName: 'QA',
+          start: '2026-10-05', end: '2026-10-09', allocation: 100, role: 'responsible',
+        },
+        {
+          id: 602, resourceId: 71, phaseId: 802, projectId: 95, projectName: 'E-Services Mobile App',
+          phaseName: 'Development › Increment 3 – Payments',
+          start: '2026-11-02', end: '2026-11-20', allocation: 60, role: 'responsible',
+        },
+      ],
+      decisions: [],
+    };
+    mockFetch({ ...fakeServer(), 'GET /api/workload': () => ({ body: workload }) });
+    renderAt('/manage/resources/71');
+
+    const heading = await screen.findByRole('heading', { name: 'Working on' });
+    const card = heading.closest('section') as HTMLElement;
+    const items = within(card).getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+
+    expect(items[0]).toHaveTextContent('Case Management');
+    expect(within(items[0]).getByText('Now')).toBeInTheDocument();
+    expect(within(items[0]).getByRole('link', { name: 'Case Management' })).toHaveAttribute('href', '/manage/projects/91');
+
+    expect(items[1]).toHaveTextContent('E-Services Mobile App › Development › Increment 3 – Payments');
+    expect(items[1]).toHaveTextContent('60% · Responsible');
+    expect(within(items[1]).getByRole('link', { name: 'E-Services Mobile App' })).toHaveAttribute('href', '/manage/projects/95');
+    expect(within(items[1]).queryByText('Now')).toBeNull();
+  });
+
+  it('shows nothing booked when there is no upcoming work', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+    const empty: WorkloadData = { calendar: { weekendDays: [0, 6], holidays: [] }, resources: [], assignments: [], decisions: [] };
+    mockFetch({ ...fakeServer(), 'GET /api/workload': () => ({ body: empty }) });
+    renderAt('/manage/resources/71');
+    const heading = await screen.findByRole('heading', { name: 'Working on' });
+    const card = heading.closest('section') as HTMLElement;
+    expect(within(card).getByText('Nothing booked from today on.')).toBeInTheDocument();
+  });
+
+  it('has no Working on card for a business contact', async () => {
+    mockFetch(fakeServer());
+    renderAt('/manage/resources/80');
+    await screen.findByLabelText('Name');
+    expect(screen.queryByRole('heading', { name: 'Working on' })).toBeNull();
   });
 });

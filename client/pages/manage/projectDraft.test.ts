@@ -58,6 +58,10 @@ describe('projectDraft', () => {
     expect(stepOfIssue({ path: 'phases.2.name', message: '' })).toBe(2);
   });
 
+  it('sends a sub-phase person error to the People step too', () => {
+    expect(stepOfIssue({ path: 'phases.2.subPhases.0.assignments.1.resourceId', message: 'x' })).toBe(3);
+  });
+
   it('maps a sub-phase draft assignment with no person chosen to resourceId 0', () => {
     const result = phasesToInput([
       {

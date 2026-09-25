@@ -253,6 +253,64 @@ describe('CreateProjectPage wizard', () => {
     expect(dev.subPhases).toEqual([{ name: 'Increment 1', durationDays: 5, withPrevious: false, assignments: [] }]);
   });
 
+  it('assigns people to a sub-phase and sends that assignment with the new project', async () => {
+    const fetchMock = mockFetch({
+      ...baseRoutes,
+      'POST /api/projects': () => ({ status: 201, body: sampleProject({ id: 7 }) }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    await phasesLoaded();
+
+    await user.click(screen.getByRole('button', { name: 'Add sub-phase to phase 4' }));
+    await user.type(screen.getByLabelText('Phase 4 sub-phase 1 name'), 'Increment 1');
+
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add person to Development › Increment 1' }));
+    await screen.findByRole('option', { name: 'Fatima Noor · Developer' });
+    await user.selectOptions(screen.getByLabelText('Development › Increment 1 person 1'), 'Fatima Noor · Developer');
+
+    await user.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByText('Project page 7')).toBeInTheDocument();
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
+    const sent = JSON.parse(post![1]!.body as string);
+    const dev = sent.phases.find((p: { name: string }) => p.name === 'Development');
+    expect(dev.subPhases[0].assignments).toEqual([{ resourceId: 71, allocation: 100, role: 'responsible' }]);
+  });
+
+  it('flags a person booked on two parallel sub-phases', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-10-05' } });
+    await phasesLoaded();
+
+    await user.click(screen.getByRole('button', { name: 'Add sub-phase to phase 4' }));
+    await user.type(screen.getByLabelText('Phase 4 sub-phase 1 name'), 'Increment 1');
+    await user.click(screen.getByRole('button', { name: 'Add sub-phase to phase 4' }));
+    await user.type(screen.getByLabelText('Phase 4 sub-phase 2 name'), 'Increment 2');
+    await user.selectOptions(screen.getByLabelText('Phase 4 sub-phase 2 starts'), 'With the one above');
+
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add person to Development › Increment 1' }));
+    await screen.findByRole('option', { name: 'Fatima Noor · Developer' });
+    await user.selectOptions(screen.getByLabelText('Development › Increment 1 person 1'), 'Fatima Noor · Developer');
+
+    await user.click(screen.getByRole('button', { name: 'Add person to Development › Increment 2' }));
+    await user.selectOptions(screen.getByLabelText('Development › Increment 2 person 1'), 'Fatima Noor · Developer');
+
+    // Both increments run the same five days at 100%, so Fatima is 200% booked that week — flagged under both.
+    const matches = await screen.findAllByText(/% booked, \d+% available/);
+    expect(matches).toHaveLength(2);
+    expect(matches[0].textContent).toBe(matches[1].textContent);
+  });
+
   it('assigns people on Step 4, flags overbooking straight away, and sends the assignments', async () => {
     const fetchMock = mockFetch({
       ...baseRoutes,

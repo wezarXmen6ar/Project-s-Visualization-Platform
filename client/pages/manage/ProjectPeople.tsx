@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { ProjectRecord, ResourceRecord, WorkloadData } from '../../../shared/types';
 import { AssignmentsEditor } from '../../components/AssignmentsEditor';
 import { AlertIcon } from '../../icons';
@@ -6,6 +6,99 @@ import { api } from '../../api';
 import { messagesOf } from '../../errors';
 import { dayDate, overloadsWith, phaseWarnings, plannedFrom, type DraftAssignment } from '../../overloads';
 import { ASSIGNMENT_ROLE_LABEL } from './labels';
+
+interface PhasePeopleBlockProps {
+  id: number;
+  label: string;
+  start: string;
+  end: string;
+  project: ProjectRecord;
+  people: ResourceRecord[];
+  workload: WorkloadData | undefined;
+  editing: number | null;
+  draft: DraftAssignment[];
+  errors: string[];
+  saving: boolean;
+  onStartEdit: (id: number) => void;
+  onSave: (id: number) => void;
+  onCancel: () => void;
+  onChangeDraft: (value: DraftAssignment[]) => void;
+}
+
+/** The people on one phase or sub-phase, editable on its own, with overbooking flagged before saving. */
+function PhasePeopleBlock({
+  id, label, start, end, project, people, workload, editing, draft, errors, saving, onStartEdit, onSave, onCancel, onChangeDraft,
+}: PhasePeopleBlockProps) {
+  const saved = project.assignments.filter((a) => a.phaseId === id);
+  const dates = `${dayDate(start)} – ${dayDate(end)}`;
+
+  if (editing === id) {
+    const planned = plannedFrom(draft, { start, end }, project.name, label);
+    const warnings = workload
+      ? phaseWarnings(overloadsWith(workload, planned, saved.map((a) => a.id)), { start, end }, workload.calendar)
+      : new Map<number, string[]>();
+    return (
+      <div className="phase-people-edit">
+        {errors.length > 0 ? (
+          <div className="errors" role="alert">
+            <AlertIcon />
+            <ul>{errors.map((m) => <li key={m}>{m}</li>)}</ul>
+          </div>
+        ) : null}
+        <AssignmentsEditor
+          phaseName={label}
+          dates={dates}
+          people={people}
+          value={draft}
+          onChange={onChangeDraft}
+          warnings={warnings}
+        />
+        <div className="option-add-actions">
+          <button
+            type="button"
+            className="button"
+            disabled={saving}
+            aria-label={`Save people on ${label}`}
+            onClick={() => onSave(id)}
+          >
+            Save
+          </button>
+          <button type="button" className="button secondary" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="phase-people">
+      <div className="phase-people-head">
+        <h3>
+          {label} <span className="muted phase-dates">{dates}</span>
+        </h3>
+        <button
+          type="button"
+          className="button secondary"
+          aria-label={`Edit people on ${label}`}
+          disabled={editing !== null}
+          onClick={() => onStartEdit(id)}
+        >
+          Edit
+        </button>
+      </div>
+      {saved.length === 0 ? (
+        <p className="muted item-empty">No one assigned.</p>
+      ) : (
+        <ul className="people-list">
+          {saved.map((a) => (
+            <li key={a.id}>
+              <span>{a.resource.name}</span> — {a.allocation}% · {ASSIGNMENT_ROLE_LABEL[a.role]}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 interface ProjectPeopleProps {
   project: ProjectRecord;
@@ -15,29 +108,29 @@ interface ProjectPeopleProps {
   onSaved: (project: ProjectRecord) => void;
 }
 
-/** The people on each phase, editable one phase at a time, with overbooking flagged before saving. */
+/** The people on each phase and sub-phase, editable one at a time, with overbooking flagged before saving. */
 export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeopleProps) {
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState<DraftAssignment[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
-  function startEdit(phaseId: number) {
-    setEditing(phaseId);
+  function startEdit(id: number) {
+    setEditing(id);
     setErrors([]);
     setDraft(
       project.assignments
-        .filter((a) => a.phaseId === phaseId)
+        .filter((a) => a.phaseId === id)
         .map((a) => ({ resourceId: a.resource.id, allocation: a.allocation, role: a.role })),
     );
   }
 
-  async function save(phaseId: number) {
+  async function save(id: number) {
     setSaving(true);
     setErrors([]);
     try {
       const updated = await api.setPhaseAssignments(
-        phaseId,
+        id,
         draft.map((a) => ({ resourceId: a.resourceId ?? 0, allocation: a.allocation, role: a.role })),
       );
       setEditing(null);
@@ -52,77 +145,47 @@ export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeo
   return (
     <section className="card">
       <h2>People</h2>
-      {project.phases.map((phase) => {
-        const saved = project.assignments.filter((a) => a.phaseId === phase.id);
-        const dates = `${dayDate(phase.start)} – ${dayDate(phase.end)}`;
-
-        if (editing === phase.id) {
-          const planned = plannedFrom(draft, phase, project.name, phase.name);
-          const warnings = workload
-            ? phaseWarnings(overloadsWith(workload, planned, saved.map((a) => a.id)), phase, workload.calendar)
-            : new Map<number, string[]>();
-          return (
-            <div key={phase.id} className="phase-people-edit">
-              {errors.length > 0 ? (
-                <div className="errors" role="alert">
-                  <AlertIcon />
-                  <ul>{errors.map((m) => <li key={m}>{m}</li>)}</ul>
-                </div>
-              ) : null}
-              <AssignmentsEditor
-                phaseName={phase.name}
-                dates={dates}
-                people={people}
-                value={draft}
-                onChange={setDraft}
-                warnings={warnings}
-              />
-              <div className="option-add-actions">
-                <button
-                  type="button"
-                  className="button"
-                  disabled={saving}
-                  aria-label={`Save people on ${phase.name}`}
-                  onClick={() => void save(phase.id)}
-                >
-                  Save
-                </button>
-                <button type="button" className="button secondary" onClick={() => setEditing(null)}>Cancel</button>
-              </div>
-            </div>
-          );
-        }
-
-        return (
-          <div key={phase.id} className="phase-people">
-            <div className="phase-people-head">
-              <h3>
-                {phase.name} <span className="muted phase-dates">{dates}</span>
-              </h3>
-              <button
-                type="button"
-                className="button secondary"
-                aria-label={`Edit people on ${phase.name}`}
-                disabled={editing !== null}
-                onClick={() => startEdit(phase.id)}
-              >
-                Edit
-              </button>
-            </div>
-            {saved.length === 0 ? (
-              <p className="muted item-empty">No one assigned.</p>
-            ) : (
-              <ul className="people-list">
-                {saved.map((a) => (
-                  <li key={a.id}>
-                    <span>{a.resource.name}</span> — {a.allocation}% · {ASSIGNMENT_ROLE_LABEL[a.role]}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        );
-      })}
+      {project.phases.map((phase) => (
+        <Fragment key={phase.id}>
+          <PhasePeopleBlock
+            id={phase.id}
+            label={phase.name}
+            start={phase.start}
+            end={phase.end}
+            project={project}
+            people={people}
+            workload={workload}
+            editing={editing}
+            draft={draft}
+            errors={errors}
+            saving={saving}
+            onStartEdit={startEdit}
+            onSave={(id) => void save(id)}
+            onCancel={() => setEditing(null)}
+            onChangeDraft={setDraft}
+          />
+          {phase.subPhases.map((sub) => (
+            <PhasePeopleBlock
+              key={sub.id}
+              id={sub.id}
+              label={`${phase.name} › ${sub.name}`}
+              start={sub.start}
+              end={sub.end}
+              project={project}
+              people={people}
+              workload={workload}
+              editing={editing}
+              draft={draft}
+              errors={errors}
+              saving={saving}
+              onStartEdit={startEdit}
+              onSave={(id) => void save(id)}
+              onCancel={() => setEditing(null)}
+              onChangeDraft={setDraft}
+            />
+          ))}
+        </Fragment>
+      ))}
     </section>
   );
 }

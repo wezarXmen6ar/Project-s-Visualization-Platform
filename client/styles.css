@@ -565,6 +565,19 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .phase-people, .phase-people-edit { padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
 .phase-people:last-child, .phase-people-edit:last-child { border-bottom: 0; }
 .phase-people h3 { margin-bottom: var(--sp-2); }
+.sub-phase-people { margin-left: var(--sp-5); }
+.work-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--sp-3); }
+.work-list .muted { display: block; font-size: 0.875rem; }
+.badge {
+  display: inline-block;
+  margin-left: var(--sp-2);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--primary) 15%, transparent);
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
 .phase-people-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); }
 .phase-dates { font-weight: 400; font-size: var(--fs-sm); }
 .people-list { margin: 0; padding-left: 1.2em; }

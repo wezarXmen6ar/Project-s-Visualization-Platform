@@ -195,7 +195,7 @@ const STEP_FIELDS: string[][] = [
 
 /** The step (0–3) whose field has this issue, or -1 when no step owns it (e.g. a general server error). */
 export function stepOfIssue(issue: ValidationIssue): number {
-  if (/^phases\.\d+\.assignments/.test(issue.path)) return 3;
+  if (/^phases\.\d+\.(subPhases\.\d+\.)?assignments/.test(issue.path)) return 3;
   const field = issue.path.split('.')[0];
   return STEP_FIELDS.findIndex((fields) => fields.includes(field));
 }

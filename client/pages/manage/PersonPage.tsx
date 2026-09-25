@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { countWorkingDays, DEFAULT_CALENDAR, type WorkCalendar } from '../../../shared/calendar';
+import { countWorkingDays, DEFAULT_CALENDAR, todayLocal, type WorkCalendar } from '../../../shared/calendar';
 import { resourceInputSchema, toIssues, type ResourceInput } from '../../../shared/schemas';
 import type { ResourceRecord, Side, Specialisation } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
 import { useAsync } from '../../useAsync';
+import { useWorkload } from '../../useWorkload';
 import { SPECIALISATION_LABEL, formatDate } from './labels';
+import { PersonWork } from './PersonWork';
 
 interface PersonDraft {
   name: string;
@@ -128,6 +130,7 @@ export function PersonPage() {
   const people = useAsync(() => api.listResources(), [version]);
   const lists = useAsync(() => api.getLists(), []);
   const calendar = useAsync(() => api.getCalendar(), []);
+  const { workload } = useWorkload();
   const [edited, setEdited] = useState<PersonDraft | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -277,7 +280,10 @@ export function PersonPage() {
       </form>
 
       {existing && existing.side === 'tech' ? (
-        <LeaveCard person={existing} onChanged={() => setVersion((v) => v + 1)} calendar={calendar.data ?? DEFAULT_CALENDAR} />
+        <>
+          <PersonWork personId={existing.id} workload={workload} today={todayLocal()} />
+          <LeaveCard person={existing} onChanged={() => setVersion((v) => v + 1)} calendar={calendar.data ?? DEFAULT_CALENDAR} />
+        </>
       ) : null}
     </main>
   );

@@ -131,6 +131,52 @@ describe('ProjectPage', () => {
     expect(JSON.parse(put![1]!.body as string)).toEqual({ assignments: [{ resourceId: 72, allocation: 20, role: 'responsible' }] });
   });
 
+  it('edits the people on a sub-phase', async () => {
+    const withSub = sampleProject({
+      phases: [
+        {
+          id: 12, name: 'Development', order: 0, durationDays: 5, start: '2026-10-05', end: '2026-10-09',
+          subPhases: [
+            { id: 31, name: 'Increment 1', order: 0, durationDays: 5, start: '2026-10-05', end: '2026-10-09', withPrevious: false },
+          ],
+        },
+      ],
+      assignments: [{ id: 300, phaseId: 31, resource: { id: 72, name: 'Rami Saleh' }, allocation: 50, role: 'responsible' }],
+    });
+    const workload = sampleWorkload();
+    workload.assignments.push({
+      id: 300, resourceId: 72, phaseId: 31, projectId: 1, projectName: 'Portal', phaseName: 'Development › Increment 1',
+      start: '2026-10-05', end: '2026-10-09', allocation: 50, role: 'responsible',
+    });
+    const fetchMock = mockFetch({
+      'GET /api/projects/1': () => ({ body: withSub }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/resources': () => ({ body: samplePeople() }),
+      'GET /api/workload': () => ({ body: workload }),
+      'PUT /api/phases/31/assignments': () => ({
+        body: {
+          ...withSub,
+          assignments: [{ id: 301, phaseId: 31, resource: { id: 72, name: 'Rami Saleh' }, allocation: 20, role: 'responsible' }],
+        },
+      }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    expect(await screen.findByText('Development › Increment 1')).toBeInTheDocument();
+    expect(screen.getByText(/50% · Responsible/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Edit people on Development › Increment 1' }));
+
+    const allocation = screen.getByLabelText('Development › Increment 1 allocation 1');
+    await user.clear(allocation);
+    await user.type(allocation, '20');
+
+    await user.click(screen.getByRole('button', { name: 'Save people on Development › Increment 1' }));
+    expect(await screen.findByText(/20% · Responsible/)).toBeInTheDocument();
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/phases/31/assignments' && init?.method === 'PUT');
+    expect(JSON.parse(put![1]!.body as string)).toEqual({ assignments: [{ resourceId: 72, allocation: 20, role: 'responsible' }] });
+  });
+
   it('shows sub-phases in the Phases table and on the Gantt chart', async () => {
     mockFetch({
       'GET /api/projects/1': () => ({
