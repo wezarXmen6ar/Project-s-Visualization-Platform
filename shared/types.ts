@@ -208,6 +208,9 @@ export interface ToDoRecord {
 /** Who "I am" is: the PM using the tool. */
 export interface Me { resourceId: number | null; name: string | null }
 
+/** The daily database backup: the newest one taken, and how many are kept. */
+export interface BackupStatus { latest: ISODate | null; count: number }
+
 /** A starter to-do kept against a Phases-list value, so a rename in Settings keeps its checklist. */
 export interface StarterToDo { id: number; phaseListId: number; title: string; order: number }
 

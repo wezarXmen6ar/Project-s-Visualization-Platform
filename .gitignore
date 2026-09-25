@@ -3,5 +3,6 @@ node_modules/
 *.db
 attachments/
 data/
+backups/
 dist/
 .claude/

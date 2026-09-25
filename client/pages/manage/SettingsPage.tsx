@@ -5,6 +5,7 @@ import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { api } from '../../api';
 import { useAsync } from '../../useAsync';
 import { useResources } from '../../useResources';
+import { BackupsCard } from './BackupsCard';
 import { ListEditor } from './ListEditor';
 import { MeSetting } from './MeSetting';
 import { StarterEditor } from './StarterEditor';
@@ -53,6 +54,8 @@ export function SettingsPage() {
           ))}
         </div>
       ) : null}
+
+      <BackupsCard />
     </main>
   );
 }

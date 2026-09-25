@@ -3,12 +3,12 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import type { ListValue, Me, StarterToDo } from '../../../shared/types';
+import type { BackupStatus, ListValue, Me, StarterToDo } from '../../../shared/types';
 import { mockFetch, sampleLists, samplePeople, type MockHandler } from '../../testing/mockFetch';
 import { SettingsPage } from './SettingsPage';
 
 /** A small in-memory stand-in for the lists API, so reloads show the change. */
-function fakeServer(): Record<string, MockHandler> {
+function fakeServer(backups: BackupStatus = { latest: null, count: 0 }): Record<string, MockHandler> {
   const lists = sampleLists();
   let me: Me = { resourceId: null, name: null };
   let starters: StarterToDo[] = [
@@ -16,6 +16,7 @@ function fakeServer(): Record<string, MockHandler> {
     { id: 2, phaseListId: 55, title: 'Confirm test data', order: 1 },
   ];
   return {
+    'GET /api/backups': () => ({ body: backups }),
     'GET /api/starter-todos': () => ({ body: starters }),
     'POST /api/starter-todos': (init) => {
       const body = JSON.parse(init!.body as string) as { phaseListId: number; title: string };
@@ -173,5 +174,17 @@ describe('SettingsPage', () => {
     expect(await screen.findByText('Write full test cases')).toBeInTheDocument();
     const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/starter-todos/1' && init?.method === 'PUT');
     expect(JSON.parse(put![1]!.body as string)).toEqual({ title: 'Write full test cases' });
+  });
+
+  it('shows the last backup and how many are kept', async () => {
+    mockFetch(fakeServer({ latest: '2026-09-25', count: 14 }));
+    renderPage();
+    expect(await screen.findByText('Last backup: Fri 25 Sep 2026 · 14 kept in the backups folder.')).toBeInTheDocument();
+  });
+
+  it('shows a message when there is no backup yet', async () => {
+    mockFetch(fakeServer({ latest: null, count: 0 }));
+    renderPage();
+    expect(await screen.findByText('No backup yet. One is taken each day while the app is running.')).toBeInTheDocument();
   });
 });

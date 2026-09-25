@@ -9,6 +9,7 @@ import {
   toDoInputSchema, toIssues,
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
+import { backupStatus } from './backup';
 import {
   checkAssignmentPeople, isTechPerson, phaseAssignmentResourceIds, phaseProjectId, recordDecision, saveAssignments, workloadData,
 } from './assignments/repo';
@@ -25,13 +26,18 @@ import { checkToDo, createToDo, deleteToDo, getToDo, listToDos, updateToDo } fro
 export interface AppOptions {
   /** Injectable clock so tests can fix "today". */
   today?: () => ISODate;
+  /** Where daily database backups are kept. */
+  backupDir?: string;
 }
 
 export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   const today = opts.today ?? todayLocal;
+  const backupDir = opts.backupDir ?? 'backups';
   const app = Fastify();
 
   app.get('/api/health', async () => ({ ok: true }));
+
+  app.get('/api/backups', async () => backupStatus(backupDir));
 
   app.get('/api/settings/calendar', async () => getCalendar(db));
 

@@ -4,8 +4,8 @@ import type {
   StarterToDoInput, ToDoInput, ValidationIssue,
 } from '../shared/schemas';
 import type {
-  LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision, PortfolioResponse, ProjectRecord, ResourceRecord, ScheduleSaved,
-  StarterSuggestion, StarterToDo, ToDoRecord, WorkloadData,
+  BackupStatus, LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision, PortfolioResponse, ProjectRecord, ResourceRecord,
+  ScheduleSaved, StarterSuggestion, StarterToDo, ToDoRecord, WorkloadData,
 } from '../shared/types';
 
 export class ApiError extends Error {
@@ -89,4 +89,5 @@ export const api = {
     ),
   acceptStarters: (projectId: number, items: { phaseId: number; title: string }[]) =>
     request<ToDoRecord[]>(`/api/projects/${projectId}/todos/from-starters`, withBody('POST', { items })),
+  getBackupStatus: () => request<BackupStatus>('/api/backups'),
 };
