@@ -44,7 +44,9 @@ describe('ProjectPage', () => {
     expect(screen.getByTestId('gantt-row-12')).toBeInTheDocument();
     const table = screen.getByRole('table');
     expect(within(table).getByText('Development')).toBeInTheDocument();
-    expect(within(table).getByText('3')).toBeInTheDocument();
+    expect(within(table).getAllByText('3')).toHaveLength(2);
+    expect(within(table).getAllByText('Mon 28 Sep 2026')).toHaveLength(2);
+    expect(within(table).getAllByText('Wed 30 Sep 2026')).toHaveLength(2);
   });
 
   it('shows the classification, description and scope, with a link to edit', async () => {
@@ -348,6 +350,24 @@ describe('ProjectPage to-dos', () => {
     expect(JSON.parse(put[1]!.body as string)).toMatchObject({ done: true });
   });
 
+  it('shows an error when ticking a to-do fails', async () => {
+    const todos = sampleToDos();
+    mockFetch({
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+      'PUT /api/todos/200': () => ({ status: 500, body: { error: 'Something went wrong' } }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    const toDosCard = (await screen.findByRole('heading', { name: 'To-dos' })).closest('section') as HTMLElement;
+    await user.click(within(toDosCard).getByLabelText('Done: Chase the missing contract'));
+
+    expect(await within(toDosCard).findByRole('alert')).toHaveTextContent('Something went wrong');
+  });
+
   it('deletes a to-do after confirming, and does nothing on Keep', async () => {
     const todos = sampleToDos();
     const fetchMock = mockFetch({
@@ -415,10 +435,7 @@ describe('ProjectPage to-dos', () => {
     const card = (await screen.findByRole('heading', { name: 'Next up' })).closest('section') as HTMLElement;
     expect(within(card).getByText('Task with phase')).toBeInTheDocument();
     expect(within(card).getByText('Due Thu 1 Oct')).toBeInTheDocument();
-    const metaLine = within(card).getByText((content, element) => {
-      return element?.className === 'todo-meta' && content.includes('Increment 1');
-    });
-    expect(metaLine).toBeInTheDocument();
+    expect(within(card).getByText(/Increment 1/)).toBeInTheDocument();
   });
 
   it('shows assignee name, due label, and phase name in a to-do row meta line', async () => {

@@ -3,6 +3,7 @@ import { subPhaseSpan, type PhaseInput } from '../../../shared/scheduler';
 import { SCOPE_KINDS, type Category, type Priority, type ProjectRecord, type ScopeKind, type ToDoRecord } from '../../../shared/types';
 import type { DraftItem } from '../../components/ItemTable';
 import type { DraftAssignment } from '../../overloads';
+import { subPhaseLabel } from '../../todos';
 
 /** The project details as the form holds them: text fields are plain strings, and each scope table is its own list. */
 export interface DetailsDraft {
@@ -159,33 +160,40 @@ export function scheduleToInput(startDate: string, phases: PhaseDraft[]): Schedu
 }
 
 /**
- * Every saved phase and sub-phase whose id is no longer anywhere in `phases` and that has people or open to-dos on
- * it, in plan order. A removed phase's sub-phases that were not moved elsewhere count as removed too.
+ * Every saved phase and sub-phase whose id is no longer anywhere in `phases` and that has people, open to-dos, or
+ * done to-dos on it, in plan order. A removed phase's sub-phases that were not moved elsewhere count as removed
+ * too. Done to-dos of a removed phase are always deleted, so they only add to the warning, never to the keep/delete
+ * choice (that only concerns open to-dos).
  */
 export function removedItems(
   p: ProjectRecord,
   phases: PhaseDraft[],
   todos: ToDoRecord[],
-): { label: string; people: number; openToDos: number }[] {
+): { label: string; people: number; openToDos: number; doneToDos: number }[] {
   const keptPhaseIds = new Set(phases.map((ph) => ph.id).filter((id): id is number => id !== undefined));
   const keptSubIds = new Set(
     phases.flatMap((ph) => ph.subPhases ?? []).map((s) => s.id).filter((id): id is number => id !== undefined),
   );
   const peopleOn = (id: number) => p.assignments.filter((a) => a.phaseId === id).length;
   const openToDosOn = (id: number) => todos.filter((t) => !t.done && t.phase?.id === id).length;
+  const doneToDosOn = (id: number) => todos.filter((t) => t.done && t.phase?.id === id).length;
 
-  const result: { label: string; people: number; openToDos: number }[] = [];
+  const result: { label: string; people: number; openToDos: number; doneToDos: number }[] = [];
   for (const phase of p.phases) {
     if (!keptPhaseIds.has(phase.id)) {
       const people = peopleOn(phase.id);
       const openToDos = openToDosOn(phase.id);
-      if (people > 0 || openToDos > 0) result.push({ label: phase.name, people, openToDos });
+      const doneToDos = doneToDosOn(phase.id);
+      if (people > 0 || openToDos > 0 || doneToDos > 0) result.push({ label: phase.name, people, openToDos, doneToDos });
     }
     for (const sub of phase.subPhases) {
       if (!keptSubIds.has(sub.id)) {
         const people = peopleOn(sub.id);
         const openToDos = openToDosOn(sub.id);
-        if (people > 0 || openToDos > 0) result.push({ label: `${phase.name} › ${sub.name}`, people, openToDos });
+        const doneToDos = doneToDosOn(sub.id);
+        if (people > 0 || openToDos > 0 || doneToDos > 0) {
+          result.push({ label: subPhaseLabel(phase.name, sub.name), people, openToDos, doneToDos });
+        }
       }
     }
   }

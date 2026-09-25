@@ -87,6 +87,18 @@ export function deleteListValue(db: DatabaseSync, list: ListName, id: number): L
   const usage = USAGE[list];
   const { n } = db.prepare(usage.sql).get(list === 'phase' ? current.name : id) as unknown as { n: number };
   if (n > 0) return { ok: false, status: 409, error: `"${current.name}" is used by ${n} ${n === 1 ? usage.one : usage.many}` };
+  if (list === 'phase') {
+    const { n: starters } = db.prepare('SELECT COUNT(*) AS n FROM starter_todos WHERE phase_list_id = ?').get(id) as unknown as {
+      n: number;
+    };
+    if (starters > 0) {
+      return {
+        ok: false,
+        status: 409,
+        error: `"${current.name}" has ${starters} starter to-do${starters === 1 ? '' : 's'}; delete them in Starter to-dos first`,
+      };
+    }
+  }
   db.prepare('DELETE FROM list_values WHERE id = ?').run(id);
   return { ok: true };
 }

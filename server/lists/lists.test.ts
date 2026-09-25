@@ -129,4 +129,33 @@ describe('lists API', () => {
     const project = (await app.inject({ method: 'GET', url: '/api/projects' })).json()[0];
     expect(project.phases[0].subPhases[0].name).toBe('QA');
   });
+
+  it('refuses to delete a phase value that has starter to-dos, even when no project uses it', async () => {
+    const app = buildApp(db);
+    const design = (await app.inject({ method: 'GET', url: '/api/lists' })).json()
+      .phase.find((v: { name: string }) => v.name === 'Design');
+
+    const first = (await app.inject({
+      method: 'POST', url: '/api/starter-todos', payload: { phaseListId: design.id, title: 'Collect brand assets' },
+    })).json();
+    const second = (await app.inject({
+      method: 'POST', url: '/api/starter-todos', payload: { phaseListId: design.id, title: 'Draft wireframes' },
+    })).json();
+
+    const refused = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${design.id}` });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toEqual({ error: '"Design" has 2 starter to-dos; delete them in Starter to-dos first' });
+
+    const stillThere = (await app.inject({ method: 'GET', url: '/api/starter-todos' })).json();
+    expect(stillThere.map((s: { id: number }) => s.id)).toEqual(expect.arrayContaining([first.id, second.id]));
+
+    await app.inject({ method: 'DELETE', url: `/api/starter-todos/${first.id}` });
+    const stillOne = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${design.id}` });
+    expect(stillOne.statusCode).toBe(409);
+    expect(stillOne.json()).toEqual({ error: '"Design" has 1 starter to-do; delete them in Starter to-dos first' });
+
+    await app.inject({ method: 'DELETE', url: `/api/starter-todos/${second.id}` });
+    const deleted = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${design.id}` });
+    expect(deleted.statusCode).toBe(204);
+  });
 });

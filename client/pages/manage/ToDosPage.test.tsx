@@ -131,6 +131,16 @@ describe('ToDosPage', () => {
     expect(await screen.findByText('No to-dos match these filters.')).toBeInTheDocument();
   });
 
+  it('shows a Settings prompt instead of "No to-dos" when ?assignee=me and "I am" is unset', async () => {
+    setToday();
+    mockFetch(routes(todos(), { resourceId: null, name: null }));
+    renderAt('/manage/todos?assignee=me');
+
+    expect(await screen.findByText(/Set who you are in/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/manage/settings');
+    expect(screen.queryByText('No to-dos match these filters.')).toBeNull();
+  });
+
   it('sends a PUT with done: true when ticking a to-do', async () => {
     setToday();
     const fetchMock = mockFetch({

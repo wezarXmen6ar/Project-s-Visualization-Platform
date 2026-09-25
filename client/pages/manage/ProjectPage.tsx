@@ -8,12 +8,11 @@ import { api } from '../../api';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
-import { dayDate } from '../../overloads';
 import { useAsync } from '../../useAsync';
 import { useMe } from '../../useMe';
 import { useResources } from '../../useResources';
 import { useWorkload } from '../../useWorkload';
-import { CATEGORY_LABEL, PRIORITY_LABEL, SCOPE_TABLES, beneficiaryLabel, requesterLabel } from './labels';
+import { CATEGORY_LABEL, PRIORITY_LABEL, SCOPE_TABLES, beneficiaryLabel, formatDate, requesterLabel } from './labels';
 import { NextUp } from './NextUp';
 import { ProjectPeople } from './ProjectPeople';
 import { ProjectToDos, useProjectToDos } from './ProjectToDos';
@@ -38,7 +37,7 @@ export function ProjectPage() {
   const { people } = useResources();
   const { workload, reload: reloadWorkload } = useWorkload();
   const { me } = useMe();
-  const { todos, reload: reloadToDos, toggleDone } = useProjectToDos(id);
+  const { todos, reload: reloadToDos, toggleDone, toggleErrors } = useProjectToDos(id);
   const [saved, setSaved] = useState<ProjectRecord | null>(null);
   const today = todayLocal();
 
@@ -179,8 +178,8 @@ export function ProjectPage() {
               <Fragment key={ph.id}>
                 <tr>
                   <td>{ph.name}</td>
-                  <td>{dayDate(ph.start)}</td>
-                  <td>{dayDate(ph.end)}</td>
+                  <td>{formatDate(ph.start)}</td>
+                  <td>{formatDate(ph.end)}</td>
                   <td>
                     {ph.durationDays}
                     {ph.subPhases.length > 0 ? <span className="muted"> (from sub-phases)</span> : null}
@@ -192,8 +191,8 @@ export function ProjectPage() {
                       ↳ {sp.name}
                       {sp.withPrevious ? <span className="muted"> · starts with the one above</span> : null}
                     </td>
-                    <td>{dayDate(sp.start)}</td>
-                    <td>{dayDate(sp.end)}</td>
+                    <td>{formatDate(sp.start)}</td>
+                    <td>{formatDate(sp.end)}</td>
                     <td>{sp.durationDays}</td>
                   </tr>
                 ))}
@@ -213,7 +212,7 @@ export function ProjectPage() {
         }}
       />
 
-      <ProjectToDos project={p} me={me} todos={todos} reload={reloadToDos} toggleDone={toggleDone} />
+      <ProjectToDos project={p} me={me} todos={todos} reload={reloadToDos} toggleDone={toggleDone} toggleErrors={toggleErrors} />
     </main>
   );
 }

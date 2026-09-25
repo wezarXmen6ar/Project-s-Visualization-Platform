@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { ResourceRecord } from '../../../shared/types';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
+import { AlertIcon } from '../../icons';
 import { useMe } from '../../useMe';
 
 interface MeSettingProps {
@@ -11,6 +13,7 @@ interface MeSettingProps {
 export function MeSetting({ people }: MeSettingProps) {
   const { me, reload } = useMe();
   const [saved, setSaved] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
 
   useEffect(() => {
     if (saved) {
@@ -23,15 +26,26 @@ export function MeSetting({ people }: MeSettingProps) {
 
   async function onChange(value: string) {
     const resourceId = value === '' ? null : Number(value);
-    await api.setMe(resourceId);
-    setSaved(true);
-    reload();
+    setErrors([]);
+    try {
+      await api.setMe(resourceId);
+      setSaved(true);
+      reload();
+    } catch (err) {
+      setErrors(messagesOf(err));
+    }
   }
 
   return (
     <section className="card">
       <h2>I am</h2>
       <p className="field-hint">Used for Mine, Next up and My next steps.</p>
+      {errors.length > 0 ? (
+        <div className="errors" role="alert">
+          <AlertIcon />
+          <ul>{errors.map((m) => <li key={m}>{m}</li>)}</ul>
+        </div>
+      ) : null}
       <label>
         I am
         <select value={me?.resourceId === null || me?.resourceId === undefined ? '' : String(me.resourceId)} onChange={(e) => void onChange(e.target.value)}>

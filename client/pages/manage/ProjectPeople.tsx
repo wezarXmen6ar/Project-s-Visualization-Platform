@@ -5,6 +5,7 @@ import { AlertIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
 import { dayDate, overloadsWith, phaseWarnings, plannedFrom, type DraftAssignment } from '../../overloads';
+import { subPhaseLabel } from '../../todos';
 import { ASSIGNMENT_ROLE_LABEL } from './labels';
 
 interface PhasePeopleBlockProps {
@@ -168,7 +169,7 @@ export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeo
             <PhasePeopleBlock
               key={sub.id}
               id={sub.id}
-              label={`${phase.name} › ${sub.name}`}
+              label={subPhaseLabel(phase.name, sub.name)}
               start={sub.start}
               end={sub.end}
               project={project}

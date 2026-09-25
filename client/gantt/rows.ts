@@ -1,6 +1,7 @@
 import type { DateRange, ISODate } from '../../shared/calendar';
 import { projectSpan } from '../../shared/scheduler';
 import type { ProjectRecord } from '../../shared/types';
+import { subPhaseLabel } from '../todos';
 import type { GanttRow } from './Gantt';
 import { monthPaddedRange } from './scale';
 
@@ -77,7 +78,7 @@ export function phaseRows(project: { phases: PhaseLike[] }): GanttRow[] {
         id: subId,
         label: s.name,
         kind: 'child',
-        bars: [{ id: subId, start: s.start, end: s.end, color, label: s.name, title: `${p.name} › ${s.name}: ${s.start} → ${s.end}` }],
+        bars: [{ id: subId, start: s.start, end: s.end, color, label: s.name, title: `${subPhaseLabel(p.name, s.name)}: ${s.start} → ${s.end}` }],
       };
     });
     return [own, ...subs];

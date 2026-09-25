@@ -1,9 +1,8 @@
 import { Link } from 'react-router';
 import type { ISODate } from '../../../shared/calendar';
 import type { ToDoRecord, WorkloadData } from '../../../shared/types';
-import { dayDate } from '../../overloads';
 import { dueLabel } from '../../todos';
-import { ASSIGNMENT_ROLE_LABEL } from './labels';
+import { ASSIGNMENT_ROLE_LABEL, formatDate } from './labels';
 
 interface PersonWorkProps {
   personId: number;
@@ -33,7 +32,7 @@ export function PersonWork({ personId, workload, today, todos = [] }: PersonWork
                 <Link to={`/manage/projects/${a.projectId}`}>{a.projectName}</Link> › {a.phaseName}
                 {a.start <= today && today <= a.end ? <span className="badge">Now</span> : null}
                 <span className="muted">
-                  {dayDate(a.start)} – {dayDate(a.end)} · {a.allocation}% · {ASSIGNMENT_ROLE_LABEL[a.role]}
+                  {formatDate(a.start)} – {formatDate(a.end)} · {a.allocation}% · {ASSIGNMENT_ROLE_LABEL[a.role]}
                 </span>
                 {onThis.length > 0 ? (
                   <ul className="work-todo-list">

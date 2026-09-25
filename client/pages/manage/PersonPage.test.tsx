@@ -205,6 +205,7 @@ describe('PersonPage', () => {
     expect(within(items[0]).getByRole('link', { name: 'Case Management' })).toHaveAttribute('href', '/manage/projects/91');
 
     expect(items[1]).toHaveTextContent('E-Services Mobile App › Development › Increment 3 – Payments');
+    expect(items[1]).toHaveTextContent('Mon 2 Nov 2026 – Fri 20 Nov 2026');
     expect(items[1]).toHaveTextContent('60% · Responsible');
     expect(within(items[1]).getByRole('link', { name: 'E-Services Mobile App' })).toHaveAttribute('href', '/manage/projects/95');
     expect(within(items[1]).queryByText('Now')).toBeNull();
@@ -219,6 +220,19 @@ describe('PersonPage', () => {
     const heading = await screen.findByRole('heading', { name: 'Working on' });
     const card = heading.closest('section') as HTMLElement;
     expect(within(card).getByText('Nothing booked from today on.')).toBeInTheDocument();
+  });
+
+  it("puts To-dos directly after Working on, before Leave, for a tech person", async () => {
+    mockFetch(fakeServer());
+    renderAt('/manage/resources/71');
+    await screen.findByRole('heading', { name: 'Working on' });
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const workingOn = headings.indexOf('Working on');
+    const toDos = headings.indexOf('To-dos');
+    const leave = headings.indexOf('Leave');
+    expect(workingOn).toBeGreaterThanOrEqual(0);
+    expect(toDos).toBeGreaterThan(workingOn);
+    expect(leave).toBeGreaterThan(toDos);
   });
 
   it('has no Working on card for a business contact', async () => {

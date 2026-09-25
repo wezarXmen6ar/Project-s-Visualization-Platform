@@ -23,7 +23,7 @@ export function getMe(db: DatabaseSync): Me {
   if (!row) return { resourceId: null, name: null };
   const { resourceId } = JSON.parse(row.value) as { resourceId: number | null };
   if (resourceId === null) return { resourceId: null, name: null };
-  const person = db.prepare("SELECT name FROM resources WHERE id = ? AND side = 'tech'").get(resourceId) as unknown as
+  const person = db.prepare("SELECT name FROM resources WHERE id = ? AND side = 'tech' AND active = 1").get(resourceId) as unknown as
     | { name: string }
     | undefined;
   return person ? { resourceId, name: person.name } : { resourceId: null, name: null };

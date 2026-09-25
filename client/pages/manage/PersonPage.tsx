@@ -14,11 +14,14 @@ import { SPECIALISATION_LABEL, formatDate } from './labels';
 import { PersonWork } from './PersonWork';
 
 /** A person's open to-dos across every project. */
-function PersonToDos({ todos, today, onToggle }: { todos: ToDoRecord[]; today: string; onToggle: (t: ToDoRecord) => void }) {
+function PersonToDos({
+  todos, today, onToggle, errors = [],
+}: { todos: ToDoRecord[]; today: string; onToggle: (t: ToDoRecord) => void; errors?: string[] }) {
   const open = byUrgency(todos.filter((t) => !t.done));
   return (
     <section className="card">
       <h2>To-dos</h2>
+      {errors.length > 0 ? <Errors messages={errors} /> : null}
       {open.length === 0 ? (
         <p className="muted">No open to-dos.</p>
       ) : (
@@ -161,9 +164,15 @@ export function PersonPage() {
     [isNew, id, todosVersion],
   );
   const todos = todosLoaded.data ?? [];
+  const [todoErrors, setTodoErrors] = useState<string[]>([]);
   async function toggleToDo(t: ToDoRecord) {
-    await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
-    setTodosVersion((v) => v + 1);
+    setTodoErrors([]);
+    try {
+      await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+      setTodosVersion((v) => v + 1);
+    } catch (err) {
+      setTodoErrors(messagesOf(err));
+    }
   }
 
   const existing = isNew ? undefined : people.data?.find((p) => p.id === id);
@@ -313,12 +322,13 @@ export function PersonPage() {
       {existing && existing.side === 'tech' ? (
         <>
           <PersonWork personId={existing.id} workload={workload} today={todayLocal()} todos={todos} />
+          <PersonToDos todos={todos} today={todayLocal()} onToggle={(t) => void toggleToDo(t)} errors={todoErrors} />
           <LeaveCard person={existing} onChanged={() => setVersion((v) => v + 1)} calendar={calendar.data ?? DEFAULT_CALENDAR} />
         </>
       ) : null}
 
-      {existing ? (
-        <PersonToDos todos={todos} today={todayLocal()} onToggle={(t) => void toggleToDo(t)} />
+      {existing && existing.side !== 'tech' ? (
+        <PersonToDos todos={todos} today={todayLocal()} onToggle={(t) => void toggleToDo(t)} errors={todoErrors} />
       ) : null}
     </main>
   );

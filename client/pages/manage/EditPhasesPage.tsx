@@ -13,7 +13,7 @@ interface ScheduleDraft {
   phases: PhaseDraft[];
 }
 
-type RemovedItem = { label: string; people: number; openToDos: number };
+type RemovedItem = { label: string; people: number; openToDos: number; doneToDos: number };
 
 /** "1 person" or "N people". */
 function peopleCount(n: number): string {
@@ -25,10 +25,16 @@ function toDosCount(n: number): string {
   return `${n} open ${n === 1 ? 'to-do' : 'to-dos'}`;
 }
 
+/** "1 done to-do" or "N done to-dos". */
+function doneToDosCount(n: number): string {
+  return `${n} done ${n === 1 ? 'to-do' : 'to-dos'}`;
+}
+
 function itemLabel(i: RemovedItem): string {
   const parts: string[] = [];
   if (i.people > 0) parts.push(peopleCount(i.people));
   if (i.openToDos > 0) parts.push(toDosCount(i.openToDos));
+  if (i.doneToDos > 0) parts.push(doneToDosCount(i.doneToDos));
   return parts.length > 0 ? `${i.label} (${parts.join(', ')})` : i.label;
 }
 

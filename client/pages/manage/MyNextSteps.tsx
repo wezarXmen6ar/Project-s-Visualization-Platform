@@ -3,7 +3,9 @@ import { Link } from 'react-router';
 import { todayLocal } from '../../../shared/calendar';
 import type { ToDoRecord } from '../../../shared/types';
 import { api } from '../../api';
+import { AlertIcon } from '../../icons';
 import { ToDoRow } from '../../components/ToDoRow';
+import { messagesOf } from '../../errors';
 import { byUrgency, toDoToInput } from '../../todos';
 import { useAsync } from '../../useAsync';
 import { useMe } from '../../useMe';
@@ -18,13 +20,28 @@ export function MyNextSteps() {
     [assigneeId, version],
   );
   const today = todayLocal();
+  const [errors, setErrors] = useState<string[]>([]);
 
   async function toggleDone(t: ToDoRecord) {
-    await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
-    setVersion((v) => v + 1);
+    setErrors([]);
+    try {
+      await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+      setVersion((v) => v + 1);
+    } catch (err) {
+      setErrors(messagesOf(err));
+    }
   }
 
-  if (!me || me.resourceId === null) {
+  // While "I am" is still loading, `me` is undefined; show only the heading rather than flashing the "not set" prompt.
+  if (me === undefined) {
+    return (
+      <section className="card">
+        <h2>My next steps</h2>
+      </section>
+    );
+  }
+
+  if (me.resourceId === null) {
     return (
       <section className="card">
         <h2>My next steps</h2>
@@ -43,6 +60,12 @@ export function MyNextSteps() {
         <h2>My next steps</h2>
         <Link to="/manage/todos?assignee=me">All to-dos</Link>
       </div>
+      {errors.length > 0 ? (
+        <div className="errors" role="alert">
+          <AlertIcon />
+          <ul>{errors.map((m) => <li key={m}>{m}</li>)}</ul>
+        </div>
+      ) : null}
       {mine.length === 0 ? (
         <p className="muted">Nothing on your list. Nice.</p>
       ) : (

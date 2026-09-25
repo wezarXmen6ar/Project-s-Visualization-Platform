@@ -3,6 +3,7 @@ import { schedulePhases, type ScheduledPhase } from '../../../shared/scheduler';
 import type { ResourceRecord, WorkloadData } from '../../../shared/types';
 import { AssignmentsEditor } from '../../components/AssignmentsEditor';
 import { dayDate, overloadsWith, phaseWarnings, plannedFrom } from '../../overloads';
+import { subPhaseLabel } from '../../todos';
 import type { PhaseDraft } from './projectDraft';
 
 interface PeopleFieldsProps {
@@ -26,7 +27,7 @@ export function PeopleFields({ projectName, startDate, phases, onPhases, people,
   const planned = scheduled.flatMap((s, i) => [
     ...plannedFrom(phases[i].assignments ?? [], s, name, s.name),
     ...s.subPhases.flatMap((sub, j) =>
-      plannedFrom(phases[i].subPhases?.[j]?.assignments ?? [], sub, name, `${s.name} › ${sub.name}`),
+      plannedFrom(phases[i].subPhases?.[j]?.assignments ?? [], sub, name, subPhaseLabel(s.name, sub.name)),
     ),
   ]);
   const overloads = workload ? overloadsWith(workload, planned) : new Map();
@@ -48,7 +49,7 @@ export function PeopleFields({ projectName, startDate, phases, onPhases, people,
           {s.subPhases.map((sub, j) => (
             <div className="sub-phase-people" key={j}>
               <AssignmentsEditor
-                phaseName={`${s.name} › ${sub.name}`}
+                phaseName={subPhaseLabel(s.name, sub.name)}
                 dates={`${dayDate(sub.start)} – ${dayDate(sub.end)}`}
                 people={people}
                 value={phases[i].subPhases?.[j]?.assignments ?? []}

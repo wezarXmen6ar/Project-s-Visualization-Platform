@@ -48,6 +48,10 @@ function fakeServer(backups: BackupStatus = { latest: null, count: 0 }): Record<
       lists.department = [];
       return { status: 204, body: null };
     },
+    'DELETE /api/lists/phase/57': () => {
+      lists.phase = lists.phase.filter((p) => p.id !== 57);
+      return { status: 204, body: null };
+    },
     'GET /api/resources': () => ({ body: samplePeople() }),
     'GET /api/settings/me': () => ({ body: me }),
     'PUT /api/settings/me': (init) => {
@@ -174,6 +178,18 @@ describe('SettingsPage', () => {
     expect(await screen.findByText('Write full test cases')).toBeInTheDocument();
     const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/starter-todos/1' && init?.method === 'PUT');
     expect(JSON.parse(put![1]!.body as string)).toEqual({ title: 'Write full test cases' });
+  });
+
+  it('falls back to the first phase when the selected one is deleted', async () => {
+    mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('option', { name: 'Deployment (0)' });
+    await user.selectOptions(screen.getByLabelText('Phase'), 'Deployment (0)');
+    await user.click(await screen.findByRole('button', { name: 'Delete Deployment' }));
+    await waitFor(() => expect(screen.queryByText('Deployment')).toBeNull());
+    expect(screen.getByLabelText('Phase')).toHaveValue('50');
+    expect(screen.getByRole('option', { name: 'Requirements gathering (0)', selected: true })).toBeInTheDocument();
   });
 
   it('shows the last backup and how many are kept', async () => {

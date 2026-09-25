@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { StarterSuggestion } from '../../../shared/types';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
+import { AlertIcon } from '../../icons';
 import { useAsync } from '../../useAsync';
 
 /** "all" means every top-level phase; otherwise a comma-separated list of phase ids, positive integers only. */
@@ -28,6 +30,7 @@ export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: Start
   const suggestions = useAsync(() => api.starterSuggestions(projectId, phaseIds), [projectId, starterParam]);
   const [checked, setChecked] = useState<Set<number> | null>(null);
   const [adding, setAdding] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
 
   useEffect(() => {
     if (suggestions.data && checked === null) {
@@ -57,9 +60,12 @@ export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: Start
       .filter((_, i) => checked!.has(i))
       .map((s) => ({ phaseId: s.phaseId, title: s.title }));
     setAdding(true);
+    setErrors([]);
     try {
       await api.acceptStarters(projectId, items);
       onAdded();
+    } catch (err) {
+      setErrors(messagesOf(err));
     } finally {
       setAdding(false);
     }
@@ -81,6 +87,12 @@ export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: Start
     <section className="card">
       <h2>Starter to-dos</h2>
       <p className="field-hint">From your checklists in Settings. Untick any you don't need.</p>
+      {errors.length > 0 ? (
+        <div className="errors" role="alert">
+          <AlertIcon />
+          <ul>{errors.map((m) => <li key={m}>{m}</li>)}</ul>
+        </div>
+      ) : null}
       {groups.map((g) => (
         <div key={g.phaseId}>
           <h3>{g.phaseName}</h3>

@@ -1,8 +1,7 @@
-import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { ISODate } from '../../shared/calendar';
 import type { ToDoRecord } from '../../shared/types';
-import { dueLabel, formerPhaseLabel } from '../todos';
+import { ToDoMetaLine } from './ToDoMetaLine';
 
 interface ToDoRowProps {
   todo: ToDoRecord;
@@ -17,16 +16,6 @@ interface ToDoRowProps {
  * (assignee, due label, phase). Shared by the To-dos page, My next steps and a person's To-dos card.
  */
 export function ToDoRow({ todo, today, showProject, onToggle }: ToDoRowProps) {
-  const label = dueLabel(todo, today);
-  const overdue = label.startsWith('Overdue');
-  const former = formerPhaseLabel(todo);
-
-  const metaParts: { key: string; node: ReactNode }[] = [
-    { key: 'assignee', node: todo.assignee?.name ?? 'Unassigned' },
-  ];
-  if (label) metaParts.push({ key: 'due', node: <span className={overdue ? 'overdue' : undefined}>{label}</span> });
-  if (todo.phase) metaParts.push({ key: 'phase', node: todo.phase.name });
-
   return (
     <li className={`todo${todo.done ? ' done' : ''}`}>
       <input type="checkbox" aria-label={`Done: ${todo.title}`} checked={todo.done} onChange={() => onToggle(todo)} />
@@ -37,15 +26,7 @@ export function ToDoRow({ todo, today, showProject, onToggle }: ToDoRowProps) {
             <Link to={`/manage/projects/${todo.projectId}`}>{todo.projectName}</Link>
           </div>
         ) : null}
-        <div className="todo-meta">
-          {metaParts.map((p, i) => (
-            <span key={p.key}>
-              {i > 0 ? ' · ' : ''}
-              {p.node}
-            </span>
-          ))}
-        </div>
-        {former ? <div className="todo-meta">{former}</div> : null}
+        <ToDoMetaLine todo={todo} today={today} />
       </div>
     </li>
   );

@@ -1,25 +1,34 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useState } from 'react';
 import { todayLocal } from '../../../shared/calendar';
 import type { Me, ProjectRecord, ToDoRecord } from '../../../shared/types';
 import { dayDate } from '../../overloads';
 import { ToDoForm } from '../../components/ToDoForm';
+import { ToDoMetaLine } from '../../components/ToDoMetaLine';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
+import { AlertIcon } from '../../icons';
 import { useAsync } from '../../useAsync';
-import { byUrgency, dueLabel, formerPhaseLabel, toDoToInput } from '../../todos';
+import { byUrgency, toDoToInput } from '../../todos';
 
 /** Loads a project's to-dos (open and done); `reload` fetches them again after a change. */
 export function useProjectToDos(projectId: number) {
   const [version, setVersion] = useState(0);
   const loaded = useAsync(() => api.listToDos({ projectId, includeDone: true }), [projectId, version]);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
+  const [toggleErrors, setToggleErrors] = useState<string[]>([]);
   const toggleDone = useCallback(
     async (t: ToDoRecord) => {
-      await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
-      reload();
+      setToggleErrors([]);
+      try {
+        await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+        reload();
+      } catch (err) {
+        setToggleErrors(messagesOf(err));
+      }
     },
     [reload],
   );
-  return { todos: loaded.data ?? [], error: loaded.error, reload, toggleDone };
+  return { todos: loaded.data ?? [], error: loaded.error, reload, toggleDone, toggleErrors };
 }
 
 interface ToDoRowMetaProps {
@@ -28,27 +37,7 @@ interface ToDoRowMetaProps {
 }
 
 function ToDoMeta({ t, today }: ToDoRowMetaProps) {
-  const label = dueLabel(t, today);
-  const overdue = label.startsWith('Overdue');
-  const parts: { key: string; node: ReactNode }[] = [
-    { key: 'assignee', node: t.assignee?.name ?? 'Unassigned' },
-  ];
-  if (label) parts.push({ key: 'due', node: <span className={overdue ? 'overdue' : undefined}>{label}</span> });
-  if (t.phase) parts.push({ key: 'phase', node: t.phase.name });
-  const former = formerPhaseLabel(t);
-  return (
-    <>
-      <div className="todo-meta">
-        {parts.map((p, i) => (
-          <span key={p.key}>
-            {i > 0 ? ' · ' : ''}
-            {p.node}
-          </span>
-        ))}
-      </div>
-      {former ? <div className="todo-meta">{former}</div> : null}
-    </>
-  );
+  return <ToDoMetaLine todo={t} today={today} />;
 }
 
 interface ProjectToDosProps {
@@ -57,10 +46,11 @@ interface ProjectToDosProps {
   todos: ToDoRecord[];
   reload: () => void;
   toggleDone: (t: ToDoRecord) => void;
+  toggleErrors?: string[];
 }
 
 /** The project's to-dos: add, edit, tick off, and delete, with done ones tucked away by default. */
-export function ProjectToDos({ project, me, todos, reload, toggleDone }: ProjectToDosProps) {
+export function ProjectToDos({ project, me, todos, reload, toggleDone, toggleErrors = [] }: ProjectToDosProps) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
@@ -85,6 +75,13 @@ export function ProjectToDos({ project, me, todos, reload, toggleDone }: Project
           <button type="button" className="button secondary" onClick={() => setAdding(true)}>Add to-do</button>
         ) : null}
       </div>
+
+      {toggleErrors.length > 0 ? (
+        <div className="errors" role="alert">
+          <AlertIcon />
+          <ul>{toggleErrors.map((m) => <li key={m}>{m}</li>)}</ul>
+        </div>
+      ) : null}
 
       {adding ? (
         <ToDoForm

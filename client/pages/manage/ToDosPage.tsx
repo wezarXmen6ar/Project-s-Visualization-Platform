@@ -5,6 +5,7 @@ import type { ToDoRecord } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { api } from '../../api';
 import { ToDoRow } from '../../components/ToDoRow';
+import { messagesOf } from '../../errors';
 import { byUrgency, toDoToInput } from '../../todos';
 import { useAsync } from '../../useAsync';
 import { useMe } from '../../useMe';
@@ -58,10 +59,18 @@ export function ToDosPage() {
   const open = byUrgency(filtered.filter((t) => !t.done));
   const done = [...filtered.filter((t) => t.done)].sort((a, b) => (b.doneDate ?? '').localeCompare(a.doneDate ?? ''));
   const noMatches = open.length === 0 && (!doneParam || done.length === 0);
+  const meUnset = assigneeParam === 'me' && me !== undefined && me.resourceId === null;
+
+  const [toggleErrors, setToggleErrors] = useState<string[]>([]);
 
   async function toggleDone(t: ToDoRecord) {
-    await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
-    setVersion((v) => v + 1);
+    setToggleErrors([]);
+    try {
+      await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+      setVersion((v) => v + 1);
+    } catch (err) {
+      setToggleErrors(messagesOf(err));
+    }
   }
 
   return (
@@ -77,6 +86,13 @@ export function ToDosPage() {
         <div className="errors" role="alert">
           <AlertIcon />
           <span>{loaded.error.message}</span>
+        </div>
+      ) : null}
+
+      {toggleErrors.length > 0 ? (
+        <div className="errors" role="alert">
+          <AlertIcon />
+          <ul>{toggleErrors.map((m) => <li key={m}>{m}</li>)}</ul>
         </div>
       ) : null}
 
@@ -122,7 +138,13 @@ export function ToDosPage() {
       </div>
 
       {noMatches ? (
-        <p className="muted">No to-dos match these filters.</p>
+        meUnset ? (
+          <p className="muted">
+            Set who you are in <Link to="/manage/settings">Settings</Link> to see your to-dos here.
+          </p>
+        ) : (
+          <p className="muted">No to-dos match these filters.</p>
+        )
       ) : (
         <>
           {open.length > 0 ? (

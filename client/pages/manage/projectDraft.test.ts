@@ -137,7 +137,7 @@ describe('projectDraft', () => {
         { id: 12, name: 'Development', durationDays: 5, subPhases: [{ id: 21, name: 'Increment 1', durationDays: 5, withPrevious: false }] },
         { id: 13, name: 'QA', durationDays: 5 },
       ];
-      expect(removedItems(project, phases, [])).toEqual([{ label: 'Development › Increment 2', people: 2, openToDos: 0 }]);
+      expect(removedItems(project, phases, [])).toEqual([{ label: 'Development › Increment 2', people: 2, openToDos: 0, doneToDos: 0 }]);
     });
 
     it('does not list a sub-phase moved under another phase', () => {
@@ -148,7 +148,7 @@ describe('projectDraft', () => {
       expect(removedItems(project, phases, [])).toEqual([]);
     });
 
-    it('does not list a removed phase that has no people and no open to-dos', () => {
+    it('does not list a removed phase that has no people and no to-dos', () => {
       const phases: PhaseDraft[] = [
         {
           id: 12, name: 'Development', durationDays: 10,
@@ -161,7 +161,7 @@ describe('projectDraft', () => {
       expect(removedItems(project, phases, [])).toEqual([]);
     });
 
-    it('counts only open to-dos, and lists a removed sub-phase that has to-dos but no people', () => {
+    it('counts open and done to-dos separately, and lists a removed sub-phase that has to-dos but no people', () => {
       // Removes sub-phase 21 (Increment 1) but keeps 22 (Increment 2), so only 21's to-dos should count.
       const phases: PhaseDraft[] = [
         { id: 12, name: 'Development', durationDays: 5, subPhases: [{ id: 22, name: 'Increment 2', durationDays: 5, withPrevious: false }] },
@@ -172,7 +172,20 @@ describe('projectDraft', () => {
         todo({ id: 301, phase: { id: 21, name: 'Development › Increment 1' }, done: true, doneDate: '2026-10-01' }),
       ];
       expect(removedItems(project, phases, todos)).toEqual([
-        { label: 'Development › Increment 1', people: 0, openToDos: 1 },
+        { label: 'Development › Increment 1', people: 0, openToDos: 1, doneToDos: 1 },
+      ]);
+    });
+
+    it('lists a removed sub-phase that has only done to-dos', () => {
+      const phases: PhaseDraft[] = [
+        { id: 12, name: 'Development', durationDays: 5, subPhases: [{ id: 22, name: 'Increment 2', durationDays: 5, withPrevious: false }] },
+        { id: 13, name: 'QA', durationDays: 5 },
+      ];
+      const todos = [
+        todo({ id: 300, phase: { id: 21, name: 'Development › Increment 1' }, done: true, doneDate: '2026-10-01' }),
+      ];
+      expect(removedItems(project, phases, todos)).toEqual([
+        { label: 'Development › Increment 1', people: 0, openToDos: 0, doneToDos: 1 },
       ]);
     });
   });

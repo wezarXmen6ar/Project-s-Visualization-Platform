@@ -45,7 +45,12 @@ export function sampleProject(overrides: Partial<ProjectRecord> = {}): ProjectRe
     assignments: [],
     phases: [
       { id: 11, name: 'Requirements', order: 0, durationDays: 2, start: '2026-09-24', end: '2026-09-25', subPhases: [] },
-      { id: 12, name: 'Development', order: 1, durationDays: 3, start: '2026-09-28', end: '2026-09-30', subPhases: [] },
+      {
+        id: 12, name: 'Development', order: 1, durationDays: 3, start: '2026-09-28', end: '2026-09-30',
+        subPhases: [
+          { id: 120, name: 'Increment 1', order: 0, durationDays: 3, start: '2026-09-28', end: '2026-09-30', withPrevious: false },
+        ],
+      },
     ],
     ...overrides,
   };

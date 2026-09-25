@@ -353,6 +353,50 @@ describe('starter to-dos', () => {
     });
     expect(missing.statusCode).toBe(404);
   });
+
+  it('rejects a sub-phase id in from-starters and creates nothing', async () => {
+    const db = openDb(':memory:');
+    const app = buildApp(db, { today: () => '2026-09-25' });
+    const project = (
+      await app.inject({
+        method: 'POST', url: '/api/projects',
+        payload: {
+          name: 'Portal', color: '#3b82f6', startDate: '2026-09-25',
+          phases: [{ name: 'Development', durationDays: 5, subPhases: [{ name: 'Increment 1', durationDays: 5 }] }],
+        },
+      })
+    ).json();
+    const subPhaseId = project.phases[0].subPhases[0].id;
+
+    const res = await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/todos/from-starters`,
+      payload: { items: [{ phaseId: subPhaseId, title: 'X' }] },
+    });
+    expect(res.statusCode).toBe(400);
+
+    const todos = await app.inject({ method: 'GET', url: `/api/todos?projectId=${project.id}` });
+    expect(todos.json()).toEqual([]);
+  });
+
+  it('ignores bad phaseIds values and returns only the valid phase\'s suggestions', async () => {
+    const db = openDb(':memory:');
+    const app = buildApp(db);
+    const uatId = await uatPhaseId(app);
+    await app.inject({ method: 'POST', url: '/api/starter-todos', payload: { phaseListId: uatId, title: 'Write test cases' } });
+    const project = (
+      await app.inject({
+        method: 'POST', url: '/api/projects',
+        payload: { name: 'Portal', color: '#3b82f6', startDate: '2026-09-25', phases: [{ name: 'UAT', durationDays: 5 }] },
+      })
+    ).json();
+    const uatPhase = project.phases[0].id;
+
+    const res = await app.inject({
+      method: 'GET', url: `/api/projects/${project.id}/starter-suggestions?phaseIds=abc,-1,${uatPhase}`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([{ phaseId: uatPhase, phaseName: 'UAT', title: 'Write test cases' }]);
+  });
 });
 
 describe('"I am"', () => {
@@ -375,5 +419,23 @@ describe('"I am"', () => {
     const cleared = await app.inject({ method: 'PUT', url: '/api/settings/me', payload: { resourceId: null } });
     expect(cleared.statusCode).toBe(200);
     expect(cleared.json()).toEqual({ resourceId: null, name: null });
+  });
+
+  it('reads as unset once the person is deactivated', async () => {
+    const db = openDb(':memory:');
+    const app = buildApp(db);
+    const sara = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Sara', side: 'tech' } })).json();
+    const set = await app.inject({ method: 'PUT', url: '/api/settings/me', payload: { resourceId: sara.id } });
+    expect(set.statusCode).toBe(200);
+
+    const deactivated = await app.inject({
+      method: 'PUT', url: `/api/resources/${sara.id}`,
+      payload: { name: 'Sara', side: 'tech', active: false },
+    });
+    expect(deactivated.statusCode).toBe(200);
+
+    const got = await app.inject({ method: 'GET', url: '/api/settings/me' });
+    expect(got.statusCode).toBe(200);
+    expect(got.json()).toEqual({ resourceId: null, name: null });
   });
 });

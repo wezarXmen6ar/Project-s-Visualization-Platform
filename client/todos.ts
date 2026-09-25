@@ -28,6 +28,11 @@ export function dueLabel(t: ToDoRecord, today: ISODate): string {
   return `Due ${dayDate(t.dueDate)}`;
 }
 
+/** "Development › Increment 2": a phase and sub-phase name joined by the standard separator. */
+export function subPhaseLabel(phase: string, sub: string): string {
+  return `${phase} › ${sub}`;
+}
+
 /** "Was on Development › Increment 2 (removed Fri 25 Sep)" for a to-do kept from a removed phase, else null. */
 export function formerPhaseLabel(t: ToDoRecord): string | null {
   if (!t.formerPhase) return null;
@@ -84,7 +89,7 @@ export function phaseChoices(project: ProjectRecord): Ref[] {
   const out: Ref[] = [];
   for (const phase of project.phases) {
     out.push({ id: phase.id, name: phase.name });
-    for (const sub of phase.subPhases) out.push({ id: sub.id, name: `${phase.name} › ${sub.name}` });
+    for (const sub of phase.subPhases) out.push({ id: sub.id, name: subPhaseLabel(phase.name, sub.name) });
   }
   return out;
 }

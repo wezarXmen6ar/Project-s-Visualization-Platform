@@ -142,11 +142,29 @@ describe('EditPhasesPage', () => {
     await user.click(screen.getByRole('button', { name: 'Remove phase 2 sub-phase 1' }));
     await user.click(screen.getByRole('button', { name: 'Save phases' }));
 
-    expect(await screen.findByText('Saving will remove Development › Increment 1 (1 person, 2 open to-dos). The people on them will be unassigned.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Saving will remove Development › Increment 1 (1 person, 2 open to-dos, 1 done to-do). The people on them will be unassigned.'),
+    ).toBeInTheDocument();
     const keep = screen.getByRole('radio', { name: 'Keep them on the project' });
     const del = screen.getByRole('radio', { name: 'Delete them' });
     expect(keep).toBeChecked();
     expect(del).not.toBeChecked();
+  });
+
+  it('warns about a removed sub-phase that has only done to-dos, with no keep/delete choice', async () => {
+    mockFetch(baseRoutes([
+      todo({ id: 300, title: 'A', phase: { id: 22, name: 'Development › Increment 2' }, done: true, doneDate: '2026-09-20' }),
+    ]));
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 2 sub-phase 1 name');
+
+    await user.click(screen.getByRole('button', { name: 'Remove phase 2 sub-phase 2' }));
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+
+    expect(await screen.findByText('Saving will remove Development › Increment 2 (1 done to-do).')).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Keep them on the project' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Delete them' })).toBeNull();
   });
 
   it('sends removedToDos: delete after choosing Delete them and Save anyway', async () => {

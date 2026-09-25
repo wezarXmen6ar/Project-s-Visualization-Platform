@@ -21,7 +21,10 @@ export function StarterEditor({ phases }: StarterEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const phaseId = selected ?? phases[0]?.id ?? null;
+  // `selected` can point at a phase value that Settings just deleted or renamed away; when that happens, fall
+  // back to the first available phase instead of showing an empty selection.
+  const selectedStillExists = selected !== null && phases.some((p) => p.id === selected);
+  const phaseId = selectedStillExists ? selected : (phases[0]?.id ?? null);
   const phase = phases.find((p) => p.id === phaseId);
   const items = (starters.data ?? []).filter((s) => s.phaseListId === phaseId);
 
