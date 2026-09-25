@@ -4986,7 +4986,7 @@ git commit -m "feat: demo team with leave and assignments that show real overboo
 
 ---
 
-### Task 9: Weekday labels on weeks, leave and phase dates (M4 review feedback, 2026-09-25)
+### Task 9: Weekday labels, and leave shown on the days it falls on (M4 review feedback, 2026-09-25)
 
 **Why:** in review the user found the week labels confusing. People work Monday to Friday, but each heatmap week showed only its Monday ("12 Oct"). Fatima's leave from Mon 12 to Fri 16 Oct appeared as "week of 12 Oct · 5 days of leave", which reads as five days of leave on the 12th alone. The data was right; the labels were not. Every week and date shown in M4's workload views now carries its weekday, and a week is labelled by its working days.
 
@@ -5007,7 +5007,8 @@ git commit -m "feat: demo team with leave and assignments that show real overboo
 1. **Heatmap column headers** (`WorkloadHeatmap`): two lines, `Mon 12 Oct` over `– Fri 16 Oct`. Each cell's aria-label says `"<name>, Mon 12 Oct – Fri 16 Oct: …"` instead of `"week of 12 Oct"`. The heatmap receives the calendar as a new `calendar` prop from `ResourcesPage`.
 2. **Decision prompt** (`OverloadPanel`): the heading reads `"Fatima Noor · Mon 12 Oct – Fri 16 Oct"`. Under the summary, each overlapping leave range is its own line, e.g. `"On leave Mon 12 Oct – Fri 16 Oct · Annual leave"`, or `"On leave Mon 19 Oct – Wed 21 Oct · Training"` for Jonas. A single day reads `"On leave Tue 13 Oct"`. The existing "N days of leave" count stays.
 3. **Overbooking warnings** on the project page and wizard Step 4 use the new `phaseWarnings` text. The phase date range above them uses `dayDate`: `"Mon 5 Oct – Fri 23 Oct"`.
-4. **Person page leave list**: `"Mon 12 Oct 2026 → Fri 16 Oct 2026 · Annual leave · 5 working days"` (use `countWorkingDays` with the workload calendar; write "1 working day" in the singular). The remove button's aria-label uses the new `formatDate`.
+4. **Leave day slices on the heatmap** (user decision, 2026-09-25): each cell gets a strip of day slices along its bottom edge, one per working weekday of that week (the days of Mon–Sun not in `cal.weekendDays`, so five by default). A slice is striped when the person is on leave that day. Fatima's week of 12 Oct has all five striped; Jonas's week of 19 Oct has Mon, Tue and Wed striped and Thu and Fri plain. This replaces the whole-cell `has-leave` stripe. Add `leaveDaysInWeek(leave, weekStart, cal)` to `client/overloads.ts`, returning each working weekday of the week as `{ date, onLeave }`. The heatmap needs each person's `leave`, so pass `WorkloadData.resources` to it. The strip is `aria-hidden`; the cell's aria-label adds `", on leave Mon 19 Oct – Wed 21 Oct"` so screen readers get the same information. The legend's **Leave** sample shows a striped slice. Keep the slices at least 3px tall so they are visible on a phone.
+5. **Person page leave list**: `"Mon 12 Oct 2026 → Fri 16 Oct 2026 · Annual leave · 5 working days"` (use `countWorkingDays` with the workload calendar; write "1 working day" in the singular). The remove button's aria-label uses the new `formatDate`.
 
 - [ ] **Step 1: Write the failing tests**
   - `client/overloads.test.ts`:
@@ -5019,11 +5020,73 @@ git commit -m "feat: demo team with leave and assignments that show real overboo
     - Update the existing `phaseWarnings` expectations to the new wording.
   - `WorkloadHeatmap.test.tsx`: the column header shows `Mon 12 Oct` and `Fri 16 Oct`. A cell's accessible name contains `Mon 12 Oct – Fri 16 Oct`.
   - `OverloadPanel.test.tsx`: for a week with leave, the heading contains the week label and the text `On leave Mon 12 Oct – Fri 16 Oct · Annual leave` is shown. This fixture needs leave on the person; add it.
+  - `WorkloadHeatmap.test.tsx`: in Jonas's week of 19 Oct, three of the five slices carry the leave class (query them with `container.querySelectorAll` inside that cell), and the cell's accessible name contains `on leave Mon 19 Oct – Wed 21 Oct`.
+  - `client/overloads.test.ts`: `leaveDaysInWeek` for Jonas's leave in the week of 19 Oct gives `[true, true, true, false, false]`. Leave ending on a Sunday does not add a slice.
   - `PersonPage.test.tsx`: the leave row shows `Mon 12 Oct 2026 → Fri 16 Oct 2026` and `5 working days`.
 - [ ] **Step 2:** Run `npx vitest run client` and confirm the new tests FAIL.
 - [ ] **Step 3:** Implement the helpers and the four places above. `dayOfWeek` returns 0 for Sunday, so use `const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']`. Remove `shortDate` once nothing uses it. Update any other test that asserted the old `"Week of 5 Oct"`, `"week of 5 Oct"` or `"12 Oct 2026"` text.
 - [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
-- [ ] **Step 5:** Commit with `feat: label weeks and dates with their weekdays, and show which days leave falls on`.
+- [ ] **Step 5:** Commit with `feat: label weeks and dates with their weekdays, and show leave on the days it falls on`.
+
+---
+
+### Task 10: Resources table — Projects column, sorting on every column, "Working on" filter (M4 review feedback, 2026-09-25)
+
+**Why:** the user wants to see which people are on the same projects, and to sort the People table by any column.
+
+**Files:**
+- Modify: `shared/types.ts`, `server/resources/repo.ts`, `client/pages/manage/ResourcesPage.tsx`, `client/styles.css`, `client/testing/fixtures.ts` (the `samplePeople()` fixture gains `projects`)
+- Create: `client/pages/manage/peopleTable.ts` (pure sort and filter helpers)
+- Test: `server/resources/resources.test.ts`, `client/pages/manage/peopleTable.test.ts` (new), `client/pages/manage/ResourcesPage.test.tsx`
+
+**Interfaces:**
+- Produces:
+  - `shared/types.ts`: `PersonProject { id: number; name: string; finished: boolean }`. `ResourceRecord.projects: PersonProject[]`, ordered by name.
+  - `server/resources/repo.ts`: `listResources(db, today = todayLocal())` and `getResource` fill `projects`. `today` is a parameter so tests can fix it.
+  - `client/pages/manage/peopleTable.ts`:
+    - `type SortKey = 'name' | 'side' | 'role' | 'capacity' | 'contact' | 'status' | 'projects'`
+    - `sortPeople(people, key, dir: 'asc' | 'desc')`
+    - `workingOn(person, projectId)`
+
+**The rule for which projects a person is "on"** (the user's decision):
+1. A person is on a project when they are **assigned to one of its phases** or are its **tech PM or business PM**.
+2. Each link has an end date: an assignment ends at its phase's planned end, and a PM role ends at the project's last phase end. A project with no phases counts as current for its PMs.
+3. **Current** means that end date is today or later. List every project with at least one current link, with `finished: false`.
+4. **If there are none, keep the most recent one.** List only the project whose link ended most recently, with `finished: true`, so the person still groups with that team. Break a tie on date by project name.
+5. **No links at all:** the list is empty.
+
+Do this with two queries and a small TypeScript fold in `server/resources/repo.ts`: one query gets every (resource id, project id, project name, end date) from assignments joined to phases, and the other gets the same for PM links, using `MAX(phases.planned_end)` per project. Then fold them per person.
+
+**Table (`ResourcesPage`):**
+- **Projects column.** Add it after Role. Each project is a link to `/manage/projects/:id`, with projects separated by commas. A finished one is muted, with a small "finished" note after the name. An empty list shows "—".
+- **Sortable headers.** Every column header, Projects included, is a `<button>` inside its `<th>`. The `<th>` carries `aria-sort="ascending"`, `"descending"` or `"none"`. Clicking a header sorts ascending by it; clicking the same header again flips the direction. The default is Name, ascending. Show a small ▲ or ▼ on the active column.
+- **Sort keys:**
+  - name, side, role and status sort by their text, compared without regard to case;
+  - capacity sorts numerically;
+  - contact sorts by phone, then email;
+  - projects sorts by the person's project names joined in order, so people on the same project sit together. People with no projects come last in both directions.
+  - Ties are broken by name.
+- **Working on filter.** Add a `<select>` labelled "Working on", beside the Side and Role filters. It offers "Any project" plus every project that appears in anyone's list, sorted by name. Picking one shows only the people whose `projects` include it, whether current or finished.
+
+- [ ] **Step 1: Write the failing tests**
+  - Server (`resources.test.ts`), with today fixed at `2026-10-01`. Set up a person assigned to a phase ending `2026-10-20`, and to a phase of a second project ending `2026-09-10`. Check that:
+    - that person lists only the first project, with `finished: false`;
+    - a person whose only assignment ended on `2026-09-10` lists that project with `finished: true`;
+    - a tech PM of a project whose last phase ends in the future lists it as current;
+    - a person with no links has `[]`.
+  - `peopleTable.test.ts`:
+    - sorting by projects groups two people who share a project and puts a person with no projects last, in both directions;
+    - sorting by capacity is numeric (80 before 100);
+    - ties are broken by name.
+  - `ResourcesPage.test.tsx`:
+    - clicking the Projects header sets `aria-sort="ascending"` on it and reorders the rows; clicking it again sets `"descending"`;
+    - choosing a project in "Working on" shows only its people.
+
+  These tests are scoped to the `People` table, as in Task 5.
+- [ ] **Step 2:** Run the new tests and confirm they FAIL.
+- [ ] **Step 3:** Implement the server fold, the helpers and the table.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
+- [ ] **Step 5:** Commit with `feat: projects column, sortable columns and a working-on filter on the people table`.
 
 ---
 
@@ -5040,14 +5103,14 @@ The user should be able to:
 2. **Resources** shows the **Workload** heatmap: people by weeks.
    - Aisha's week of 5 Oct is red (150%).
    - Jonas's week of 19 Oct is red (leave).
-   - Fatima's week of 12 Oct is striped and marked as not working. The column header reads "Mon 12 Oct – Fri 16 Oct", and clicking the cell shows "On leave Mon 12 Oct – Fri 16 Oct · Annual leave".
+   - Fatima's week of 12 Oct is striped and marked as not working. The column header reads "Mon 12 Oct – Fri 16 Oct", and clicking the cell shows "On leave Mon 12 Oct – Fri 16 Oct · Annual leave". All five of her day slices are striped. Jonas's week of 19 Oct has only Mon, Tue and Wed striped.
    - **‹ This week ›** moves 4 weeks at a time.
 3. Click Aisha's red week. The panel lists her Case Management UAT and E-Services work, then:
    - **Split the time** down to 50% for one of them. The cell stops being red, and the decision is recorded.
    - Or **Reassign work** to someone else. Their load that week shows next to each name.
    - Or **Accept the risk** with a reason. The cell turns amber-dashed and the dashboard notice goes away.
    - **Pause a project** and **Delay a phase** are visible but disabled, until M7 and M8.
-4. The **People** table filters by side and role. **Add person**:
+4. The **People** table filters by side, role and **Working on**. It has a **Projects** column, and every header sorts when clicked; clicking Projects puts people on the same project next to each other. **Add person**:
    - A tech-team person has a role, specialisation and capacity.
    - A business contact has a UAE mobile, and `04 123 4567` is refused.
 5. On a tech person's page, add and remove leave, and see the heatmap change.

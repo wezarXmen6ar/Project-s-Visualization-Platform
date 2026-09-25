@@ -40,10 +40,10 @@ Every milestone ends with something the user can run and try in the browser. Aft
 | **M2** | **Portfolio presentation** | Project Presentation → year portfolio Gantt chart with all projects, stat tiles, today line → click a project to see it in focus |
 | M3 | Full project details | All wizard fields: classification, main projects (with grouping on the portfolio), scope, out-of-scope, problems and objectives tables, dropdowns with "+ Add new", Settings lists |
 | M4 | Resources and workload | Resources page, assigning people to phases, workload heatmap, overload decision prompt |
-| M5 | Meetings, updates, attachments, actions | Add entries to a project, upload files, click a Gantt bar to open the side panel timeline, Actions page |
+| M5 | Sub-phases, meetings, updates, attachments, actions | Break any phase into sub-phases (such as development increments) and assign people to them, so everyone's exact work shows on their page and in the workload; add entries to a project, upload files, click a Gantt bar to open the side panel timeline, Actions page |
 | M6 | Progress and decisions | Actual dates, % complete, pace indicator, late detection, early/late shift prompts, "Needs your decision" inbox, holidays with shift prompt |
 | M7 | Holds and cross-project links | Record a hold, see the hatched hold bar with an arrow on the portfolio, dependency arrows |
-| M8 | Change requests, baselines, requirements | Change requests, baselines with dashed outlines, requirement sub-phases with source, date received and weights, development % rule |
+| M8 | Change requests, baselines, requirements | Change requests, baselines with dashed outlines, requirement fields on development sub-phases (source, date received), weights and the development % rule (sub-phases themselves arrive in M5) |
 | M9 | Requirement readiness | Incomplete/Ready with evidence, waiting clock, start at risk, grey waiting segments |
 | M10 | Stakeholder insight | Where did the time go? (cause and responsibility), Why did the end date move?, health model, milestones, record-history mode |
 | M11 | Playback | Play single project and portfolio, pop-ups with documents, auto-pause |
