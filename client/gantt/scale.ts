@@ -49,6 +49,25 @@ export function createTimeScale(start: ISODate, end: ISODate, width: number): Ti
   return { start, end, width, dayWidth, x, ticks, years };
 }
 
+/**
+ * Which of a series of label x-positions (assumed sorted ascending) to show so that no two shown labels are
+ * closer than `minGap` px apart. Greedy left-to-right: the first label is always shown, and later labels are
+ * shown once they are at least `minGap` past the last shown one.
+ */
+export function thinLabels(xs: number[], minGap: number): boolean[] {
+  const show: boolean[] = [];
+  let lastShownX: number | null = null;
+  for (const x of xs) {
+    if (lastShownX === null || x - lastShownX >= minGap) {
+      show.push(true);
+      lastShownX = x;
+    } else {
+      show.push(false);
+    }
+  }
+  return show;
+}
+
 export function monthPaddedRange(start: ISODate, end: ISODate): DateRange {
   return { start: firstOfMonth(start), end: addDays(nextMonth(firstOfMonth(end)), -1) };
 }

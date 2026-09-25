@@ -1,6 +1,6 @@
 import { DEFAULT_CALENDAR, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
 import { formatBarDates } from './barDates';
-import { createTimeScale, workWeekEnds } from './scale';
+import { createTimeScale, thinLabels, workWeekEnds } from './scale';
 
 export interface GanttBar {
   id: string;
@@ -29,7 +29,10 @@ export interface GanttProps {
   calendar?: WorkCalendar;
   /** 'weeks' adds a third header row with work-week day numbers and faint week lines. Default 'months'. */
   detail?: 'months' | 'weeks';
-  /** Shows a small muted dates label beside each bar. Default false. */
+  /**
+   * Shows a small muted dates label beside each bar. Default false. The label avoids other bars in the same
+   * row but not other date labels, so this is meant for a chart with one bar per row.
+   */
   showDates?: boolean;
 }
 
@@ -40,6 +43,8 @@ const BAR_H = 20;
 const SUMMARY_H = 8;
 const APPROX_CHAR_W = 6.5;
 const DATE_LABEL_GAP = 6;
+const MIN_WEEK_LABEL_GAP = 22;
+const MIN_MONTH_LABEL_GAP = 30;
 
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
@@ -90,25 +95,38 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
   const totalW = LABEL_W + chartW;
   const weekEnds = detail === 'weeks' ? workWeekEnds(range, cal) : [];
 
+  const showYear = thinLabels(scale.years.map((y) => y.x), MIN_MONTH_LABEL_GAP);
+  const showMonth = thinLabels(scale.ticks.map((t) => t.x), MIN_MONTH_LABEL_GAP);
+
+  const weekSpacing = scale.dayWidth * 7;
+  const weekLabelStep = Math.max(1, Math.ceil(MIN_WEEK_LABEL_GAP / weekSpacing));
+  const weekLineStep = weekSpacing < 6 ? weekLabelStep : 1;
+
   return (
     <svg width={totalW} height={height} role="img" aria-label="Gantt chart" className="gantt">
       <g transform={`translate(${LABEL_W},0)`}>
-        {scale.years.map((y) => (
+        {scale.years.map((y, i) => (showYear[i] ? (
           <text key={y.year} x={y.x + 4} y={12} className="gantt-year">{y.year}</text>
-        ))}
-        {scale.ticks.map((t) => (
+        ) : null))}
+        {scale.ticks.map((t, i) => (
           <g key={t.date}>
             <line x1={t.x} x2={t.x} y1={0} y2={height} className="gantt-grid" />
-            <text x={t.x + 4} y={28} className="gantt-tick">{t.label}</text>
+            {showMonth[i] ? <text x={t.x + 4} y={28} className="gantt-tick">{t.label}</text> : null}
           </g>
         ))}
-        {weekEnds.map((d) => {
+        {weekEnds.map((d, i) => {
           const endOfDayX = scale.x(d) + scale.dayWidth;
           const dayNum = Number(d.slice(8, 10));
+          const showLine = i % weekLineStep === 0;
+          const showLabel = i % weekLabelStep === 0;
           return (
             <g key={d}>
-              <line x1={endOfDayX} x2={endOfDayX} y1={HEADER_H} y2={height} className="gantt-grid-week" />
-              <text x={scale.x(d) + scale.dayWidth / 2} y={44} textAnchor="middle" className="gantt-week-tick">{dayNum}</text>
+              {showLine ? (
+                <line x1={endOfDayX} x2={endOfDayX} y1={HEADER_H} y2={height} className="gantt-grid-week" />
+              ) : null}
+              {showLabel ? (
+                <text x={scale.x(d) + scale.dayWidth / 2} y={44} textAnchor="middle" className="gantt-week-tick">{dayNum}</text>
+              ) : null}
             </g>
           );
         })}

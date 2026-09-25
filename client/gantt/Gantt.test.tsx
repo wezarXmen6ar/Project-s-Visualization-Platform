@@ -2,7 +2,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_CALENDAR } from '../../shared/calendar';
 import { Gantt, type GanttRow } from './Gantt';
+import { workWeekEnds } from './scale';
 
 const octoberRange = { start: '2026-10-01', end: '2026-10-31' };
 
@@ -77,6 +79,22 @@ describe('Gantt', () => {
     const bar = screen.getByTestId('gantt-bar-a1').querySelector('rect')!;
     const barX = Number(bar.getAttribute('x'));
     expect(Number(label.getAttribute('x'))).toBeLessThan(barX);
+  });
+
+  it('thins week-number labels on a long range on a narrow screen so they never overlap', () => {
+    const yearRange = { start: '2026-01-01', end: '2026-12-31' };
+    render(<Gantt rows={rows} range={yearRange} width={390} detail="weeks" />);
+    const weekEnds = workWeekEnds(yearRange, DEFAULT_CALENDAR);
+    const shown = screen.getAllByText(/^\d{1,2}$/, { selector: '.gantt-week-tick' });
+    expect(shown.length).toBeLessThan(weekEnds.length);
+  });
+
+  it('shows every week-number label on a short range with plenty of width', () => {
+    const monthRange = { start: '2026-10-01', end: '2026-10-31' };
+    render(<Gantt rows={rows} range={monthRange} width={1200} detail="weeks" />);
+    const weekEnds = workWeekEnds(monthRange, DEFAULT_CALENDAR);
+    const shown = screen.getAllByText(/^\d{1,2}$/, { selector: '.gantt-week-tick' });
+    expect(shown.length).toBe(weekEnds.length);
   });
 
   it('shows the year on both dates when they fall in different years', () => {

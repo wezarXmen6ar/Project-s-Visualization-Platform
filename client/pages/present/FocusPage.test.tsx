@@ -7,7 +7,10 @@ import { FocusPage } from './FocusPage';
 
 describe('FocusPage', () => {
   it('shows one project read-only with its phases', async () => {
-    mockFetch({ 'GET /api/projects/1': () => ({ body: sampleProject() }) });
+    mockFetch({
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+    });
     render(
       <MemoryRouter initialEntries={['/present/projects/1']}>
         <Routes>
@@ -35,6 +38,7 @@ describe('FocusPage', () => {
           ],
         }),
       }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
     });
     render(
       <MemoryRouter initialEntries={['/present/projects/1']}>

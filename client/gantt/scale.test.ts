@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CALENDAR } from '../../shared/calendar';
-import { createTimeScale, monthPaddedRange, workWeekEnds } from './scale';
+import { createTimeScale, monthPaddedRange, thinLabels, workWeekEnds } from './scale';
 
 describe('createTimeScale', () => {
   it('maps dates linearly to pixels', () => {
@@ -51,5 +51,18 @@ describe('workWeekEnds', () => {
     expect(workWeekEnds({ start: '2026-10-01', end: '2026-10-31' }, cal)).toEqual([
       '2026-10-01', '2026-10-08', '2026-10-15', '2026-10-22', '2026-10-29',
     ]);
+  });
+});
+
+describe('thinLabels', () => {
+  it('shows every 3rd label when spaced at 10px with a 22px minimum gap', () => {
+    const xs = Array.from({ length: 10 }, (_, i) => i * 10);
+    expect(thinLabels(xs, 22)).toEqual([
+      true, false, false, true, false, false, true, false, false, true,
+    ]);
+  });
+  it('shows every label when spaced at 30px with a 22px minimum gap', () => {
+    const xs = Array.from({ length: 5 }, (_, i) => i * 30);
+    expect(thinLabels(xs, 22)).toEqual([true, true, true, true, true]);
   });
 });
