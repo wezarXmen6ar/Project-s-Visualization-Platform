@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
@@ -156,7 +156,7 @@ describe('SettingsPage', () => {
     await screen.findByRole('option', { name: 'UAT (2)' });
     await user.selectOptions(screen.getByLabelText('Phase'), 'UAT (2)');
     await user.click(await screen.findByRole('button', { name: 'Delete starter Write test cases' }));
-    expect(screen.queryByText('Write test cases')).toBeNull();
+    await waitFor(() => expect(screen.queryByText('Write test cases')).toBeNull());
     expect(fetchMock.mock.calls.some(([url, init]) => url === '/api/starter-todos/1' && init?.method === 'DELETE')).toBe(true);
   });
 
