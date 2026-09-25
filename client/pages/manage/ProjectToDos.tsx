@@ -1,7 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { todayLocal } from '../../../shared/calendar';
 import type { Me, ProjectRecord, ToDoRecord } from '../../../shared/types';
-import { formatDate } from './labels';
+import { dayDate } from '../../overloads';
 import { ToDoForm } from '../../components/ToDoForm';
 import { api } from '../../api';
 import { useAsync } from '../../useAsync';
@@ -12,7 +12,14 @@ export function useProjectToDos(projectId: number) {
   const [version, setVersion] = useState(0);
   const loaded = useAsync(() => api.listToDos({ projectId, includeDone: true }), [projectId, version]);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
-  return { todos: loaded.data ?? [], error: loaded.error, reload };
+  const toggleDone = useCallback(
+    async (t: ToDoRecord) => {
+      await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+      reload();
+    },
+    [reload],
+  );
+  return { todos: loaded.data ?? [], error: loaded.error, reload, toggleDone };
 }
 
 interface ToDoRowMetaProps {
@@ -45,10 +52,11 @@ interface ProjectToDosProps {
   me: Me | undefined;
   todos: ToDoRecord[];
   reload: () => void;
+  toggleDone: (t: ToDoRecord) => void;
 }
 
 /** The project's to-dos: add, edit, tick off, and delete, with done ones tucked away by default. */
-export function ProjectToDos({ project, me, todos, reload }: ProjectToDosProps) {
+export function ProjectToDos({ project, me, todos, reload, toggleDone }: ProjectToDosProps) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
@@ -58,11 +66,6 @@ export function ProjectToDos({ project, me, todos, reload }: ProjectToDosProps) 
 
   const open = byUrgency(todos.filter((t) => !t.done));
   const done = todos.filter((t) => t.done);
-
-  async function toggleDone(t: ToDoRecord) {
-    await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
-    reload();
-  }
 
   async function deleteToDo(id: number) {
     await api.deleteToDo(id);
@@ -98,7 +101,7 @@ export function ProjectToDos({ project, me, todos, reload }: ProjectToDosProps) 
         <ul className="todo-list">
           {open.map((t) =>
             editingId === t.id ? (
-              <li key={t.id} className="todo">
+              <li key={t.id} className="todo-editing">
                 <ToDoForm
                   project={project}
                   me={meValue}
@@ -154,7 +157,7 @@ export function ProjectToDos({ project, me, todos, reload }: ProjectToDosProps) 
               <input type="checkbox" aria-label={`Done: ${t.title}`} checked onChange={() => void toggleDone(t)} />
               <div>
                 <div className="todo-title">{t.title}</div>
-                <div className="todo-meta">{t.doneDate ? `Done ${formatDate(t.doneDate)}` : ''}</div>
+                <div className="todo-meta">{t.doneDate ? `Done ${dayDate(t.doneDate)}` : ''}</div>
               </div>
             </li>
           ))}

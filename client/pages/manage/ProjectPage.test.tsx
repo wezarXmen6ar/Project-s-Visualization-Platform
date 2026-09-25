@@ -390,6 +390,87 @@ describe('ProjectPage to-dos', () => {
     await user.click(await screen.findByRole('button', { name: 'Show 1 done' }));
     expect(screen.getByRole('button', { name: 'Hide done' })).toBeInTheDocument();
     expect(screen.getByText('Confirm the sandbox is ready')).toBeInTheDocument();
-    expect(screen.getByText('Done Tue 22 Sep 2026')).toBeInTheDocument();
+    expect(screen.getByText('Done Tue 22 Sep')).toBeInTheDocument();
+  });
+
+  it("shows Next up's due label and phase name for a to-do assigned to me with a phase", async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-25T09:00:00'));
+    const me = { resourceId: 70, name: 'Sara Ahmed' };
+    const todos = [
+      {
+        id: 200, projectId: 1, projectName: 'Portal', title: 'Task with phase', note: null,
+        assignee: { id: 70, name: 'Sara Ahmed' }, dueDate: '2026-10-01', done: false, doneDate: null,
+        phase: { id: 120, name: 'Increment 1' }, formerPhase: null, createdAt: '2026-09-24T09:00:00.000Z',
+      },
+    ];
+    mockFetch({
+      'GET /api/projects/1': () => ({ body: projectWithSubPhase() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
+      'GET /api/settings/me': () => ({ body: me }),
+    });
+    renderAt('/manage/projects/1');
+
+    const card = (await screen.findByRole('heading', { name: 'Next up' })).closest('section') as HTMLElement;
+    expect(within(card).getByText('Task with phase')).toBeInTheDocument();
+    expect(within(card).getByText('Due Thu 1 Oct')).toBeInTheDocument();
+    const metaLine = within(card).getByText((content, element) => {
+      return element?.className === 'todo-meta' && content.includes('Increment 1');
+    });
+    expect(metaLine).toBeInTheDocument();
+  });
+
+  it('shows assignee name, due label, and phase name in a to-do row meta line', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-25T09:00:00'));
+    const assignee = { id: 70, name: 'Sara Ahmed' };
+    const todos = [
+      {
+        id: 200, projectId: 1, projectName: 'Portal', title: 'Task with meta', note: null,
+        assignee, dueDate: '2026-10-01', done: false, doneDate: null,
+        phase: { id: 120, name: 'Increment 1' }, formerPhase: null, createdAt: '2026-09-24T09:00:00.000Z',
+      },
+    ];
+    mockFetch({
+      'GET /api/projects/1': () => ({ body: projectWithSubPhase() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+    });
+    renderAt('/manage/projects/1');
+
+    const toDosCard = (await screen.findByRole('heading', { name: 'To-dos' })).closest('section') as HTMLElement;
+    const taskTitle = within(toDosCard).getByText('Task with meta');
+    const parentDiv = taskTitle.closest('div') as HTMLElement;
+    const metaLine = parentDiv.parentElement?.querySelector('.todo-meta') as HTMLElement;
+    expect(metaLine).toBeInTheDocument();
+    expect(metaLine.textContent).toContain('Sara Ahmed');
+    expect(metaLine.textContent).toContain('Due Thu 1 Oct');
+    expect(metaLine.textContent).toContain('Increment 1');
+  });
+
+  it('unticks a done to-do and sends PUT with done: false', async () => {
+    const todos = sampleToDos();
+    const fetchMock = mockFetch({
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+      'PUT /api/todos/203': () => ({ body: { ...todos[3], done: false } }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    await user.click(await screen.findByRole('button', { name: 'Show 1 done' }));
+    const toDosCard = (await screen.findByRole('heading', { name: 'To-dos' })).closest('section') as HTMLElement;
+    await user.click(within(toDosCard).getByLabelText('Done: Confirm the sandbox is ready'));
+
+    const put = await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([url, init]) => url === '/api/todos/203' && init?.method === 'PUT');
+      expect(call).toBeTruthy();
+      return call!;
+    });
+    expect(JSON.parse(put[1]!.body as string)).toMatchObject({ done: false });
   });
 });
