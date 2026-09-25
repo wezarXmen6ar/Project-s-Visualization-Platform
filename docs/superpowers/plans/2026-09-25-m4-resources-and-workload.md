@@ -21,7 +21,7 @@
 **Decisions confirmed with the user (2026-09-25):**
 - **Overload decision prompt:** M4 offers **Split the time**, **Reassign** and **Accept the risk**, and records each decision with its date.
   - "Pause a project" and "Delay a phase" are shown but disabled.
-  - They switch on once holds (M7) and phase changes (M8) exist.
+  - They switch on later: Delay a phase with progress and phase shifts (M7), and Pause a project with holds (M8). (Renumbered in the roadmap review, 2026-09-25.)
 - **Assigning people:** on the project page at any time, since people change mid-project, and in a new **Step 4 "People"** of the create wizard.
 - **Business-side people are in Resources, as business contacts.**
   - A person is either **Tech team** or **Business side**.
@@ -5109,7 +5109,7 @@ The user should be able to:
    - **Split the time** down to 50% for one of them. The cell stops being red, and the decision is recorded.
    - Or **Reassign work** to someone else. Their load that week shows next to each name.
    - Or **Accept the risk** with a reason. The cell turns amber-dashed and the dashboard notice goes away.
-   - **Pause a project** and **Delay a phase** are visible but disabled, until M7 and M8.
+   - **Pause a project** and **Delay a phase** are visible but disabled, until M8 and M7.
 4. The **People** table filters by side, role and **Working on**. It has a **Projects** column, and every header sorts when clicked; clicking Projects puts people on the same project next to each other. **Add person**:
    - A tech-team person has a role, specialisation and capacity.
    - A business contact has a UAE mobile, and `04 123 4567` is refused.
@@ -5120,4 +5120,4 @@ The user should be able to:
    - a business PM's phone and email come from their Resources entry.
 8. **Settings** has a **Roles** list.
 
-**Ask the user for feedback. When M4 is approved, fast-forward `main` and every other branch to `build/m4`, then write the M5 plan (Meetings, updates, attachments, actions).**
+**Ask the user for feedback. When M4 is approved, fast-forward `main` and every other branch to `build/m4`, then write the M5 plan (Sub-phases and to-dos).**

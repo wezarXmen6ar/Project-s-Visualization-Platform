@@ -7,7 +7,7 @@
 
 A project management tool that is visual first. It has two main features:
 
-1. **Project Management.** Create and manage projects, phases, requirements, resources, workload, meetings, updates, actions and attachments.
+1. **Project Management.** Create and manage projects, phases, requirements, resources, workload, meetings, updates, to-dos and attachments.
 2. **Project Presentation.** Show the portfolio to stakeholders visually: dashboard, portfolio Gantt, focus on a single project, playback, and a what-if sandbox.
 
 **The core problem it solves:** stakeholders don't see the history of a project. Delays get blamed on development when the real causes were change requests, holds (resources pulled to other projects), missing requirement information, or holidays. Stakeholders also can't see the price of a new requirement before they ask for it.
@@ -28,12 +28,12 @@ Feature 2 is the more important of the two, but it depends entirely on the data 
 | Early or late finish | The tool asks each time whether to shift the phases that follow: Yes / No / Partially. Late finishes also ask for the cause of the slip. |
 | Holidays | Individual dated entries or ranges, added whenever they are announced (no recurring rules). Adding one prompts to shift affected phases, and the cause is recorded as "Public holiday". |
 | Playback | Works for a single project and for the whole portfolio year. |
-| Tech stack | TypeScript throughout: React + Vite client, Node + Fastify server, SQLite (Drizzle), and a custom SVG Gantt renderer. |
+| Tech stack | TypeScript throughout: React + Vite client, Node + Fastify server, SQLite (Node's built-in `node:sqlite` with plain SQL and numbered migrations), and a custom SVG Gantt renderer. |
 
 ## 1. Architecture and build order (APPROVED)
 
 ```
-server/   Node + Fastify + SQLite (Drizzle ORM); REST API; uploads → attachments/; pm.db
+server/   Node + Fastify + SQLite (node:sqlite, plain SQL); REST API; uploads → attachments/; pm.db
 shared/   Pure TypeScript engines (no UI or database), unit-tested:
           calendar · scheduler · capacity · baselines · timeline
 client/   React + Vite
@@ -50,6 +50,11 @@ client/   React + Vite
   4. What-if sandbox
 - The data model covers all four from the start.
 - This spec is the umbrella design. The first implementation plan covers **sub-project 1 only**. Sub-projects 2–4 each get a short follow-up spec that refines the relevant section here.
+- **Delivery principles (roadmap review, 2026-09-25).** The build runs as milestones M1–M14 (the roadmap table lives in the M1–M2 plan). Each one:
+  - ends with something new to try on **both** sides where it makes sense, a management screen and what stakeholders see, and extends the **demo portfolio** so the new feature has real-looking data to test;
+  - records history completely from the moment a feature exists. Every date change is an `Event` with its cause, delay days, responsibility and the dates before and after (from M7). History that was never recorded can't be rebuilt later for playback or the charts;
+  - lets its own items be **recorded with a past date** (record-history mode), with no decision prompts for past-dated items, rather than leaving all of record-history to one late milestone;
+  - grows the stakeholder charts. **Why did the end date move?** and **Where did the time go?** first appear in M7, with late finishes and holidays, and each later milestone adds its own cause: holds in M8, change requests in M9, and waiting for requirement information in M10.
 
 ## 2. Data model (APPROVED)
 
@@ -61,23 +66,26 @@ client/   React + Vite
 - `Project`: the fields listed in §3.2, plus status (**proposed**, planned, active, on hold, done, cancelled) and a reference to its main project. *Proposed* projects come from the sandbox and are left out of capacity checks and the real portfolio until promoted to *Planned*.
 - `MainProject`: name. Can be created inline.
 - `ScopeItem`: project, kind (scope, out-of-scope, problem, objective), text, order, `addedByChangeRequestId` (nullable), date added.
-- `Phase`: project, name, order, planned start and end, duration in working days, actual start and end, % complete, `parentId` (sub-phases are optional on **any** phase and one level deep), weight. **Sub-phases arrive in M5 (M4 review, 2026-09-25)**, moved forward from M8 because nothing else they need comes later: they break a phase into named pieces (such as a development phase's 20 increments), each with its own working days inside its parent. People can be assigned to a sub-phase as well as to a whole phase, so a person's page and the workload panel say exactly what they are on ("Case Management › Development › Increment 7 – Payment gateway"). Sub-phase weights, the development % rule and requirement fields on development sub-phases stay in M8.
+- `Phase`: project, name, order, planned start and end, duration in working days, actual start and end, % complete, `parentId` (sub-phases are optional on **any** phase and one level deep), weight. **Sub-phases arrive in M5 (M4 review, 2026-09-25)**, moved forward because nothing else they need comes later. They break a phase into named pieces (such as a development phase's 20 increments), each with its own working days inside its parent. **Sub-phases may run at the same time** (user decision, 2026-09-25): by default a new sub-phase starts after the previous one, and it can be set to start with another instead. It is not expected to be used often, but the flexibility is there. The parent phase spans from its first sub-phase's start to its last sub-phase's end. People can be assigned to a sub-phase as well as to a whole phase, so a person's page and the workload panel say exactly what they are on ("Case Management › Development › Increment 7 – Payment gateway"). Sub-phase weights, the development % rule and requirement fields on development sub-phases come in M9.
+- **Phases can be edited after a project is created from M5.** Adding sub-phases to an existing project needs this. You can add, remove, reorder and resize phases and sub-phases. Before Baseline 1 exists this simply changes the plan. From M7, a change to a project that has started is recorded as an `Event`, with its cause.
 - **Phase colour (post-M1-demo feedback, 2026-09-24):** not a field on `Phase`. Every Gantt bar is coloured from a **fixed palette keyed by the phase's name** (normalised: trimmed, case-insensitive) — "Requirements" is always the same colour, "Development" is always another, "UAT" another, and so on — shared across every project and every screen (project page, wizard live preview, portfolio, focus view). A set of standard phase names (Requirements, Analysis, Design, Development plan, Development, Testing/QA, UAT, Security testing, Deployment, Launch — with Go-live as an alias of Launch) is mapped to a 10-colour palette up front, neighbouring lifecycle phases getting clearly different hues; a phase named something else still gets a colour, deterministically derived from its name so the same custom name always lands on the same colour everywhere, without needing a name registry. A project's own `colour` (§3.2 Step 1) plays no part in this — it identifies the project elsewhere (lists, tags), not its phase bars.
-- **Requirement fields** (on sub-phases under development): source (original or added later), date received, linked change request, linked scope item, readiness (incomplete or ready), start-at-risk flag and reason.
+- **Requirement fields** (M9, on sub-phases under development): source (original or added later), date received, linked change request, linked scope item, readiness (incomplete or ready), start-at-risk flag and reason.
 - `RequirementEvidence`: requirement, then **either** an attachment **or** an entry (a meeting), plus a confirmation date. A requirement can have several pieces of evidence. Readiness counts from the earliest one.
 - `Assignment`: phase, resource, allocation %, role (responsible or contributor).
 
 **History (feeds the presentation)**
-- `Entry`: type (meeting, update, action-only), project, optional phase, **effective date**, created date, title, body, **highlight-in-presentation** flag. Has 0..n attachments.
-- `Action`: source entry, assignee, due date, status, linked phase or requirement, tag (for example *Clarification*).
+- `Entry`: type (meeting or update), project, optional phase, **effective date**, created date, title, body, **highlight-in-presentation** flag. Has 0..n attachments.
+- `ToDo` (named **To-do** everywhere; the word "action" is not used for it, to avoid confusion): project, title, optional note, assignee, optional due date, status (open or done, with the date it was done), optional link to a phase, sub-phase or requirement, optional source meeting entry, optional tag (for example *Clarification*). The assignee is **me** (the PM using the tool) or anyone on that project: a tech-team person assigned to one of its phases, or either project manager, business-side contacts included. **To-dos are private to project management.** They never appear on the presentation side, in presenter mode, in PDF exports or in playback, and they do not count in workload.
+- `StarterToDo`: a phase name, then a title. It is an optional checklist kept in Settings (see §3.9).
 - `Attachment`: file, name, **type** (editable list: Meeting Minutes, Approval, Change Request, Business Analysis Document, BRD, Documentation, Design, Test Report, Other), entry (optional), phase, deliverable date.
-- `Event`: machine-recorded history, append-only. Types: phase started or finished, hold started or ended, change request proposed, approved or rejected, requirement added, requirement ready, date shifted, overload resolved, holiday applied. Each has an effective date, a **cause**, **delay days** (signed: negative means time saved; these feed Where did the time go? and Why did the end date move?), responsibility, and optional links (other project, change request, holiday, resource).
+- `Event`: machine-recorded history, append-only. Types: phase started or finished, hold started or ended, change request proposed, approved or rejected, requirement added, requirement ready, date shifted, overload resolved, holiday applied. Each has an effective date, the **dates before and after** for anything that moved, a **cause**, **delay days** (signed: negative means time saved; these feed Where did the time go? and Why did the end date move?), responsibility, and optional links (other project, change request, holiday, resource).
 - `Hold`: project, start date, end date, reason, **receiving project**.
 - **Responsibility** (on change requests, requirements, holds, slip causes, waiting periods, and the delay days of each `Event`): one or more of **Technical team · Business user · Decision makers · External** (list editable in Settings), plus Calendar (automatic, for holidays only). When several parties share responsibility, delay days are split evenly by default and the split can be adjusted. Defaults: change request, requirement and waiting period → Business user; hold → Decision makers; holiday → Calendar; late-phase cause → chosen in the prompt.
 - `Milestone`: either a ⭐ flag on a phase or requirement end, with a stakeholder-friendly name, or a standalone milestone (date and name, no duration). A flagged milestone's date follows the plan automatically.
 - `ChangeRequest`: project, requested by, description, extra days by role, status (proposed, approved, rejected), approval attachment.
-- `Baseline`: a numbered snapshot of all phase dates. Created at kickoff and for each approved change request.
+- `Baseline`: a numbered snapshot of all phase dates. **Baseline 1 is created when a project is saved, from M7.** Projects that already exist then get theirs from their plan as it stands, and past projects get theirs from the original plan entered in record-history mode. A new baseline is created for each approved change request (M9).
 - `ProjectLink`: finish-to-start dependency between phases in different projects.
+- **Follow-on projects (M8):** `Project.followsProjectId` points at the project this one continues, for example a new phase of a launched project. See §3.10.
 
 **Past and future projects**
 - *Planned* projects have no actuals. They count in "scheduled this year" and take part in overload checks.
@@ -115,20 +123,23 @@ Two tiles: **Project Management** and **Project Presentation**.
 
 **Step 4: People.** Assign tech-team people to phases with an allocation % (1–100) and a role (responsible or contributor). Overload warnings appear immediately. The same editor is on the project page, where people can be changed at any time.
 
-**Step 5: History.** Only shown if any dates are in the past (record-history mode).
+**Step 5: History.** Only shown if any dates are in the past (record-history mode). From M7 it takes the original plan and the actual dates. Holds, change requests and documents with their real dates are recorded on the project page as each of those features arrives.
 
 Saving creates Baseline 1.
 
 ### 3.3 Dashboard
-- Tiles: active, on hold, planned, overdue phases, open actions, overloaded people, **requirements waiting for information**, **unapproved work in progress**.
+- Tiles: active, on hold, planned, overdue phases, open to-dos, overloaded people, **requirements waiting for information**, **unapproved work in progress**.
 - Mini portfolio Gantt chart. Project table: name, Jira key, PM, status, current phase, %, pace, baseline end vs current end.
 - **"Needs your decision" inbox**: overloads, overdue phases without a cause, early or late finishes, holiday shifts.
+- **My next steps (M5):** your open to-dos across all projects, overdue ones first and in red.
 
 ### 3.4 Project page
 - Header: status, pace, baseline end vs current end.
-- Actions: Add meeting, Add update, Upload attachment, Record hold, Change request, Update progress.
-- **Gantt chart as the centrepiece.** Clicking a bar opens a **slide-in side panel** with a chronological, collapsible timeline (grouped by week or type) of the phase's entries, actions and attachments.
-- Tabs: Timeline, Attachments (filter by type or phase), Actions, **Requirements**, Change requests, Baselines.
+- Buttons: Add to-do, Add meeting, Add update, Upload attachment, Record hold, Change request, Update progress, **Create follow-on project**.
+- **Next up (M5):** a card with your three most urgent open to-dos on this project.
+- **Project family (M8):** when a project follows another or has follow-ons, a strip shows the chain, e.g. "Case Management (launched Mar 2026) → Case Management Phase 2 (planned)".
+- **Gantt chart as the centrepiece.** Clicking a bar opens a **slide-in side panel** with a chronological, collapsible timeline (grouped by week or type) of the phase's entries, to-dos and attachments.
+- Tabs: Timeline, Attachments (filter by type or phase), To-dos, **Requirements**, Change requests, Baselines.
 
 ### 3.5 Requirements (development sub-phases)
 - Each requirement has: source (Original scope / Added later), date received, progress 0–100%, readiness.
@@ -142,7 +153,7 @@ Saving creates Baseline 1.
 - Status is **Incomplete** (the default) or **Ready**.
 - **Mark ready** requires linking at least one piece of evidence: an **attachment** or a **meeting entry**. More evidence can be added later.
 - While a requirement is incomplete:
-  - Clarification questions are Actions tagged *Clarification*.
+  - Clarification questions are to-dos tagged *Clarification*.
   - A waiting clock runs from the date received. It turns amber after 14 days and red after 30; both thresholds are configurable.
   - Development is locked. **Start at risk** overrides the lock but requires a reason and stays flagged.
 - If the planned start passes while the requirement is still incomplete, the slip cause is set automatically to **"Waiting on requirement information"**.
@@ -151,20 +162,48 @@ Saving creates Baseline 1.
 - A simple table with add and edit, filtered by side and role.
 - **Projects column, sorting and a "Working on" filter (M4 review, 2026-09-25).** The People table has a **Projects** column listing the projects each person is on: a phase they are assigned to, or a project they manage (tech or business PM). Only projects where that work has not finished yet are listed (a phase counts until its planned end; a PM role until the project's last phase ends). A person with nothing current keeps the project they finished most recently, shown muted with "finished", so they still group with that team. Nothing at all shows "—". **Every column header is clickable to sort**, and clicking again reverses the order; the Projects column sorts by the project names, so people on the same project sit together. A **Working on** filter picks one project and shows everyone on it, including people who are also on other projects.
 - A **workload heatmap** of people by weeks (Monday to Sunday), coloured by how much of each week is booked. Booked % = each assignment's allocation × the working days it covers that week ÷ the week's working days. Available % = capacity reduced by leave days. A week is overbooked when booked is more than available. Clicking a cell shows the conflict and opens the decision prompt.
-- **Decision prompt (M4):** Split the time, Reassign work (with each person's load that week shown), or Accept the risk (with an optional reason); each is recorded as a dated event. Pause a project and Delay a phase are shown but switch on with holds (M7) and phase changes (M8). An accepted overbooking stays visible in its own style and no longer counts in the dashboard warning.
+- **Decision prompt (M4):** Split the time, Reassign work (with each person's load that week shown), or Accept the risk (with an optional reason); each is recorded as a dated event. Pause a project and Delay a phase are shown but switch on later: Delay a phase with progress and phase shifts (M7), and Pause a project with holds (M8). An accepted overbooking stays visible in its own style and no longer counts in the dashboard warning.
 - Personal **leave** (dates and an optional note) is kept per person on their page; leave days reduce what they can give that week.
-- **Leave is shown on the days it falls on (M4 review, 2026-09-25).** Each heatmap cell has a strip of day slices along its bottom, one per working day of that week (Mon–Fri by default). Only the days someone is on leave are striped, so a full week of leave strips all five and three days of training strip Mon, Tue and Wed. The cell's label names the days. Public holidays (M6) will show on the same strip in their own style.
+- **Leave is shown on the days it falls on (M4 review, 2026-09-25).** Each heatmap cell has a strip of day slices along its bottom, one per working day of that week (Mon–Fri by default). Only the days someone is on leave are striped, so a full week of leave strips all five and three days of training strip Mon, Tue and Wed. The cell's label names the days. Public holidays (M7) will show on the same strip in their own style.
 - **Weeks and dates show the day of the week (M4 review, 2026-09-25).** People work Monday to Friday, so a week is labelled by its working days, not just its Monday: the heatmap column reads "Mon 12 Oct – Fri 16 Oct", and the decision prompt, the overbooking warnings ("Mon 5 Oct – Fri 9 Oct: 150% booked, 100% available") and the dashboard notice use the same label. The first and last working day come from the calendar in Settings. The decision prompt names the leave that falls in that week by its days ("On leave Mon 12 Oct – Fri 16 Oct · Annual leave"), and a person's leave list shows the weekday on each date plus the number of working days it covers.
 
-### 3.8 Actions page
-All actions across projects, filtered by assignee (including "Mine") and sorted by due date.
+### 3.8 To-dos (M5)
+- **Where they are added:**
+  - from the project page, with Add to-do;
+  - from a phase's side panel, which links the to-do to that phase;
+  - from a meeting while writing it up (M6).
+- **The To-dos page** shows every to-do across projects, filtered by project and by assignee (including **Mine**), sorted by due date, with overdue ones highlighted. Done to-dos are hidden unless you ask for them.
+- **Linked to-dos appear:**
+  - in that phase's side panel;
+  - on the assignee's person page, next to the work they belong to.
+- **Starter checklists (optional):** Settings keeps a short list of to-dos per phase name, for example UAT: "Book UAT sessions", "Get UAT sign-off". The lists start empty. When a project is created, or a phase is added, the matching items are offered ticked, and you can untick any or all of them. Nothing is added unless you keep it.
+- **"I am" (Settings):** you pick yourself from Resources, which is what **Mine** and **My next steps** use.
 
 ### 3.9 Settings
-Weekend days, holidays, attachment types, roles, dropdown lists (main projects, project types, goals, business users, **phases**), and waiting-clock thresholds. Renaming a phase in the list renames it on every project's phases; a phase name any project uses cannot be deleted.
+Weekend days, holidays, attachment types, roles, dropdown lists (main projects, project types, goals, business users, **phases**), waiting-clock thresholds, **"I am"**, and **starter to-dos per phase**. Renaming a phase in the list renames it on every project's phases; a phase name any project uses cannot be deleted.
+
+### 3.10 Follow-on projects (M8)
+- **Create follow-on project** on a project page opens the new-project wizard pre-filled from the original:
+  - classification, department, requester and beneficiary;
+  - both project managers;
+  - the background;
+  - the phase list with its durations;
+  - optionally, the same people on the same phases.
+
+  Dates, progress, history and documents are not copied.
+- **Main project:**
+  - If the original is under a main project, the follow-on joins it.
+  - If not, the wizard offers to create a main project named after the original and put both in it. The portfolio already groups by main project, with a summary bar.
+- **Carry-over:**
+  - The original's **out-of-scope** items are offered as the new project's scope, ticked, and tagged "Carried over from <project>".
+  - Its **open to-dos** can be moved across.
+- **Start after the original:** optionally, the follow-on's first phase is linked to the original's last phase as a finish-to-start `ProjectLink`, so it moves if the launch slips, and the portfolio draws the arrow.
+- **Stakeholders:** the focus view shows the project-family strip, so the story reads across phases.
+- **Sandbox:** in the sandbox (M13), "Save as proposed project" can also mark the new project as a follow-on.
 
 ## 4. Presentation screens (APPROVED)
 
-All read-only. The only exception is saving a sandbox scenario as a *proposed* change request.
+All read-only. The only exception is saving a sandbox scenario as a *proposed* change request. To-dos never appear here.
 
 ### 4.1 Presentation dashboard
 - Tiles: active, finished this year, scheduled to start this year, on hold, waiting for business input. Year selector.
@@ -228,7 +267,7 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
   - **Reset** discards everything.
 
 ### 5.3 Errors and data safety
-- A daily automatic backup of `pm.db` goes to `backups/`, keeping the last 14. Attachment files are never overwritten.
+- A daily automatic backup of `pm.db` goes to `backups/`, keeping the last 14. This arrives in M5, before files and meeting notes that can't be recreated are entered. Attachment files are never overwritten.
 - History is never silently rewritten. Edits to recorded events are themselves logged. Deleting an attachment or entry that is used as evidence or linked to a change request brings up a warning first.
 - Validation:
   - sub-phase weights must total 100% (weights are set automatically unless you set them by hand)
@@ -240,7 +279,7 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
 ### 5.4 Testing
 - **Engines** (calendar, scheduler, capacity, baselines, timeline): thorough Vitest unit tests using realistic scenarios, for example a hold during Eid while a change request is approved.
 - **API:** integration tests against a temporary SQLite database.
-- **End-to-end** (Playwright, a small number): create a project → record a hold → the portfolio shows the arrow → playback runs.
+- **End-to-end** (Playwright, a small number, set up in M8 when the first full flow exists): create a project → record a hold → the portfolio shows the arrow. Playback is added to the flow in M12.
 - **Built-in demo portfolio**, with holds, change requests, waiting requirements and a completed historical project, used for tests and for rehearsing presentations.
 
 ## 6. Out of scope (for now)
