@@ -32,6 +32,8 @@ A custom SVG `Gantt` component renders every chart. Dates are ISO strings (`YYYY
 
 ## Milestone Roadmap (the whole product; only M1–M2 are detailed here)
 
+> **Renumbered on 2026-09-26:** Arabic was inserted as M6, so the milestones after it moved up by one. The M4 and M5 plans were written earlier and use the old numbers: in them, M6 is now M7 (meetings), M7 is now M8 (progress), M8 is now M9 (holds), and so on.
+
 Every milestone ends with something the user can run and try in the browser. After each one, the user reviews it before the next plan is written, so later plans can absorb that feedback.
 
 | # | Milestone | What the user can try at the end |
@@ -41,16 +43,17 @@ Every milestone ends with something the user can run and try in the browser. Aft
 | M3 | Full project details | All wizard fields: classification, main projects (with grouping on the portfolio), scope, out-of-scope, problems and objectives tables, dropdowns with "+ Add new", Settings lists |
 | M4 | Resources and workload | Resources page, assigning people to phases, workload heatmap, overload decision prompt, leave; weekday labels, leave day slices, Projects column, sortable columns |
 | M5 | Sub-phases and to-dos | Edit phases after creation; sub-phases (can run in parallel) with people assigned to them, shown on the Gantt, the person page and the workload; to-dos for yourself or anyone on the project, Next up card, My next steps, To-dos page, optional starter checklists per phase, "I am" in Settings; daily backups |
-| M6 | Meetings, updates, attachments | Add meetings and updates with effective dates, upload files, meetings create to-dos, click a Gantt bar to open the side panel timeline; highlighted entries appear in the stakeholder focus view |
-| M7 | Progress and decisions | Baseline 1 for every project; actual dates, % complete (each phase and sub-phase bar fills in a darker shade of its colour as it progresses, with the % in its hover details), pace indicator, late detection, early/late shift prompts with cause and responsibility; Delay a phase switches on; "Needs your decision" inbox; holidays with shift prompt; original plan and actual dates for past projects; first **Why did the end date move?** and **Where did the time go?** charts |
-| M8 | Holds and project links | Record a hold, hatched hold bar with an arrow on the portfolio, Pause a project switches on, dependency arrows, **follow-on projects** (pre-filled wizard, carry-over, project family strip); first end-to-end browser tests; holds added to the stakeholder charts |
-| M9 | Layout pass | Rework page layouts from the user's collected layout comments (spec §7): cards arranged side by side in a grid that uses the page width, sized by their content, instead of one long column; applied to every page built so far |
-| M10 | Change requests and requirements | Change requests, new baselines with dashed outlines, requirement fields on development sub-phases (source, date received), weights and the development % rule; change requests added to the stakeholder charts |
-| M11 | Requirement readiness | Incomplete/Ready with evidence, waiting clock, Clarification to-dos, start at risk, grey waiting segments; waiting time added to the stakeholder charts |
-| M12 | Stakeholder insight | Health model, ⭐ milestones and upcoming milestones, the finished charts with drill-down |
-| M13 | Playback | Play single project and portfolio, pop-ups with documents, auto-pause |
-| M14 | What-if sandbox | Stacked hypothetical changes, hypothetical projects, anonymous resource picking, conflicts, price tag panel, save as proposed |
-| M15 | Polish for presenting | PDF export, presenter mode |
+| M6 | Arabic first | The app opens in natural Arabic (not a word-for-word translation), laid out right to left, with an English switch; every existing screen, message, list default and date in both languages; an approved Arabic glossary; right-to-left Gantt charts; from here on every milestone ships in both languages |
+| M7 | Meetings, updates, attachments | Add meetings and updates with effective dates, upload files, meetings create to-dos, click a Gantt bar to open the side panel timeline; highlighted entries appear in the stakeholder focus view |
+| M8 | Progress and decisions | Baseline 1 for every project; actual dates, % complete (each phase and sub-phase bar fills in a darker shade of its colour as it progresses, with the % in its hover details), pace indicator, late detection, early/late shift prompts with cause and responsibility; Delay a phase switches on; "Needs your decision" inbox; holidays with shift prompt; original plan and actual dates for past projects; first **Why did the end date move?** and **Where did the time go?** charts |
+| M9 | Holds and project links | Record a hold, hatched hold bar with an arrow on the portfolio, Pause a project switches on, dependency arrows, **follow-on projects** (pre-filled wizard, carry-over, project family strip); first end-to-end browser tests; holds added to the stakeholder charts |
+| M10 | Layout pass | Rework page layouts from the user's collected layout comments (spec §7): cards arranged side by side in a grid that uses the page width, sized by their content, instead of one long column; applied to every page built so far, in both Arabic (right to left) and English |
+| M11 | Change requests and requirements | Change requests, new baselines with dashed outlines, requirement fields on development sub-phases (source, date received), weights and the development % rule; change requests added to the stakeholder charts |
+| M12 | Requirement readiness | Incomplete/Ready with evidence, waiting clock, Clarification to-dos, start at risk, grey waiting segments; waiting time added to the stakeholder charts |
+| M13 | Stakeholder insight | Health model, ⭐ milestones and upcoming milestones, the finished charts with drill-down |
+| M14 | Playback | Play single project and portfolio, pop-ups with documents, auto-pause |
+| M15 | What-if sandbox | Stacked hypothetical changes, hypothetical projects, anonymous resource picking, conflicts, price tag panel, save as proposed |
+| M16 | Polish for presenting | PDF export, presenter mode |
 
 ## File Structure (after M1–M2)
 
