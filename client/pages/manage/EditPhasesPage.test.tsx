@@ -172,6 +172,21 @@ describe('EditPhasesPage', () => {
     expect(sent.removedToDos).toBe('delete');
   });
 
+  it('starts every new warning on Keep, even after Delete them was chosen and the warning dismissed', async () => {
+    mockFetch(baseRoutes([todo({ id: 300, title: 'A', phase: { id: 21, name: 'Development › Increment 1' } })]));
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 2 sub-phase 1 name');
+
+    await user.click(screen.getByRole('button', { name: 'Remove phase 2 sub-phase 1' }));
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+    await user.click(await screen.findByRole('radio', { name: 'Delete them' }));
+    await user.click(screen.getByRole('button', { name: 'Keep editing' }));
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+
+    expect(await screen.findByRole('radio', { name: 'Keep them on the project' })).toBeChecked();
+  });
+
   it('warns about a removed phase with to-dos but no people, without the unassigned line', async () => {
     mockFetch({
       ...baseRoutes([

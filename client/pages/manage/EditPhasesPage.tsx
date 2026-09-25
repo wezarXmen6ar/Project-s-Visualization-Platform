@@ -90,6 +90,8 @@ export function EditPhasesPage() {
     if (!skipConfirm) {
       const removed = removedItems(project.data!, draft.phases, projectToDos.data ?? []);
       if (removed.length > 0) {
+        // Every new warning starts on the safe choice, so an earlier "Delete them" can't carry over.
+        setRemovedToDosChoice('keep');
         setConfirming(removed);
         return;
       }
