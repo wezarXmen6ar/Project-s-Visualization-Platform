@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { countWorkingDays, DEFAULT_CALENDAR } from '../../../shared/calendar';
+import { countWorkingDays, DEFAULT_CALENDAR, type WorkCalendar } from '../../../shared/calendar';
 import { resourceInputSchema, toIssues, type ResourceInput } from '../../../shared/schemas';
 import type { ResourceRecord, Side, Specialisation } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
@@ -50,7 +50,7 @@ function Errors({ messages }: { messages: string[] }) {
 const workingDaysLabel = (n: number) => `${n} working day${n === 1 ? '' : 's'}`;
 
 /** Leave for one tech-team person: listed, added and removed right away. */
-function LeaveCard({ person, onChanged }: { person: ResourceRecord; onChanged: () => void }) {
+function LeaveCard({ person, onChanged, calendar }: { person: ResourceRecord; onChanged: () => void; calendar: WorkCalendar }) {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [note, setNote] = useState('');
@@ -93,7 +93,7 @@ function LeaveCard({ person, onChanged }: { person: ResourceRecord; onChanged: (
             <li key={l.id} className="list-editor-row">
               <span className="list-editor-name">
                 {formatDate(l.start)} → {formatDate(l.end)}{l.note ? ` · ${l.note}` : ''} ·{' '}
-                {workingDaysLabel(countWorkingDays(l.start, l.end, DEFAULT_CALENDAR))}
+                {workingDaysLabel(countWorkingDays(l.start, l.end, calendar))}
               </span>
               <button
                 type="button"
@@ -127,6 +127,7 @@ export function PersonPage() {
   const [version, setVersion] = useState(0);
   const people = useAsync(() => api.listResources(), [version]);
   const lists = useAsync(() => api.getLists(), []);
+  const calendar = useAsync(() => api.getCalendar(), []);
   const [edited, setEdited] = useState<PersonDraft | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -276,7 +277,7 @@ export function PersonPage() {
       </form>
 
       {existing && existing.side === 'tech' ? (
-        <LeaveCard person={existing} onChanged={() => setVersion((v) => v + 1)} />
+        <LeaveCard person={existing} onChanged={() => setVersion((v) => v + 1)} calendar={calendar.data ?? DEFAULT_CALENDAR} />
       ) : null}
     </main>
   );

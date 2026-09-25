@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import type { LeaveRecord, ResourceRecord } from '../../../shared/types';
+import type { WorkCalendar } from '../../../shared/calendar';
 import { mockFetch, sampleLists, samplePeople, type MockHandler } from '../../testing/mockFetch';
 import { PersonPage } from './PersonPage';
 
@@ -20,13 +21,14 @@ function renderAt(url: string) {
 }
 
 /** A small in-memory stand-in for the people API, so reloads show changes. */
-function fakeServer(): Record<string, MockHandler> {
+function fakeServer(calendar: WorkCalendar = { weekendDays: [0, 6], holidays: [] }): Record<string, MockHandler> {
   const people: ResourceRecord[] = samplePeople();
   let nextLeave = 900;
   const fatima = () => people.find((p) => p.id === 71)!;
   return {
     'GET /api/resources': () => ({ body: structuredClone(people) }),
     'GET /api/lists': () => ({ body: sampleLists() }),
+    'GET /api/settings/calendar': () => ({ body: calendar }),
     'POST /api/resources': (init) => ({ status: 201, body: { ...people[0], ...JSON.parse(init!.body as string), id: 99 } }),
     'PUT /api/resources/72': (init) => ({ body: { ...people[2], ...JSON.parse(init!.body as string) } }),
     'DELETE /api/resources/70': () => ({
@@ -131,6 +133,18 @@ describe('PersonPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Remove leave from Mon 12 Oct 2026' }));
     expect(await screen.findByText('No leave booked.')).toBeInTheDocument();
+  });
+
+  it('counts working days with a custom calendar', async () => {
+    const customCalendar: WorkCalendar = { weekendDays: [5, 6], holidays: [] };
+    mockFetch(fakeServer(customCalendar));
+    const user = userEvent.setup();
+    renderAt('/manage/resources/71');
+    expect(await screen.findByText('No leave booked.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Leave from'), { target: { value: '2026-10-12' } });
+    fireEvent.change(screen.getByLabelText('Leave to'), { target: { value: '2026-10-16' } });
+    await user.click(screen.getByRole('button', { name: 'Add leave' }));
+    expect(await screen.findByText('Mon 12 Oct 2026 → Fri 16 Oct 2026 · 4 working days')).toBeInTheDocument();
   });
 
   it('says when the person does not exist', async () => {
