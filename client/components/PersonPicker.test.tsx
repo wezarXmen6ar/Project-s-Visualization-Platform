@@ -9,7 +9,7 @@ import { PersonPicker } from './PersonPicker';
 
 const inactive: ResourceRecord = {
   id: 81, name: 'Old Contact', side: 'business', role: null, specialisation: null, email: null, phone: null,
-  capacity: 100, active: false, leave: [],
+  capacity: 100, active: false, leave: [], projects: [],
 };
 
 function Harness({ side, label, initial = null, roleId }: { side: Side; label: string; initial?: number | null; roleId?: number }) {

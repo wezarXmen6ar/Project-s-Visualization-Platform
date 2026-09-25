@@ -54,6 +54,16 @@ export interface LeaveRecord {
   note: string | null;
 }
 
+/**
+ * A project a person is on: assigned to one of its phases, or its tech or business PM. `finished` is true only
+ * when they have no current link to it, and it is their most recently ended one.
+ */
+export interface PersonProject {
+  id: number;
+  name: string;
+  finished: boolean;
+}
+
 export interface ResourceRecord {
   id: number;
   name: string;
@@ -70,6 +80,8 @@ export interface ResourceRecord {
   active: boolean;
   /** Ordered by start date. */
   leave: LeaveRecord[];
+  /** Ordered by name. Empty when they have no current or past link to any project. */
+  projects: PersonProject[];
 }
 
 /** A business-side contact as a project shows them. */

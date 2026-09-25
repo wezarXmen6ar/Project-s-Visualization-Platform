@@ -73,12 +73,18 @@ export function sampleLists(): Lists {
 
 export function samplePeople(): ResourceRecord[] {
   const person = (p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name' | 'side'>): ResourceRecord => ({
-    role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], ...p,
+    role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], projects: [], ...p,
   });
   return [
     person({ id: 70, name: 'Sara Ahmed', side: 'tech', role: { id: 60, name: 'Project manager' } }),
-    person({ id: 71, name: 'Fatima Noor', side: 'tech', role: { id: 63, name: 'Developer' }, specialisation: 'front-end' }),
-    person({ id: 72, name: 'Rami Saleh', side: 'tech', role: { id: 63, name: 'Developer' }, specialisation: 'back-end', capacity: 80 }),
+    person({
+      id: 71, name: 'Fatima Noor', side: 'tech', role: { id: 63, name: 'Developer' }, specialisation: 'front-end',
+      projects: [{ id: 91, name: 'Case Management', finished: false }],
+    }),
+    person({
+      id: 72, name: 'Rami Saleh', side: 'tech', role: { id: 63, name: 'Developer' }, specialisation: 'back-end', capacity: 80,
+      projects: [{ id: 91, name: 'Case Management', finished: false }],
+    }),
     person({ id: 80, name: 'Mariam Al Suwaidi', side: 'business', phone: '+971 50 123 4567', email: 'mariam@example.com' }),
   ];
 }

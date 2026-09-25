@@ -15,7 +15,11 @@ const routes = {
 const renderPage = () => render(<MemoryRouter><ResourcesPage /></MemoryRouter>);
 /** The people table (Task 7 adds a second table, the workload heatmap, to this page). */
 const peopleTable = () => screen.findByRole('table', { name: 'People' });
-const names = async () => within(await peopleTable()).getAllByRole('link').map((a) => a.textContent);
+const names = async () =>
+  within(await peopleTable())
+    .getAllByRole('link')
+    .filter((a) => a.getAttribute('href')?.startsWith('/manage/resources/'))
+    .map((a) => a.textContent);
 
 afterEach(() => {
   vi.useRealTimers();
@@ -54,6 +58,33 @@ describe('ResourcesPage', () => {
     mockFetch({ ...routes, 'GET /api/resources': () => ({ body: [] }) });
     renderPage();
     expect(await screen.findByText('No one yet. Add your team and your business-side contacts.')).toBeInTheDocument();
+  });
+
+  it('sorts by the Projects column and flips direction on a second click', async () => {
+    mockFetch(routes);
+    const user = userEvent.setup();
+    renderPage();
+    const header = await screen.findByRole('button', { name: 'Projects' });
+    const th = header.closest('th')!;
+    expect(th).toHaveAttribute('aria-sort', 'none');
+
+    await user.click(header);
+    expect(th).toHaveAttribute('aria-sort', 'ascending');
+    // Fatima and Rami share "Case Management" (from samplePeople); they sit together, ahead of Sara and Mariam,
+    // who have none and are ordered by name as the tiebreak.
+    expect(await names()).toEqual(['Fatima Noor', 'Rami Saleh', 'Mariam Al Suwaidi', 'Sara Ahmed']);
+
+    await user.click(header);
+    expect(th).toHaveAttribute('aria-sort', 'descending');
+  });
+
+  it('filters by "Working on" a project', async () => {
+    mockFetch(routes);
+    const user = userEvent.setup();
+    renderPage();
+    await peopleTable();
+    await user.selectOptions(screen.getByLabelText('Working on'), 'Case Management');
+    expect(await names()).toEqual(['Fatima Noor', 'Rami Saleh']);
   });
 
   it('shows the workload heatmap from two weeks back, and opens a week', async () => {

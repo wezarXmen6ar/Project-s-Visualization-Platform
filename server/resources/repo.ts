@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
+import { todayLocal, type ISODate } from '../../shared/calendar';
 import type { LeaveData, ResourceData, ValidationIssue } from '../../shared/schemas';
-import type { LeaveRecord, ResourceRecord, Side, Specialisation } from '../../shared/types';
+import type { LeaveRecord, PersonProject, ResourceRecord, Side, Specialisation } from '../../shared/types';
 import { getListValue } from '../lists/repo';
 
 interface ResourceRow {
@@ -54,7 +55,76 @@ function roleNames(db: DatabaseSync): Map<number, string> {
   return new Map(rows.map((r) => [r.id, r.name]));
 }
 
-function toResource(row: ResourceRow, roles: Map<number, string>, leave: LeaveRecord[]): ResourceRecord {
+interface ProjectLinkRow {
+  resource_id: number;
+  project_id: number;
+  project_name: string;
+  /** null when a PM's project has no phases yet — always current then. */
+  end_date: string | null;
+}
+
+/** Every (resource, project) an assignment ties them to, ended at the latest phase they're assigned to in it. */
+const ASSIGNMENT_LINKS_SQL = `
+  SELECT a.resource_id AS resource_id, ph.project_id AS project_id, p.name AS project_name, MAX(ph.planned_end) AS end_date
+  FROM assignments a
+  JOIN phases ph ON ph.id = a.phase_id
+  JOIN projects p ON p.id = ph.project_id
+  GROUP BY a.resource_id, ph.project_id, p.name
+`;
+
+/** Every (resource, project) a tech or business PM link ties them to, ended at the project's last phase. */
+const PM_LINKS_SQL = `
+  SELECT r.id AS resource_id, p.id AS project_id, p.name AS project_name, MAX(ph.planned_end) AS end_date
+  FROM projects p
+  JOIN resources r ON r.id = p.project_manager_id OR r.id = p.business_pm_id
+  LEFT JOIN phases ph ON ph.project_id = p.id
+  GROUP BY r.id, p.id, p.name
+`;
+
+/** A project with no phases (null end date) has no end, so it always outranks any dated link. */
+function laterEnd(a: string | null, b: string | null): boolean {
+  if (a === null) return true;
+  if (b === null) return false;
+  return a > b;
+}
+
+/** Folds one person's links into the projects they are "on", per the rule in shared/types.ts. */
+function foldProjects(links: ProjectLinkRow[], today: ISODate): PersonProject[] {
+  const current = links
+    .filter((l) => l.end_date === null || l.end_date >= today)
+    .map((l) => ({ id: l.project_id, name: l.project_name, finished: false }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (current.length > 0) return current;
+  if (links.length === 0) return [];
+  // None are current, so every link here has a real end date (a null end is always current, above).
+  const finished = links as (ProjectLinkRow & { end_date: string })[];
+  const mostRecent = [...finished].sort((a, b) => b.end_date.localeCompare(a.end_date) || a.project_name.localeCompare(b.project_name))[0];
+  return [{ id: mostRecent.project_id, name: mostRecent.project_name, finished: true }];
+}
+
+/** Every project each person is on, per resource id. See PersonProject for the rule. */
+function projectsByResource(db: DatabaseSync, today: ISODate): Map<number, PersonProject[]> {
+  const rows = [
+    ...(db.prepare(ASSIGNMENT_LINKS_SQL).all() as unknown as ProjectLinkRow[]),
+    ...(db.prepare(PM_LINKS_SQL).all() as unknown as ProjectLinkRow[]),
+  ];
+  // A project a person is both assigned to and a PM of appears once, keeping whichever link ends later — so it
+  // is current if either link is.
+  const byResource = new Map<number, Map<number, ProjectLinkRow>>();
+  for (const row of rows) {
+    const projects = byResource.get(row.resource_id) ?? new Map<number, ProjectLinkRow>();
+    const existing = projects.get(row.project_id);
+    if (!existing || laterEnd(row.end_date, existing.end_date)) projects.set(row.project_id, row);
+    byResource.set(row.resource_id, projects);
+  }
+  const result = new Map<number, PersonProject[]>();
+  for (const [resourceId, projects] of byResource) {
+    result.set(resourceId, foldProjects([...projects.values()], today));
+  }
+  return result;
+}
+
+function toResource(row: ResourceRow, roles: Map<number, string>, leave: LeaveRecord[], projects: PersonProject[]): ResourceRecord {
   const roleName = row.role_id === null ? undefined : roles.get(row.role_id);
   return {
     id: row.id,
@@ -67,11 +137,12 @@ function toResource(row: ResourceRow, roles: Map<number, string>, leave: LeaveRe
     capacity: row.capacity,
     active: row.active === 1,
     leave,
+    projects,
   };
 }
 
-/** The tech team first, then business contacts, each by name (ignoring case). */
-export function listResources(db: DatabaseSync): ResourceRecord[] {
+/** The tech team first, then business contacts, each by name (ignoring case). `today` fixes what "current" means. */
+export function listResources(db: DatabaseSync, today: ISODate = todayLocal()): ResourceRecord[] {
   const rows = db
     .prepare("SELECT * FROM resources ORDER BY CASE side WHEN 'tech' THEN 0 ELSE 1 END, name COLLATE NOCASE, id")
     .all() as unknown as ResourceRow[];
@@ -80,15 +151,17 @@ export function listResources(db: DatabaseSync): ResourceRecord[] {
     leave.set(l.resource_id, [...(leave.get(l.resource_id) ?? []), toLeave(l)]);
   }
   const roles = roleNames(db);
-  return rows.map((r) => toResource(r, roles, leave.get(r.id) ?? []));
+  const projects = projectsByResource(db, today);
+  return rows.map((r) => toResource(r, roles, leave.get(r.id) ?? [], projects.get(r.id) ?? []));
 }
 
-export function getResource(db: DatabaseSync, id: number): ResourceRecord | undefined {
+export function getResource(db: DatabaseSync, id: number, today: ISODate = todayLocal()): ResourceRecord | undefined {
   const row = db.prepare('SELECT * FROM resources WHERE id = ?').get(id) as unknown as ResourceRow | undefined;
   if (!row) return undefined;
   const leave = (db.prepare('SELECT * FROM leave WHERE resource_id = ? ORDER BY start_date, id').all(id) as unknown as LeaveRow[])
     .map(toLeave);
-  return toResource(row, roleNames(db), leave);
+  const projects = projectsByResource(db, today).get(id) ?? [];
+  return toResource(row, roleNames(db), leave, projects);
 }
 
 /** A chosen role must exist in the role list. */

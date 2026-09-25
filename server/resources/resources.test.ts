@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../app';
 import { openDb } from '../db';
+import { listResources } from './repo';
 
 let db: DatabaseSync;
 let app: ReturnType<typeof buildApp>;
@@ -32,6 +33,7 @@ describe('resources API', () => {
     expect(res.json()).toEqual({
       id: expect.any(Number), name: 'Fatima Noor', side: 'tech', role: { id: roles.Developer, name: 'Developer' },
       specialisation: 'front-end', email: 'fatima@example.com', phone: null, capacity: 80, active: true, leave: [],
+      projects: [],
     });
   });
 
@@ -149,5 +151,60 @@ describe('resources API', () => {
     const res = await app.inject({ method: 'DELETE', url: `/api/lists/role/${roles.Developer}` });
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({ error: '"Developer" is used by 1 person' });
+  });
+});
+
+describe('the projects a person is on', () => {
+  async function makeProject(name: string, phaseEnd: string, opts: { assignResourceId?: number; pmId?: number } = {}) {
+    const project = (
+      await app.inject({
+        method: 'POST',
+        url: '/api/projects',
+        payload: {
+          name,
+          color: '#3b82f6',
+          startDate: '2026-01-05',
+          phases: [{ name: 'Phase 1', durationDays: 1 }],
+          ...(opts.pmId ? { projectManagerId: opts.pmId } : {}),
+        },
+      })
+    ).json();
+    const phaseId = project.phases[0].id;
+    db.prepare('UPDATE phases SET planned_end = ? WHERE id = ?').run(phaseEnd, phaseId);
+    if (opts.assignResourceId) {
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/api/phases/${phaseId}/assignments`,
+        payload: { assignments: [{ resourceId: opts.assignResourceId, allocation: 100, role: 'contributor' }] },
+      });
+      expect(res.statusCode).toBe(200);
+    }
+    return { id: project.id, name, phaseId };
+  }
+
+  const projectsFor = (id: number) => listResources(db, '2026-10-01').find((r) => r.id === id)!.projects;
+
+  it('lists only the current project when one of two links has already ended', async () => {
+    const person = (await post({ name: 'Zara', side: 'tech' })).json();
+    const current = await makeProject('Current Co', '2026-10-20', { assignResourceId: person.id });
+    await makeProject('Old Co', '2026-09-10', { assignResourceId: person.id });
+    expect(projectsFor(person.id)).toEqual([{ id: current.id, name: 'Current Co', finished: false }]);
+  });
+
+  it('keeps the most recently finished project when nothing is current', async () => {
+    const person = (await post({ name: 'Yusuf', side: 'tech' })).json();
+    const old = await makeProject('Legacy App', '2026-09-10', { assignResourceId: person.id });
+    expect(projectsFor(person.id)).toEqual([{ id: old.id, name: 'Legacy App', finished: true }]);
+  });
+
+  it('lists a project as current for its tech PM when the last phase ends in the future', async () => {
+    const pm = (await post({ name: 'PM Person', side: 'tech' })).json();
+    const project = await makeProject('Future Co', '2026-11-01', { pmId: pm.id });
+    expect(projectsFor(pm.id)).toEqual([{ id: project.id, name: 'Future Co', finished: false }]);
+  });
+
+  it('is empty for a person with no links at all', async () => {
+    const person = (await post({ name: 'Nobody', side: 'tech' })).json();
+    expect(projectsFor(person.id)).toEqual([]);
   });
 });

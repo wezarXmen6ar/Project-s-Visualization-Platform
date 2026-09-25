@@ -2,23 +2,43 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { addDays, todayLocal } from '../../../shared/calendar';
 import { computeWorkload, weekStartOf } from '../../../shared/capacity';
-import type { Side } from '../../../shared/types';
+import type { ResourceRecord, Side } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
 import { SIDE_LABEL, SPECIALISATION_LABEL } from './labels';
 import { OverloadPanel } from './OverloadPanel';
+import { sortPeople, workingOn, type SortDir, type SortKey } from './peopleTable';
 import { WorkloadHeatmap } from './WorkloadHeatmap';
 
 const WEEKS_SHOWN = 13;
 const defaultStart = () => addDays(weekStartOf(todayLocal()), -14);
+
+const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'side', label: 'Side' },
+  { key: 'role', label: 'Role' },
+  { key: 'projects', label: 'Projects' },
+  { key: 'capacity', label: 'Capacity' },
+  { key: 'contact', label: 'Contact' },
+  { key: 'status', label: 'Status' },
+];
+
+/** Every project appearing in anyone's list, sorted by name, for the "Working on" filter. */
+function projectOptions(people: ResourceRecord[]): { id: number; name: string }[] {
+  const byId = new Map<number, string>();
+  for (const p of people) for (const proj of p.projects) byId.set(proj.id, proj.name);
+  return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+}
 
 export function ResourcesPage() {
   const people = useAsync(() => api.listResources(), []);
   const lists = useAsync(() => api.getLists(), []);
   const [side, setSide] = useState<Side | 'all'>('all');
   const [roleId, setRoleId] = useState<number | null>(null);
+  const [projectId, setProjectId] = useState<number | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
 
   const { workload, error: workloadError, reload } = useWorkload();
   const [from, setFrom] = useState(defaultStart);
@@ -30,7 +50,14 @@ export function ResourcesPage() {
   const selectedWeek = selected ? selectedPerson?.weeks.find((w) => w.weekStart === selected.weekStart) : undefined;
 
   const all = people.data ?? [];
-  const shown = all.filter((p) => (side === 'all' || p.side === side) && (roleId === null || p.role?.id === roleId));
+  const filtered = all.filter(
+    (p) =>
+      (side === 'all' || p.side === side) &&
+      (roleId === null || p.role?.id === roleId) &&
+      (projectId === null || workingOn(p, projectId)),
+  );
+  const shown = sortPeople(filtered, sort.key, sort.dir);
+  const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
 
   return (
     <main className="page">
@@ -124,6 +151,18 @@ export function ResourcesPage() {
               ))}
             </select>
           </label>
+          <label>
+            Working on
+            <select
+              value={projectId === null ? '' : String(projectId)}
+              onChange={(e) => setProjectId(e.target.value === '' ? null : Number(e.target.value))}
+            >
+              <option value="">Any project</option>
+              {projectOptions(all).map((p) => (
+                <option key={p.id} value={String(p.id)}>{p.name}</option>
+              ))}
+            </select>
+          </label>
         </div>
 
         {!people.data && !people.error ? <p className="muted">Loading…</p> : null}
@@ -133,7 +172,16 @@ export function ResourcesPage() {
         {shown.length > 0 ? (
           <table aria-label="People">
             <thead>
-              <tr><th>Name</th><th>Side</th><th>Role</th><th>Capacity</th><th>Contact</th><th>Status</th></tr>
+              <tr>
+                {COLUMNS.map(({ key, label }) => (
+                  <th key={key} aria-sort={sort.key === key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="sort-button" onClick={() => toggleSort(key)}>
+                      {label}
+                      {sort.key === key ? <span aria-hidden="true"> {sort.dir === 'asc' ? '▲' : '▼'}</span> : null}
+                    </button>
+                  </th>
+                ))}
+              </tr>
             </thead>
             <tbody>
               {shown.map((p) => (
@@ -143,6 +191,21 @@ export function ResourcesPage() {
                   <td>
                     {p.role?.name ?? '—'}
                     {p.specialisation ? ` · ${SPECIALISATION_LABEL[p.specialisation]}` : ''}
+                  </td>
+                  <td>
+                    {p.projects.length === 0 ? (
+                      '—'
+                    ) : (
+                      p.projects.map((proj, i) => (
+                        <span key={proj.id}>
+                          {i > 0 ? ', ' : ''}
+                          <Link to={`/manage/projects/${proj.id}`} className={proj.finished ? 'muted' : undefined}>
+                            {proj.name}
+                          </Link>
+                          {proj.finished ? ' (finished)' : ''}
+                        </span>
+                      ))
+                    )}
                   </td>
                   <td>{p.side === 'tech' ? `${p.capacity}%` : '—'}</td>
                   <td>{[p.phone, p.email].filter(Boolean).join(' · ') || '—'}</td>
