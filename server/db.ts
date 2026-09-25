@@ -116,6 +116,35 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX leave_resource ON leave(resource_id);
   `,
+  `
+  ALTER TABLE projects ADD COLUMN project_manager_id INTEGER REFERENCES resources(id);
+  ALTER TABLE projects ADD COLUMN business_pm_id INTEGER REFERENCES resources(id);
+
+  INSERT INTO resources (name, side, role_id, capacity, active)
+    SELECT DISTINCT trim(project_manager), 'tech',
+      (SELECT id FROM list_values WHERE list = 'role' AND name = 'Project manager'), 100, 1
+    FROM projects
+    WHERE trim(COALESCE(project_manager, '')) <> ''
+      AND trim(project_manager) NOT IN (SELECT name FROM resources WHERE side = 'tech');
+  UPDATE projects
+    SET project_manager_id = (SELECT id FROM resources r WHERE r.side = 'tech' AND r.name = trim(projects.project_manager) ORDER BY id LIMIT 1)
+    WHERE trim(COALESCE(project_manager, '')) <> '';
+
+  INSERT INTO resources (name, side, phone, email, capacity, active)
+    SELECT trim(business_pm_name), 'business', MAX(business_pm_phone), MAX(business_pm_email), 100, 1
+    FROM projects
+    WHERE trim(COALESCE(business_pm_name, '')) <> ''
+      AND trim(business_pm_name) NOT IN (SELECT name FROM resources WHERE side = 'business')
+    GROUP BY trim(business_pm_name);
+  UPDATE projects
+    SET business_pm_id = (SELECT id FROM resources r WHERE r.side = 'business' AND r.name = trim(projects.business_pm_name) ORDER BY id LIMIT 1)
+    WHERE trim(COALESCE(business_pm_name, '')) <> '';
+
+  ALTER TABLE projects DROP COLUMN project_manager;
+  ALTER TABLE projects DROP COLUMN business_pm_name;
+  ALTER TABLE projects DROP COLUMN business_pm_phone;
+  ALTER TABLE projects DROP COLUMN business_pm_email;
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

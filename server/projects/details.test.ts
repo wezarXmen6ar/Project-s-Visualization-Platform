@@ -5,7 +5,7 @@ import { openDb } from '../db';
 
 let db: DatabaseSync;
 let app: ReturnType<typeof buildApp>;
-let ids: { customer: number; goal: number; finance: number; digital: number };
+let ids: { customer: number; goal: number; finance: number; digital: number; sara: number; mariam: number };
 
 beforeEach(async () => {
   db = openDb(':memory:');
@@ -13,11 +13,15 @@ beforeEach(async () => {
   const lists = (await app.inject({ method: 'GET', url: '/api/lists' })).json();
   const add = async (list: string, name: string) =>
     (await app.inject({ method: 'POST', url: `/api/lists/${list}`, payload: { name } })).json().id as number;
+  const person = async (payload: object) =>
+    (await app.inject({ method: 'POST', url: '/api/resources', payload })).json().id as number;
   ids = {
     customer: lists.projectType[1].id,
     goal: lists.goal[0].id,
     finance: await add('department', 'Finance'),
     digital: await add('mainProject', 'Digital Services'),
+    sara: await person({ name: 'Sara Ahmed', side: 'tech' }),
+    mariam: await person({ name: 'Mariam Al Suwaidi', side: 'business', phone: '050 123 4567', email: 'mariam@example.com' }),
   };
 });
 
@@ -33,7 +37,7 @@ function fullBody() {
     ...base,
     jiraKey: 'PRJ-1',
     priority: 'high',
-    projectManager: 'Sara Ahmed',
+    projectManagerId: ids.sara, businessPmId: ids.mariam,
     mainProjectId: ids.digital,
     category: 'strategic',
     projectTypeId: ids.customer,
@@ -58,7 +62,8 @@ describe('project details', () => {
     const p = res.json();
     expect(p).toMatchObject({
       priority: 'high',
-      projectManager: 'Sara Ahmed',
+      projectManager: { id: ids.sara, name: 'Sara Ahmed' },
+      businessPm: { id: ids.mariam, name: 'Mariam Al Suwaidi', phone: '+971 50 123 4567', email: 'mariam@example.com' },
       mainProject: { id: ids.digital, name: 'Digital Services' },
       category: 'strategic',
       projectType: { id: ids.customer, name: 'Customer' },
@@ -81,7 +86,7 @@ describe('project details', () => {
     const p = (await app.inject({ method: 'POST', url: '/api/projects', payload: base })).json();
     expect(p).toMatchObject({
       priority: 'medium',
-      projectManager: null,
+      projectManager: null, businessPm: null,
       mainProject: null,
       category: null,
       projectType: null,
@@ -156,31 +161,24 @@ describe('project details', () => {
     expect(invalid.json().issues.map((i: { path: string }) => i.path)).toEqual(['name', 'scopeItems.0.text']);
   });
 
-  it('stores the business project manager with a normalised UAE mobile, every part optional', async () => {
+  it('refuses a project manager from the wrong side, or one who does not exist', async () => {
     const res = await app.inject({
-      method: 'POST',
-      url: '/api/projects',
-      payload: { ...base, businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '050 123 4567', businessPmEmail: ' mariam@example.com ' },
-    });
-    expect(res.statusCode).toBe(201);
-    expect(res.json()).toMatchObject({
-      businessPmName: 'Mariam Al Suwaidi',
-      businessPmPhone: '+971 50 123 4567',
-      businessPmEmail: 'mariam@example.com',
-    });
-    const none = (await app.inject({ method: 'POST', url: '/api/projects', payload: base })).json();
-    expect(none).toMatchObject({ businessPmName: null, businessPmPhone: null, businessPmEmail: null });
-  });
-
-  it('rejects a phone that is not a UAE mobile and a malformed email', async () => {
-    const res = await app.inject({
-      method: 'POST', url: '/api/projects', payload: { ...base, businessPmPhone: '04 123 4567', businessPmEmail: 'mariam@' },
+      method: 'POST', url: '/api/projects', payload: { ...base, projectManagerId: ids.mariam, businessPmId: 9999 },
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().issues).toEqual([
-      { path: 'businessPmPhone', message: 'Enter a UAE mobile number, e.g. +971 50 123 4567' },
-      { path: 'businessPmEmail', message: 'Enter a valid email address' },
+      { path: 'projectManagerId', message: 'Unknown project manager (tech)' },
+      { path: 'businessPmId', message: 'Unknown business project manager' },
     ]);
+  });
+
+  it('will not delete a person who manages a project', async () => {
+    await app.inject({ method: 'POST', url: '/api/projects', payload: fullBody() });
+    const res = await app.inject({ method: 'DELETE', url: `/api/resources/${ids.sara}` });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({
+      error: "Sara Ahmed can't be deleted because they are a project manager on 1 project. Make them inactive instead.",
+    });
   });
 
   it('will not delete a list value that a project uses', async () => {

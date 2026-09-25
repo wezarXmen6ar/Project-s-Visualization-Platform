@@ -1,6 +1,6 @@
 import type { WorkCalendar } from '../shared/calendar';
-import type { NewProjectInput, ProjectDetailsInput, ValidationIssue } from '../shared/schemas';
-import type { ListName, ListValue, Lists, PortfolioResponse, ProjectRecord } from '../shared/types';
+import type { NewProjectInput, ProjectDetailsInput, ResourceInput, ValidationIssue } from '../shared/schemas';
+import type { ListName, ListValue, Lists, PortfolioResponse, ProjectRecord, ResourceRecord } from '../shared/types';
 
 export class ApiError extends Error {
   status: number;
@@ -36,4 +36,6 @@ export const api = {
   renameListValue: (list: ListName, id: number, name: string) =>
     request<ListValue>(`/api/lists/${list}/${id}`, withBody('PUT', { name })),
   deleteListValue: (list: ListName, id: number) => request<void>(`/api/lists/${list}/${id}`, { method: 'DELETE' }),
+  listResources: () => request<ResourceRecord[]>('/api/resources'),
+  createResource: (input: ResourceInput) => request<ResourceRecord>('/api/resources', withBody('POST', input)),
 };

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import { mockFetch, sampleLists, sampleProject, type MockHandler } from '../../testing/mockFetch';
+import { mockFetch, sampleLists, samplePeople, sampleProject, type MockHandler } from '../../testing/mockFetch';
 import { CreateProjectPage } from './CreateProjectPage';
 
 function ProjectStub() {
@@ -25,6 +25,7 @@ function renderPage() {
 const baseRoutes: Record<string, MockHandler> = {
   'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
   'GET /api/lists': () => ({ body: sampleLists() }),
+  'GET /api/resources': () => ({ body: samplePeople() }),
 };
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -51,17 +52,6 @@ describe('CreateProjectPage wizard', () => {
     expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
   });
 
-  it('will not move on with a business PM phone that is not a UAE mobile', async () => {
-    mockFetch(baseRoutes);
-    const user = userEvent.setup();
-    renderPage();
-    await user.type(screen.getByLabelText('Project name'), 'Portal');
-    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '04 123 4567');
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText('Enter a UAE mobile number, e.g. +971 50 123 4567')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Basic info' })).toBeInTheDocument();
-  });
-
   it('keeps what was typed when going back', async () => {
     mockFetch(baseRoutes);
     const user = userEvent.setup();
@@ -82,10 +72,9 @@ describe('CreateProjectPage wizard', () => {
     renderPage();
 
     await user.type(screen.getByLabelText('Project name'), 'Portal');
-    await user.type(screen.getByLabelText('Project manager (tech)'), 'Sara Ahmed');
-    await user.type(screen.getByLabelText('Business project manager'), 'Mariam Al Suwaidi');
-    await user.type(screen.getByLabelText('Business PM phone (UAE mobile)'), '050 123 4567');
-    await user.type(screen.getByLabelText('Business PM email'), 'mariam@example.com');
+    await screen.findByRole('option', { name: 'Sara Ahmed' });
+    await user.selectOptions(screen.getByLabelText('Project manager (tech)'), 'Sara Ahmed');
+    await user.selectOptions(screen.getByLabelText('Business project manager'), 'Mariam Al Suwaidi');
     await screen.findByRole('option', { name: 'Customer' });
     await user.selectOptions(screen.getByLabelText('Project type'), 'Customer');
     await user.selectOptions(screen.getByLabelText('Main project'), 'Digital Services');
@@ -105,10 +94,8 @@ describe('CreateProjectPage wizard', () => {
     const sent = JSON.parse(post![1]!.body as string);
     expect(sent).toMatchObject({
       name: 'Portal',
-      projectManager: 'Sara Ahmed',
-      businessPmName: 'Mariam Al Suwaidi',
-      businessPmPhone: '050 123 4567',
-      businessPmEmail: 'mariam@example.com',
+      projectManagerId: 70,
+      businessPmId: 80,
       projectTypeId: 2,
       mainProjectId: 20,
       requester: { internal: true, external: false },

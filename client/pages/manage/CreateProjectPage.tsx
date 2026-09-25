@@ -6,6 +6,7 @@ import type { PhaseInput } from '../../../shared/scheduler';
 import { AlertIcon, ArrowLeftIcon, ArrowRightIcon } from '../../icons';
 import { ApiError, api } from '../../api';
 import { useLists } from '../../useLists';
+import { useResources } from '../../useResources';
 import { DetailsFields } from './DetailsFields';
 import { DEFAULT_PHASES, PhasesFields } from './PhasesFields';
 import { ScopeFields } from './ScopeFields';
@@ -17,6 +18,7 @@ const LAST = STEPS.length - 1;
 export function CreateProjectPage() {
   const navigate = useNavigate();
   const { lists, error: listsError, remember } = useLists();
+  const { people, error: peopleError, remember: rememberPerson } = useResources();
   const [step, setStep] = useState(0);
   const [details, setDetails] = useState<DetailsDraft>(emptyDetails);
   const [startDate, setStartDate] = useState(todayLocal());
@@ -104,8 +106,23 @@ export function CreateProjectPage() {
             <span>Could not load the dropdown lists: {listsError.message}</span>
           </div>
         ) : null}
+        {peopleError ? (
+          <div className="errors" role="alert">
+            <AlertIcon />
+            <span>Could not load people: {peopleError.message}</span>
+          </div>
+        ) : null}
 
-        {step === 0 ? <DetailsFields value={details} onChange={patchDetails} lists={lists} onListAdded={remember} /> : null}
+        {step === 0 ? (
+          <DetailsFields
+            value={details}
+            onChange={patchDetails}
+            lists={lists}
+            onListAdded={remember}
+            people={people}
+            onPersonAdded={rememberPerson}
+          />
+        ) : null}
         {step === 1 ? <ScopeFields value={details} onChange={patchDetails} /> : null}
         {step === 2 ? (
           <PhasesFields

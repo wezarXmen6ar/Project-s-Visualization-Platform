@@ -1,17 +1,45 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { WorkCalendar } from '../shared/calendar';
-import { newProjectSchema, type NewProjectInput } from '../shared/schemas';
-import type { ListName } from '../shared/types';
+import { newProjectSchema, resourceInputSchema, type NewProjectInput } from '../shared/schemas';
+import type { ListName, Side, Specialisation } from '../shared/types';
 import { transaction } from './db';
 import { addListValue } from './lists/repo';
 import { createProject } from './projects/repo';
+import { createResource } from './resources/repo';
 
-/** A demo project names its list values; seedDemo turns the names into ids, creating values when needed. */
-export type DemoProject = Omit<NewProjectInput, 'mainProjectId' | 'projectTypeId' | 'goalId' | 'departmentId'> & {
+/** A person the demo projects name; seedDemo adds them to Resources first. */
+export interface DemoPerson {
+  name: string;
+  side: Side;
+  role?: string;
+  specialisation?: Specialisation;
+  capacity?: number;
+  email?: string;
+  phone?: string;
+}
+
+export const DEMO_PEOPLE: DemoPerson[] = [
+  { name: 'Sara Ahmed', side: 'tech', role: 'Project manager', email: 'sara.ahmed@example.com' },
+  { name: 'Omar Haddad', side: 'tech', role: 'Project manager' },
+  { name: 'Lina Karim', side: 'tech', role: 'Project manager' },
+  { name: 'Yusuf Nasser', side: 'tech', role: 'Project manager' },
+  { name: 'Khalid Al Mansoori', side: 'business' },
+  { name: 'Mariam Al Suwaidi', side: 'business', phone: '+971 50 123 4567', email: 'mariam.alsuwaidi@example.com' },
+  { name: 'Noura Al Hammadi', side: 'business', phone: '055 234 5678' },
+  { name: 'Ahmed Al Zaabi', side: 'business', email: 'ahmed.alzaabi@example.com' },
+];
+
+/** A demo project names its list values and people; seedDemo turns the names into ids. */
+export type DemoProject = Omit<
+  NewProjectInput,
+  'mainProjectId' | 'projectTypeId' | 'goalId' | 'departmentId' | 'projectManagerId' | 'businessPmId'
+> & {
   mainProject?: string;
   projectType?: string;
   goal?: string;
   department?: string;
+  projectManager?: string;
+  businessPm?: string;
 };
 
 const DIGITALISATION = 'Digitalisation of internal operations';
@@ -20,7 +48,7 @@ const CUSTOMER_EXPERIENCE = 'Improve customer experience';
 export const DEMO_PROJECTS: DemoProject[] = [
   {
     name: 'Legacy Archive Migration', jiraKey: 'PRJ-099', color: '#64748b', startDate: '2025-09-07',
-    priority: 'low', projectManager: 'Omar Haddad', businessPmName: 'Khalid Al Mansoori',
+    priority: 'low', projectManager: 'Omar Haddad', businessPm: 'Khalid Al Mansoori',
     mainProject: 'Records Modernisation', category: 'operational', projectType: 'Management',
     goal: DIGITALISATION, department: 'Records Office',
     requester: { internal: true, external: false }, beneficiary: { employees: true, customers: false },
@@ -42,7 +70,7 @@ export const DEMO_PROJECTS: DemoProject[] = [
   {
     name: 'Customer Portal Revamp', jiraKey: 'PRJ-101', color: '#2563eb', startDate: '2026-01-11',
     priority: 'high', projectManager: 'Sara Ahmed',
-    businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '+971 50 123 4567', businessPmEmail: 'mariam.alsuwaidi@example.com',
+    businessPm: 'Mariam Al Suwaidi',
     mainProject: 'Digital Services', category: 'strategic', projectType: 'Customer',
     goal: CUSTOMER_EXPERIENCE, department: 'Customer Service',
     requester: { internal: true, external: true }, beneficiary: { employees: false, customers: true },
@@ -74,7 +102,7 @@ export const DEMO_PROJECTS: DemoProject[] = [
   {
     name: 'HR Self-Service', jiraKey: 'PRJ-102', color: '#16a34a', startDate: '2026-02-01',
     priority: 'medium', projectManager: 'Lina Karim',
-    businessPmName: 'Noura Al Hammadi', businessPmPhone: '055 234 5678',
+    businessPm: 'Noura Al Hammadi',
     category: 'operational', projectType: 'Management', goal: DIGITALISATION, department: 'Human Resources',
     requester: { internal: true, external: false }, beneficiary: { employees: true, customers: false },
     background: 'Leave requests and certificates are handled by email and paper forms.',
@@ -97,7 +125,7 @@ export const DEMO_PROJECTS: DemoProject[] = [
   {
     name: 'Case Management System', jiraKey: 'PRJ-103', color: '#9333ea', startDate: '2026-03-15',
     priority: 'high', projectManager: 'Yusuf Nasser',
-    businessPmName: 'Ahmed Al Zaabi', businessPmEmail: 'ahmed.alzaabi@example.com',
+    businessPm: 'Ahmed Al Zaabi',
     mainProject: 'Records Modernisation', category: 'strategic', projectType: 'Criminal',
     goal: DIGITALISATION, department: 'Legal Affairs',
     requester: { internal: true, external: false }, beneficiary: { employees: true, customers: false },
@@ -144,7 +172,7 @@ export const DEMO_PROJECTS: DemoProject[] = [
   {
     name: 'E-Services Mobile App', jiraKey: 'PRJ-105', color: '#0891b2', startDate: '2026-10-04',
     priority: 'high', projectManager: 'Sara Ahmed',
-    businessPmName: 'Mariam Al Suwaidi', businessPmPhone: '+971 50 123 4567', businessPmEmail: 'mariam.alsuwaidi@example.com',
+    businessPm: 'Mariam Al Suwaidi',
     mainProject: 'Digital Services', category: 'strategic', projectType: 'Customer',
     goal: CUSTOMER_EXPERIENCE, department: 'Customer Service',
     requester: { internal: false, external: true }, beneficiary: { employees: false, customers: true },
@@ -169,8 +197,12 @@ export const DEMO_PROJECTS: DemoProject[] = [
   },
 ];
 
-export function toProjectInput(demo: DemoProject, idFor: (list: ListName, name: string) => number): NewProjectInput {
-  const { mainProject, projectType, goal, department, ...rest } = demo;
+export function toProjectInput(
+  demo: DemoProject,
+  idFor: (list: ListName, name: string) => number,
+  personId: (name: string) => number,
+): NewProjectInput {
+  const { mainProject, projectType, goal, department, projectManager, businessPm, ...rest } = demo;
   const id = (list: ListName, name?: string) => (name ? idFor(list, name) : null);
   return {
     ...rest,
@@ -178,14 +210,34 @@ export function toProjectInput(demo: DemoProject, idFor: (list: ListName, name: 
     projectTypeId: id('projectType', projectType),
     goalId: id('goal', goal),
     departmentId: id('department', department),
+    projectManagerId: projectManager ? personId(projectManager) : null,
+    businessPmId: businessPm ? personId(businessPm) : null,
   };
 }
 
-/** Adds every demo project (and any list values they name) in one transaction. Returns how many were added. */
+/** Adds the demo people, then every demo project (and any list values they name), in one transaction. */
 export function seedDemo(db: DatabaseSync, cal: WorkCalendar): number {
   transaction(db, () => {
     const idFor = (list: ListName, name: string) => addListValue(db, list, name).value.id;
-    for (const demo of DEMO_PROJECTS) createProject(db, cal, newProjectSchema.parse(toProjectInput(demo, idFor)));
+    const people = new Map<string, number>();
+    for (const p of DEMO_PEOPLE) {
+      const data = resourceInputSchema.parse({
+        name: p.name,
+        side: p.side,
+        roleId: p.role ? idFor('role', p.role) : null,
+        specialisation: p.specialisation ?? null,
+        capacity: p.capacity ?? 100,
+        email: p.email ?? null,
+        phone: p.phone ?? null,
+      });
+      people.set(p.name, createResource(db, data).id);
+    }
+    const personId = (name: string) => {
+      const found = people.get(name);
+      if (found === undefined) throw new Error(`Demo person missing from DEMO_PEOPLE: ${name}`);
+      return found;
+    };
+    for (const demo of DEMO_PROJECTS) createProject(db, cal, newProjectSchema.parse(toProjectInput(demo, idFor, personId)));
   });
   return DEMO_PROJECTS.length;
 }

@@ -18,14 +18,14 @@ describe('projectDraft', () => {
   it('loads a saved project into a draft, sorting items and keeping their ids', () => {
     const d = detailsFromProject(sampleProject({
       jiraKey: null,
-      projectManager: 'Sara',
+      projectManager: { id: 70, name: 'Sara' },
       projectType: { id: 2, name: 'Customer' },
       scopeItems: [
         { id: 7, kind: 'scope', text: 'Second', order: 1, dateAdded: '2026-09-24' },
         { id: 6, kind: 'scope', text: 'First', order: 0, dateAdded: '2026-09-24' },
       ],
     }));
-    expect(d).toMatchObject({ jiraKey: '', projectManager: 'Sara', projectTypeId: 2, mainProjectId: null });
+    expect(d).toMatchObject({ jiraKey: '', projectManagerId: 70, projectTypeId: 2, mainProjectId: null });
     expect(d.scope.scope).toEqual([{ id: 6, text: 'First' }, { id: 7, text: 'Second' }]);
   });
 

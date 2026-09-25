@@ -5,6 +5,7 @@ import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { ApiError, api } from '../../api';
 import { useAsync } from '../../useAsync';
 import { useLists } from '../../useLists';
+import { useResources } from '../../useResources';
 import { DetailsFields } from './DetailsFields';
 import { ScopeFields } from './ScopeFields';
 import { detailsFromProject, detailsToInput, type DetailsDraft } from './projectDraft';
@@ -14,6 +15,7 @@ export function EditProjectPage() {
   const navigate = useNavigate();
   const project = useAsync(() => api.getProject(id), [id]);
   const { lists, error: listsError, remember } = useLists();
+  const { people, error: peopleError, remember: rememberPerson } = useResources();
   const [edited, setEdited] = useState<DetailsDraft | null>(null);
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
   const [saving, setSaving] = useState(false);
@@ -83,8 +85,21 @@ export function EditProjectPage() {
             <span>Could not load the dropdown lists: {listsError.message}</span>
           </div>
         ) : null}
+        {peopleError ? (
+          <div className="errors" role="alert">
+            <AlertIcon />
+            <span>Could not load people: {peopleError.message}</span>
+          </div>
+        ) : null}
 
-        <DetailsFields value={draft} onChange={patch} lists={lists} onListAdded={remember} />
+        <DetailsFields
+          value={draft}
+          onChange={patch}
+          lists={lists}
+          onListAdded={remember}
+          people={people}
+          onPersonAdded={rememberPerson}
+        />
         <ScopeFields value={draft} onChange={patch} />
 
         <p className="muted">

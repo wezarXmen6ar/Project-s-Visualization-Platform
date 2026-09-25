@@ -3,7 +3,7 @@ import { todayLocal, type ISODate, type WorkCalendar } from '../../shared/calend
 import type { NewProject, ProjectDetails, ValidationIssue } from '../../shared/schemas';
 import { schedulePhases } from '../../shared/scheduler';
 import type {
-  Category, ListName, PhaseRecord, Priority, ProjectRecord, Ref, ScopeItem, ScopeKind,
+  BusinessContact, Category, ListName, PhaseRecord, Priority, ProjectRecord, Ref, ScopeItem, ScopeKind, Side,
 } from '../../shared/types';
 import { transaction } from '../db';
 import { getListValue } from '../lists/repo';
@@ -15,7 +15,7 @@ interface ProjectRow {
   color: string;
   start_date: string;
   priority: Priority;
-  project_manager: string | null;
+  project_manager_id: number | null;
   main_project_id: number | null;
   category: Category | null;
   project_type_id: number | null;
@@ -27,9 +27,7 @@ interface ProjectRow {
   beneficiary_customers: number;
   background: string;
   summary: string;
-  business_pm_name: string | null;
-  business_pm_phone: string | null;
-  business_pm_email: string | null;
+  business_pm_id: number | null;
 }
 
 interface PhaseRow {
@@ -53,18 +51,16 @@ interface ScopeRow {
 
 /** Columns written from ProjectDetails, in the same order as detailValues(). */
 const DETAIL_COLUMNS = [
-  'name', 'jira_key', 'color', 'priority', 'project_manager', 'main_project_id', 'category',
+  'name', 'jira_key', 'color', 'priority', 'project_manager_id', 'main_project_id', 'category',
   'project_type_id', 'goal_id', 'department_id', 'requester_internal', 'requester_external',
-  'beneficiary_employees', 'beneficiary_customers', 'background', 'summary',
-  'business_pm_name', 'business_pm_phone', 'business_pm_email',
+  'beneficiary_employees', 'beneficiary_customers', 'background', 'summary', 'business_pm_id',
 ];
 
 function detailValues(d: ProjectDetails) {
   return [
-    d.name, d.jiraKey, d.color, d.priority, d.projectManager, d.mainProjectId, d.category,
+    d.name, d.jiraKey, d.color, d.priority, d.projectManagerId, d.mainProjectId, d.category,
     d.projectTypeId, d.goalId, d.departmentId, d.requester.internal ? 1 : 0, d.requester.external ? 1 : 0,
-    d.beneficiary.employees ? 1 : 0, d.beneficiary.customers ? 1 : 0, d.background, d.summary,
-    d.businessPmName, d.businessPmPhone, d.businessPmEmail,
+    d.beneficiary.employees ? 1 : 0, d.beneficiary.customers ? 1 : 0, d.background, d.summary, d.businessPmId,
   ];
 }
 
@@ -75,13 +71,24 @@ const LIST_REFS: { field: 'mainProjectId' | 'projectTypeId' | 'goalId' | 'depart
   { field: 'departmentId', list: 'department', label: 'business user (department)' },
 ];
 
-/** Every chosen list value must exist and belong to the right list. */
-export function checkListRefs(db: DatabaseSync, details: ProjectDetails): ValidationIssue[] {
+const PERSON_REFS: { field: 'projectManagerId' | 'businessPmId'; side: Side; label: string }[] = [
+  { field: 'projectManagerId', side: 'tech', label: 'project manager (tech)' },
+  { field: 'businessPmId', side: 'business', label: 'business project manager' },
+];
+
+/** Every chosen list value must exist in the right list, and every chosen person must exist on the right side. */
+export function checkRefs(db: DatabaseSync, details: ProjectDetails): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const { field, list, label } of LIST_REFS) {
     const id = details[field];
     if (id === null) continue;
     if (getListValue(db, id)?.list !== list) issues.push({ path: field, message: `Unknown ${label}` });
+  }
+  for (const { field, side, label } of PERSON_REFS) {
+    const id = details[field];
+    if (id === null) continue;
+    const person = db.prepare('SELECT side FROM resources WHERE id = ?').get(id) as unknown as { side: Side } | undefined;
+    if (person?.side !== side) issues.push({ path: field, message: `Unknown ${label}` });
   }
   return issues;
 }
@@ -112,7 +119,14 @@ function ref(names: Map<number, string>, id: number | null): Ref | null {
   return name === undefined ? null : { id, name };
 }
 
-function toProject(row: ProjectRow, phases: PhaseRecord[], scopeItems: ScopeItem[], names: Map<number, string>): ProjectRecord {
+function peopleById(db: DatabaseSync): Map<number, BusinessContact> {
+  const rows = db.prepare('SELECT id, name, phone, email FROM resources').all() as unknown as BusinessContact[];
+  return new Map(rows.map((r) => [r.id, { id: r.id, name: r.name, phone: r.phone, email: r.email }]));
+}
+
+function toProject(
+  row: ProjectRow, phases: PhaseRecord[], scopeItems: ScopeItem[], names: Map<number, string>, people: Map<number, BusinessContact>,
+): ProjectRecord {
   return {
     id: row.id,
     name: row.name,
@@ -120,10 +134,11 @@ function toProject(row: ProjectRow, phases: PhaseRecord[], scopeItems: ScopeItem
     color: row.color,
     startDate: row.start_date,
     priority: row.priority,
-    projectManager: row.project_manager,
-    businessPmName: row.business_pm_name,
-    businessPmPhone: row.business_pm_phone,
-    businessPmEmail: row.business_pm_email,
+    projectManager: (() => {
+      const pm = row.project_manager_id === null ? undefined : people.get(row.project_manager_id);
+      return pm ? { id: pm.id, name: pm.name } : null;
+    })(),
+    businessPm: (row.business_pm_id === null ? undefined : people.get(row.business_pm_id)) ?? null,
     mainProject: ref(names, row.main_project_id),
     category: row.category,
     projectType: ref(names, row.project_type_id),
@@ -204,7 +219,7 @@ export function getProject(db: DatabaseSync, id: number): ProjectRecord | undefi
   const scope = db
     .prepare('SELECT * FROM scope_items WHERE project_id = ? ORDER BY kind, sort_order')
     .all(id) as unknown as ScopeRow[];
-  return toProject(row, phases.map(toPhase), scope.map(toScopeItem), listNames(db));
+  return toProject(row, phases.map(toPhase), scope.map(toScopeItem), listNames(db), peopleById(db));
 }
 
 function byProject<R extends { project_id: number }, T>(rows: R[], map: (row: R) => T): Map<number, T[]> {
@@ -228,5 +243,6 @@ export function listProjects(db: DatabaseSync): ProjectRecord[] {
     toScopeItem,
   );
   const names = listNames(db);
-  return rows.map((r) => toProject(r, phases.get(r.id) ?? [], scope.get(r.id) ?? [], names));
+  const people = peopleById(db);
+  return rows.map((r) => toProject(r, phases.get(r.id) ?? [], scope.get(r.id) ?? [], names, people));
 }

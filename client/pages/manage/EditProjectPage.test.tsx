@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import { mockFetch, sampleLists, sampleProject } from '../../testing/mockFetch';
+import { mockFetch, sampleLists, samplePeople, sampleProject } from '../../testing/mockFetch';
 import { EditProjectPage } from './EditProjectPage';
 
 function ProjectStub() {
@@ -23,7 +23,7 @@ function renderAt(url: string) {
 }
 
 const project = sampleProject({
-  projectManager: 'Sara Ahmed',
+  projectManager: { id: 70, name: 'Sara Ahmed' },
   projectType: { id: 2, name: 'Customer' },
   scopeItems: [{ id: 5, kind: 'scope', text: 'Online payments', order: 0, dateAdded: '2026-09-24' }],
 });
@@ -33,6 +33,7 @@ describe('EditProjectPage', () => {
     const fetchMock = mockFetch({
       'GET /api/projects/1': () => ({ body: project }),
       'GET /api/lists': () => ({ body: sampleLists() }),
+      'GET /api/resources': () => ({ body: samplePeople() }),
       'PUT /api/projects/1/details': () => ({ body: project }),
     });
     const user = userEvent.setup();
@@ -40,7 +41,8 @@ describe('EditProjectPage', () => {
 
     const name = await screen.findByLabelText('Project name');
     expect(name).toHaveValue('Portal');
-    expect(screen.getByLabelText('Project manager (tech)')).toHaveValue('Sara Ahmed');
+    await screen.findByRole('option', { name: 'Sara Ahmed' });
+    expect(screen.getByLabelText('Project manager (tech)')).toHaveValue('70');
     expect(screen.getByLabelText('Scope item 1')).toHaveValue('Online payments');
     await screen.findByRole('option', { name: 'Customer' });
     expect(screen.getByLabelText('Project type')).toHaveValue('2');
@@ -53,7 +55,7 @@ describe('EditProjectPage', () => {
     expect(await screen.findByText('Project page 1')).toBeInTheDocument();
     const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects/1/details' && init?.method === 'PUT');
     const sent = JSON.parse(put![1]!.body as string);
-    expect(sent).toMatchObject({ name: 'Portal 2', projectManager: 'Sara Ahmed', projectTypeId: 2 });
+    expect(sent).toMatchObject({ name: 'Portal 2', projectManagerId: 70, projectTypeId: 2 });
     expect(sent.scopeItems).toEqual([
       { id: 5, kind: 'scope', text: 'Online payments' },
       { kind: 'objective', text: 'Faster checkout' },
@@ -65,6 +67,7 @@ describe('EditProjectPage', () => {
     const fetchMock = mockFetch({
       'GET /api/projects/1': () => ({ body: project }),
       'GET /api/lists': () => ({ body: sampleLists() }),
+      'GET /api/resources': () => ({ body: samplePeople() }),
       'PUT /api/projects/1/details': () => ({ body: project }),
     });
     const user = userEvent.setup();
@@ -87,6 +90,7 @@ describe('EditProjectPage', () => {
     const fetchMock = mockFetch({
       'GET /api/projects/1': () => ({ body: project }),
       'GET /api/lists': () => ({ body: sampleLists() }),
+      'GET /api/resources': () => ({ body: samplePeople() }),
     });
     const user = userEvent.setup();
     renderAt('/manage/projects/1/edit');
@@ -100,6 +104,7 @@ describe('EditProjectPage', () => {
     mockFetch({
       'GET /api/projects/1': () => ({ body: project }),
       'GET /api/lists': () => ({ status: 500, body: { error: 'Lists unavailable' } }),
+      'GET /api/resources': () => ({ body: samplePeople() }),
     });
     renderAt('/manage/projects/1/edit');
 
@@ -111,6 +116,7 @@ describe('EditProjectPage', () => {
     mockFetch({
       'GET /api/projects/999': () => ({ status: 404, body: { error: 'Project not found' } }),
       'GET /api/lists': () => ({ body: sampleLists() }),
+      'GET /api/resources': () => ({ body: samplePeople() }),
     });
     renderAt('/manage/projects/999/edit');
     expect(await screen.findByText('Project not found')).toBeInTheDocument();

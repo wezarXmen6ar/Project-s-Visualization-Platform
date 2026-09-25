@@ -78,10 +78,8 @@ export const projectDetailsSchema = z.object({
   jiraKey: optionalText(50),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Colour must look like #3b82f6'),
   priority: z.enum(PRIORITIES).default('medium'),
-  projectManager: optionalText(200),
-  businessPmName: optionalText(200),
-  businessPmPhone: optionalUaeMobile,
-  businessPmEmail: optionalEmail,
+  projectManagerId: optionalId,
+  businessPmId: optionalId,
   mainProjectId: optionalId,
   category: z
     .enum(CATEGORIES)

@@ -8,10 +8,8 @@ export interface DetailsDraft {
   jiraKey: string;
   color: string;
   priority: Priority;
-  projectManager: string;
-  businessPmName: string;
-  businessPmPhone: string;
-  businessPmEmail: string;
+  projectManagerId: number | null;
+  businessPmId: number | null;
   mainProjectId: number | null;
   category: Category | null;
   projectTypeId: number | null;
@@ -34,10 +32,8 @@ export function emptyDetails(): DetailsDraft {
     jiraKey: '',
     color: '#3b82f6',
     priority: 'medium',
-    projectManager: '',
-    businessPmName: '',
-    businessPmPhone: '',
-    businessPmEmail: '',
+    projectManagerId: null,
+    businessPmId: null,
     mainProjectId: null,
     category: null,
     projectTypeId: null,
@@ -61,10 +57,8 @@ export function detailsFromProject(p: ProjectRecord): DetailsDraft {
     jiraKey: p.jiraKey ?? '',
     color: p.color,
     priority: p.priority,
-    projectManager: p.projectManager ?? '',
-    businessPmName: p.businessPmName ?? '',
-    businessPmPhone: p.businessPmPhone ?? '',
-    businessPmEmail: p.businessPmEmail ?? '',
+    projectManagerId: p.projectManager?.id ?? null,
+    businessPmId: p.businessPm?.id ?? null,
     mainProjectId: p.mainProject?.id ?? null,
     category: p.category,
     projectTypeId: p.projectType?.id ?? null,
@@ -88,7 +82,7 @@ export function detailsToInput(d: DetailsDraft): ProjectDetailsInput {
 
 /** Which wizard step owns each top-level field, so an error can send the user to the right step. */
 const STEP_FIELDS: string[][] = [
-  ['name', 'jiraKey', 'color', 'priority', 'projectManager', 'businessPmName', 'businessPmPhone', 'businessPmEmail', 'mainProjectId', 'category',
+  ['name', 'jiraKey', 'color', 'priority', 'projectManagerId', 'businessPmId', 'mainProjectId', 'category',
     'projectTypeId', 'goalId', 'departmentId', 'requester', 'beneficiary'],
   ['background', 'summary', 'scopeItems'],
   ['startDate', 'phases'],

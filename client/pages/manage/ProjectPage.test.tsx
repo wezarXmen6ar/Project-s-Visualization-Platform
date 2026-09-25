@@ -35,7 +35,7 @@ describe('ProjectPage', () => {
       'GET /api/projects/1': () => ({
         body: sampleProject({
           priority: 'high',
-          projectManager: 'Sara Ahmed',
+          projectManager: { id: 70, name: 'Sara Ahmed' },
           mainProject: { id: 20, name: 'Digital Services' },
           category: 'strategic',
           department: { id: 30, name: 'Finance' },
@@ -68,10 +68,8 @@ describe('ProjectPage', () => {
     mockFetch({
       'GET /api/projects/1': () => ({
         body: sampleProject({
-          projectManager: 'Sara Ahmed',
-          businessPmName: 'Mariam Al Suwaidi',
-          businessPmPhone: '+971 50 123 4567',
-          businessPmEmail: 'mariam@example.com',
+          projectManager: { id: 70, name: 'Sara Ahmed' },
+          businessPm: { id: 80, name: 'Mariam Al Suwaidi', phone: '+971 50 123 4567', email: 'mariam@example.com' },
         }),
       }),
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),

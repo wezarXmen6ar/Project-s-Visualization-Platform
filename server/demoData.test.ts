@@ -10,7 +10,7 @@ describe('DEMO_PROJECTS', () => {
   it('are all valid projects with unique names', () => {
     expect(DEMO_PROJECTS.length).toBeGreaterThanOrEqual(6);
     for (const demo of DEMO_PROJECTS) {
-      expect(newProjectSchema.safeParse(toProjectInput(demo, () => 1)).success).toBe(true);
+      expect(newProjectSchema.safeParse(toProjectInput(demo, () => 1, () => 1)).success).toBe(true);
     }
     expect(new Set(DEMO_PROJECTS.map((p) => p.name)).size).toBe(DEMO_PROJECTS.length);
   });
@@ -32,9 +32,8 @@ describe('seedDemo', () => {
     });
     expect(projects.find((p) => p.name === 'Customer Portal Revamp')!.scopeItems.length).toBeGreaterThan(0);
     expect(projects.find((p) => p.name === 'Customer Portal Revamp')).toMatchObject({
-      businessPmName: 'Mariam Al Suwaidi',
-      businessPmPhone: '+971 50 123 4567',
-      businessPmEmail: 'mariam.alsuwaidi@example.com',
+      projectManager: { name: 'Sara Ahmed' },
+      businessPm: { name: 'Mariam Al Suwaidi', phone: '+971 50 123 4567', email: 'mariam.alsuwaidi@example.com' },
     });
 
     // The default project types are reused, not duplicated.

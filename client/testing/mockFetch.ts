@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Lists, ProjectRecord } from '../../shared/types';
+import type { Lists, ProjectRecord, ResourceRecord } from '../../shared/types';
 
 export type MockHandler = (init?: RequestInit) => { status?: number; body: unknown };
 
@@ -31,10 +31,7 @@ export function sampleProject(overrides: Partial<ProjectRecord> = {}): ProjectRe
     color: '#3b82f6',
     startDate: '2026-09-24',
     priority: 'medium',
-    projectManager: null,
-    businessPmName: null,
-    businessPmPhone: null,
-    businessPmEmail: null,
+    projectManager: null, businessPm: null,
     mainProject: null,
     category: null,
     projectType: null,
@@ -71,4 +68,16 @@ export function sampleLists(): Lists {
       'Project manager', 'Tech lead', 'Business analyst', 'Developer', 'Designer', 'QA', 'DB engineer', 'InfoSec',
     ].map((name, i) => ({ id: 60 + i, list: 'role' as const, name, order: i })),
   };
+}
+
+export function samplePeople(): ResourceRecord[] {
+  const person = (p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name' | 'side'>): ResourceRecord => ({
+    role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], ...p,
+  });
+  return [
+    person({ id: 70, name: 'Sara Ahmed', side: 'tech', role: { id: 60, name: 'Project manager' } }),
+    person({ id: 71, name: 'Fatima Noor', side: 'tech', role: { id: 63, name: 'Developer' }, specialisation: 'front-end' }),
+    person({ id: 72, name: 'Rami Saleh', side: 'tech', role: { id: 63, name: 'Developer' }, specialisation: 'back-end', capacity: 80 }),
+    person({ id: 80, name: 'Mariam Al Suwaidi', side: 'business', phone: '+971 50 123 4567', email: 'mariam@example.com' }),
+  ];
 }

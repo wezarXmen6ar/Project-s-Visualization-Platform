@@ -8,7 +8,7 @@ import {
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
-import { checkListRefs, createProject, getProject, listProjects, updateProjectDetails } from './projects/repo';
+import { checkRefs, createProject, getProject, listProjects, updateProjectDetails } from './projects/repo';
 import {
   addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, listResources, updateResource,
 } from './resources/repo';
@@ -98,7 +98,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.post('/api/projects', async (req, reply) => {
     const parsed = newProjectSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid project', issues: toIssues(parsed.error) });
-    const issues = checkListRefs(db, parsed.data);
+    const issues = checkRefs(db, parsed.data);
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid project', issues });
     return reply.code(201).send(createProject(db, getCalendar(db), parsed.data, today()));
   });
@@ -106,7 +106,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.put<{ Params: { id: string } }>('/api/projects/:id/details', async (req, reply) => {
     const parsed = projectDetailsSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid project', issues: toIssues(parsed.error) });
-    const issues = checkListRefs(db, parsed.data);
+    const issues = checkRefs(db, parsed.data);
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid project', issues });
     const project = updateProjectDetails(db, Number(req.params.id), parsed.data, today());
     if (!project) return reply.code(404).send({ error: 'Project not found' });

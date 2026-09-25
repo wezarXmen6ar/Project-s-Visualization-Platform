@@ -33,4 +33,32 @@ describe('migrate', () => {
     ).toThrow('boom');
     expect({ ...db.prepare('SELECT COUNT(*) AS n FROM settings').get() }).toEqual({ n: 0 });
   });
+
+  it('moves project manager names into Resources when upgrading from version 5', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('PRAGMA foreign_keys = ON');
+    for (const m of MIGRATIONS.slice(0, 5)) db.exec(m);
+    db.exec('PRAGMA user_version = 5');
+    const insert = db.prepare(
+      "INSERT INTO projects (name, color, start_date, created_at, project_manager, business_pm_name, business_pm_phone, business_pm_email) VALUES (?, '#000000', '2026-01-05', 'x', ?, ?, ?, ?)",
+    );
+    insert.run('A', 'Sara Ahmed', 'Mariam', '+971 50 123 4567', null);
+    insert.run('B', ' Sara Ahmed ', 'Mariam', null, 'mariam@example.com');
+    insert.run('C', null, null, null, null);
+
+    migrate(db);
+
+    const people = db.prepare('SELECT name, side, phone, email FROM resources ORDER BY side DESC, name').all().map((r) => ({ ...r }));
+    expect(people).toEqual([
+      { name: 'Sara Ahmed', side: 'tech', phone: null, email: null },
+      { name: 'Mariam', side: 'business', phone: '+971 50 123 4567', email: 'mariam@example.com' },
+    ]);
+    const pm = db.prepare("SELECT r.name AS role FROM resources p JOIN list_values r ON r.id = p.role_id WHERE p.side = 'tech'").get();
+    expect({ ...pm }).toEqual({ role: 'Project manager' });
+    const projects = db
+      .prepare('SELECT name, project_manager_id IS NOT NULL AS pm, business_pm_id IS NOT NULL AS bpm FROM projects ORDER BY name')
+      .all()
+      .map((r) => ({ ...r }));
+    expect(projects).toEqual([{ name: 'A', pm: 1, bpm: 1 }, { name: 'B', pm: 1, bpm: 1 }, { name: 'C', pm: 0, bpm: 0 }]);
+  });
 });

@@ -34,7 +34,12 @@ function resourceValues(r: ResourceData) {
  * What still points at a person, each with the reason shown when deleting is refused. A person in use can be made
  * inactive but not deleted, so history keeps their name. Later features add their own entries here.
  */
-const USAGE: { sql: string; reason: (n: number) => string }[] = [];
+const USAGE: { sql: string; reason: (n: number) => string }[] = [
+  {
+    sql: 'SELECT COUNT(*) AS n FROM projects WHERE ? IN (project_manager_id, business_pm_id)',
+    reason: (n) => `they are a project manager on ${n} project${n === 1 ? '' : 's'}`,
+  },
+];
 
 function toLeave(row: LeaveRow): LeaveRecord {
   return { id: row.id, start: row.start_date, end: row.end_date, note: row.note };

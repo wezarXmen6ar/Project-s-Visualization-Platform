@@ -1,5 +1,6 @@
-import type { Category, ListValue, Lists, Priority } from '../../../shared/types';
+import type { Category, ListValue, Lists, Priority, ResourceRecord } from '../../../shared/types';
 import { OptionPicker } from '../../components/OptionPicker';
+import { PersonPicker } from '../../components/PersonPicker';
 import { CATEGORY_LABEL, PRIORITY_LABEL } from './labels';
 import type { DetailsDraft } from './projectDraft';
 
@@ -8,10 +9,12 @@ interface DetailsFieldsProps {
   onChange: (patch: Partial<DetailsDraft>) => void;
   lists: Lists;
   onListAdded: (value: ListValue) => void;
+  people: ResourceRecord[];
+  onPersonAdded: (person: ResourceRecord) => void;
 }
 
 /** Wizard Step 1: basic info, people and classification. Also used on the Edit details page. */
-export function DetailsFields({ value, onChange, lists, onListAdded }: DetailsFieldsProps) {
+export function DetailsFields({ value, onChange, lists, onListAdded, people, onPersonAdded }: DetailsFieldsProps) {
   return (
     <>
       <section className="card">
@@ -43,32 +46,25 @@ export function DetailsFields({ value, onChange, lists, onListAdded }: DetailsFi
       <section className="card">
         <h2>People</h2>
         <div className="form-grid">
-          <label>
-            Project manager (tech)
-            <input value={value.projectManager} onChange={(e) => onChange({ projectManager: e.target.value })} />
-          </label>
-          <label>
-            Business project manager
-            <input value={value.businessPmName} onChange={(e) => onChange({ businessPmName: e.target.value })} />
-          </label>
-          <label>
-            Business PM phone (UAE mobile)
-            <input
-              type="tel"
-              value={value.businessPmPhone}
-              onChange={(e) => onChange({ businessPmPhone: e.target.value })}
-              placeholder="+971 50 123 4567"
-            />
-          </label>
-          <label>
-            Business PM email
-            <input
-              type="email"
-              value={value.businessPmEmail}
-              onChange={(e) => onChange({ businessPmEmail: e.target.value })}
-              placeholder="name@example.com"
-            />
-          </label>
+          <PersonPicker
+            label="Project manager (tech)"
+            side="tech"
+            people={people}
+            value={value.projectManagerId}
+            onChange={(id) => onChange({ projectManagerId: id })}
+            onAdded={onPersonAdded}
+            noneLabel="Not set"
+            newPersonRoleId={lists.role.find((r) => r.name === 'Project manager')?.id ?? null}
+          />
+          <PersonPicker
+            label="Business project manager"
+            side="business"
+            people={people}
+            value={value.businessPmId}
+            onChange={(id) => onChange({ businessPmId: id })}
+            onAdded={onPersonAdded}
+            noneLabel="Not set"
+          />
         </div>
       </section>
 
