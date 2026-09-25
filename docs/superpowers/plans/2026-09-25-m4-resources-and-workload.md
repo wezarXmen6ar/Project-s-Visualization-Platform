@@ -5090,6 +5090,79 @@ Do this with two queries and a small TypeScript fold in `server/resources/repo.t
 
 ---
 
+### Task 11: Days / Weeks switch on the workload heatmap (M4 second review, 2026-09-25)
+
+**Why:** the user read each week column ("MON 12 OCT – FRI 16 OCT") as a day with two dates, and expected a week to be five blocks. Task 9's thin day-slice strip was too small to notice, so Fatima's full week of leave still looked like one block on one day. The user chose a **Days | Weeks** switch.
+
+**Files:**
+- Modify: `shared/capacity.ts` (a day-level function next to `computeWorkload`), `client/pages/manage/WorkloadHeatmap.tsx`, `client/pages/manage/ResourcesPage.tsx`, `client/pages/manage/heatmap.ts`, `client/styles.css`
+- Create: `client/pages/manage/DayHeatmap.tsx` (or a `mode` prop on `WorkloadHeatmap`, whichever keeps each file focused)
+- Test: `shared/capacity.test.ts`, `client/pages/manage/heatmap.test.ts`, `client/pages/manage/WorkloadHeatmap.test.tsx` and/or `DayHeatmap.test.tsx`, `client/pages/manage/ResourcesPage.test.tsx`
+
+**Interfaces:**
+- Consumes: `computeWorkload`, `WeekLoad`, `OVERLOAD_TOLERANCE`, `CapacityResource`, `CapacityAssignment` (Task 3); `isWorkingDay`, `addDays`, `WorkCalendar` (`shared/calendar.ts`); `dayDate`, `weekLabel`, `leaveInWeek`, `leaveDaysInWeek` (Task 9); `isAccepted`, `heatLevel` (Task 7).
+- Produces:
+  - `shared/capacity.ts`:
+    - `DayLoad { date; working: boolean; onLeave: boolean; load: number; available: number; overloaded: boolean; items: { assignmentId; projectName; phaseName; allocation }[] }`
+    - `computeDailyLoad(resources, assignments, range, cal): { resourceId; name; days: DayLoad[] }[]`
+    - The rules for each day:
+      - `load` = the sum of the allocations of the person's assignments whose start ≤ day ≤ end;
+      - `available` = `capacity`, or `0` when the day is a leave day;
+      - `overloaded` = `load > available + OVERLOAD_TOLERANCE`;
+      - a non-working day (weekend or holiday) has `working: false`, and is not rendered.
+  - `client/pages/manage/heatmap.ts`: `dayLevel(day, accepted)` returns a `HeatLevel`, using the same bands as `heatLevel`. A leave day with no load is `'off'`. A leave day that has load is `'over'`.
+  - `isoWeek(date)`: the ISO-8601 week number, used for the "Week 42" heading.
+
+**Days view (the default):**
+- **Headings:**
+  - The first header row gives each week one `<th colSpan={n}>` reading "12–16 Oct" (or "28 Sep – 2 Oct" across months), with `n` = its working days.
+  - The second row has one `<th>` per day, with the weekday letter over the date ("M" over "12"). Each has an `aria-label` like "Mon 12 Oct".
+- **Cells:** one `<button>` per person per working day.
+  - The text inside is the rounded load % (e.g. "150"), "Leave" on a leave day with no load, or empty when the day is free.
+  - Leave days get a `leave` class, drawn as diagonal stripes over the whole block.
+  - The aria-label reads like "Fatima Noor, Mon 12 Oct: on leave" or "Aisha Khan, Tue 6 Oct: 150% booked of 100% available, overbooked".
+- **Range and navigation:** 4 weeks at a time, starting from this week's Monday minus one week. The arrows move 1 week, and "This week" resets.
+- **Clicking a day** selects that person's week and opens the existing `OverloadPanel` for that week.
+  - The panel now also lists the days in that week that are overbooked on their own, e.g. "Tue 6 Oct: 150% booked, 100% available".
+  - A week that is accepted (`isAccepted` for that week) shows all its days in the accepted style.
+- **Legend:** Light, Booked, Full, Overbooked, Accepted, Leave, each as a small block in its real style.
+
+**Weeks view:**
+- Today's heatmap, with these changes:
+  - The column header is two lines: "Week 42" (from `isoWeek`) over "12–16 Oct".
+  - Task 9's thin strip becomes a row of five **visible** day squares inside the cell, at least 8px each, with leave days striped. It sits under the booked % text.
+- 13 weeks at a time, as now; the arrows move 4 weeks.
+
+**Switch:** a two-button group, **Days | Weeks**, with `aria-pressed`, beside the arrows. It is stored in `localStorage` under `pvp.workloadView`. Wrap every read and write in try/catch and fall back to Days.
+
+**Dashboard notice:** unchanged. It stays weekly, and single-day clashes don't count toward it.
+
+- [ ] **Step 1: Write the failing tests**
+  - `shared/capacity.test.ts`, for `computeDailyLoad`:
+    - Fatima with leave 12–16 Oct has five working days with `onLeave: true`, and `available` is 0 on each.
+    - A person at 50% Mon–Fri plus 100% on Monday only has `load: 150` and `overloaded: true` on Monday, and `load: 50` on Tuesday. Their weekly `computeWorkload` for the same week is 70% and not overloaded; the Days view shows the day clash that the weekly average hides.
+    - Weekend days have `working: false`.
+  - `heatmap.test.ts`:
+    - `dayLevel` for a free leave day is `'off'`;
+    - for a leave day with load it is `'over'`;
+    - `isoWeek('2026-10-12')` is `42`.
+  - The Days heatmap test:
+    - the "12–16 Oct" group header spans 5 columns;
+    - Fatima's row has five buttons labelled "on leave" in that week;
+    - Jonas has three in the week of 19 Oct;
+    - clicking a day calls `onSelect` with that week's Monday.
+  - The Weeks heatmap test: the header shows "Week 42" and "12–16 Oct"; Jonas's week-of-19-Oct cell has 3 striped and 2 plain day squares.
+  - `ResourcesPage.test.tsx`:
+    - Days is pressed by default;
+    - clicking Weeks switches views and the choice persists across a re-render;
+    - the People-table tests are unaffected.
+- [ ] **Step 2:** Run the new tests and confirm they FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
+- [ ] **Step 5:** Commit with `feat: days and weeks views on the workload heatmap, with leave covering the days it falls on`.
+
+---
+
 ### ✅ M4 checkpoint: stop and demo to the user
 
 Start from a fresh demo database. An existing `data/pm.db` upgrades automatically: migration 6 moves the typed PM names into Resources. A fresh one shows the full demo team.
@@ -5103,7 +5176,7 @@ The user should be able to:
 2. **Resources** shows the **Workload** heatmap: people by weeks.
    - Aisha's week of 5 Oct is red (150%).
    - Jonas's week of 19 Oct is red (leave).
-   - Fatima's week of 12 Oct is striped and marked as not working. The column header reads "Mon 12 Oct – Fri 16 Oct", and clicking the cell shows "On leave Mon 12 Oct – Fri 16 Oct · Annual leave". All five of her day slices are striped. Jonas's week of 19 Oct has only Mon, Tue and Wed striped.
+   - Fatima's week of 12 Oct is striped and marked as not working. The column header reads "Mon 12 Oct – Fri 16 Oct", and clicking the cell shows "On leave Mon 12 Oct – Fri 16 Oct · Annual leave". In the **Days** view (the default) her row shows five striped "Leave" blocks under 12–16 Oct, and Jonas has three under 19–21 Oct. **Weeks** shows one block per week, headed "Week 42" over "12–16 Oct", with five visible day squares inside.
    - **‹ This week ›** moves 4 weeks at a time.
 3. Click Aisha's red week. The panel lists her Case Management UAT and E-Services work, then:
    - **Split the time** down to 50% for one of them. The cell stops being red, and the decision is recorded.

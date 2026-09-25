@@ -164,7 +164,18 @@ Saving creates Baseline 1.
 - A **workload heatmap** of people by weeks (Monday to Sunday), coloured by how much of each week is booked. Booked % = each assignment's allocation × the working days it covers that week ÷ the week's working days. Available % = capacity reduced by leave days. A week is overbooked when booked is more than available. Clicking a cell shows the conflict and opens the decision prompt.
 - **Decision prompt (M4):** Split the time, Reassign work (with each person's load that week shown), or Accept the risk (with an optional reason); each is recorded as a dated event. Pause a project and Delay a phase are shown but switch on later: Delay a phase with progress and phase shifts (M7), and Pause a project with holds (M8). An accepted overbooking stays visible in its own style and no longer counts in the dashboard warning.
 - Personal **leave** (dates and an optional note) is kept per person on their page; leave days reduce what they can give that week.
-- **Leave is shown on the days it falls on (M4 review, 2026-09-25).** Each heatmap cell has a strip of day slices along its bottom, one per working day of that week (Mon–Fri by default). Only the days someone is on leave are striped, so a full week of leave strips all five and three days of training strip Mon, Tue and Wed. The cell's label names the days. Public holidays (M7) will show on the same strip in their own style.
+- **Days / Weeks switch (M4 second review, 2026-09-25).** In review, the one-column-per-week layout read as one column per day, and the thin strip of day slices was too small to see. So Fatima's full week of leave still looked like a single day. The heatmap now has a **Days | Weeks** switch above it. **Days** is the default, and the choice is remembered on this device.
+  - **Days view:**
+    - Every working day is its own block. Five blocks sit under each week heading ("12–16 Oct"), with a row of day letters and dates (M 12, T 13, …).
+    - Four weeks (20 days) are shown at a time; the arrows move one week.
+    - A day is coloured by that day's own load: booked % = the total allocation of the person's assignments that cover the day; available % = their capacity, or 0 on a leave day.
+    - Leave days are striped and say "Leave", so Fatima's 12–16 Oct shows five striped blocks and Jonas's 19–21 Oct shows three. Public holidays (M7) will cover their days the same way, in their own style.
+    - A day is red when its booked % is more than its available %. A red day inside a week that is not overbooked overall still shows red, because it is a real clash on that day. The panel explains it, but it does not count in the dashboard notice, which stays weekly.
+    - Clicking any day opens that week's panel, so Split, Reassign and Accept work as before. Days in a week whose overbooking was accepted show the accepted style.
+  - **Weeks view:**
+    - One block per week, for looking further ahead (13 weeks). The column heading reads "Week 42" over "12–16 Oct".
+    - Each cell shows the week's booked %, plus a row of five clearly visible day squares, with leave days striped.
+    - The arrows move four weeks.
 - **Weeks and dates show the day of the week (M4 review, 2026-09-25).** People work Monday to Friday, so a week is labelled by its working days, not just its Monday: the heatmap column reads "Mon 12 Oct – Fri 16 Oct", and the decision prompt, the overbooking warnings ("Mon 5 Oct – Fri 9 Oct: 150% booked, 100% available") and the dashboard notice use the same label. The first and last working day come from the calendar in Settings. The decision prompt names the leave that falls in that week by its days ("On leave Mon 12 Oct – Fri 16 Oct · Annual leave"), and a person's leave list shows the weekday on each date plus the number of working days it covers.
 
 ### 3.8 To-dos (M5)
