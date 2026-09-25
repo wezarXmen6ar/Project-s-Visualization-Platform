@@ -10,11 +10,18 @@ export function moveItem<T>(list: T[], from: number, to: number): T[] {
 }
 
 type Side = 'before' | 'after';
+type DropTarget = { index: number; side: Side } | null;
 
 /** Which side of `index` the dragged item (currently at `from`) would land on. `null` when `index` is the drag source itself. */
 function sideFor(from: number, index: number): Side | null {
   if (index === from) return null;
   return index > from ? 'after' : 'before';
+}
+
+function sameTarget(a: DropTarget, b: DropTarget): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return false;
+  return a.index === b.index && a.side === b.side;
 }
 
 /**
@@ -28,10 +35,13 @@ function sideFor(from: number, index: number): Side | null {
 export function useReorder(count: number, move: (from: number, to: number) => void) {
   const listId = useId();
   const dragIndex = useRef<number | null>(null);
+  // Mirrors `dropTarget` state so `onPointerUp` can read the last hovered row synchronously, without trusting the
+  // release event's own coordinates (which can be stale or zeroed once the finger has lifted).
+  const dropTargetRef = useRef<DropTarget>(null);
   const handles = useRef<(HTMLButtonElement | null)[]>([]);
   const [pendingFocus, setPendingFocus] = useState<number | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ index: number; side: Side } | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget>(null);
 
   // After a keyboard move, the moved item has re-rendered at its new index: put focus back on its handle.
   useEffect(() => {
@@ -40,8 +50,15 @@ export function useReorder(count: number, move: (from: number, to: number) => vo
     setPendingFocus(null);
   }, [pendingFocus]);
 
+  /** Updates the drop-target indicator, skipping the render entirely when nothing actually changed. */
+  function updateDropTarget(next: DropTarget) {
+    dropTargetRef.current = next;
+    setDropTarget((prev) => (sameTarget(prev, next) ? prev : next));
+  }
+
   function endDrag() {
     dragIndex.current = null;
+    dropTargetRef.current = null;
     setDragging(null);
     setDropTarget(null);
   }
@@ -66,10 +83,13 @@ export function useReorder(count: number, move: (from: number, to: number) => vo
       },
       onDragStart: (e: DragEvent<HTMLButtonElement>) => {
         dragIndex.current = index;
-        setDragging(index);
         // Firefox will not start a drag unless some data is set.
         e.dataTransfer.setData('text/plain', String(index));
         e.dataTransfer.effectAllowed = 'move';
+        // Deferred: mutating the drag source's own row synchronously inside dragstart (even just an opacity
+        // class) can make Chrome/Firefox cancel the drag operation they are still setting up. A macrotask
+        // lets the browser finish starting the drag first.
+        setTimeout(() => setDragging(index), 0);
       },
       onKeyDown: (e: KeyboardEvent<HTMLButtonElement>) => {
         const to = e.key === 'ArrowUp' ? index - 1 : e.key === 'ArrowDown' ? index + 1 : null;
@@ -81,9 +101,16 @@ export function useReorder(count: number, move: (from: number, to: number) => vo
       },
       onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
         if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+        // Without this, a touch on a `draggable` element can make Chrome start its own native drag (or a
+        // scroll) instead of delivering clean pointermove/pointerup events to us.
+        e.preventDefault();
         dragIndex.current = index;
         setDragging(index);
-        e.currentTarget.setPointerCapture?.(e.pointerId);
+        try {
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+        } catch {
+          // Capture can throw (e.g. pointerId already released); pointer events still bubble without it.
+        }
       },
       onPointerMove: (e: PointerEvent<HTMLButtonElement>) => {
         if (dragIndex.current === null) return;
@@ -91,15 +118,19 @@ export function useReorder(count: number, move: (from: number, to: number) => vo
         const at = rowAt(e.clientX, e.clientY);
         if (at === null) return;
         const side = sideFor(dragIndex.current, at);
-        setDropTarget(side ? { index: at, side } : null);
+        updateDropTarget(side ? { index: at, side } : null);
       },
       onPointerUp: (e: PointerEvent<HTMLButtonElement>) => {
         if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
         const from = dragIndex.current;
-        const at = rowAt(e.clientX, e.clientY);
+        // Prefer the last position seen while moving: a release event's own coordinates aren't reliable once
+        // the finger has lifted. Fall back to the release point itself if the drag never moved.
+        const at = dropTargetRef.current?.index ?? rowAt(e.clientX, e.clientY);
         endDrag();
-        if (from !== null && at !== null) move(from, at);
+        if (from !== null && at !== null && at !== undefined) move(from, at);
       },
+      // Not gated on pointerType: onPointerDown only ever sets drag state for touch/pen, so resetting
+      // unconditionally here is harmless (a no-op) for any other pointer type.
       onPointerCancel: () => {
         endDrag();
       },
@@ -118,7 +149,18 @@ export function useReorder(count: number, move: (from: number, to: number) => vo
         if (dragIndex.current === null) return;
         e.preventDefault();
         const side = sideFor(dragIndex.current, index);
-        setDropTarget(side ? { index, side } : null);
+        updateDropTarget(side ? { index, side } : null);
+      },
+      onDragLeave: (e: DragEvent<HTMLElement>) => {
+        // A dragleave into a child element of the same row (e.g. an input) isn't really leaving the row.
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        // Never touch dragIndex here: dragleave fires on whatever row the pointer is passing over on its way
+        // to the eventual drop target, well before drop/dragend, and clearing it would abort the whole drag.
+        setDropTarget((prev) => {
+          if (prev?.index !== index) return prev;
+          dropTargetRef.current = null;
+          return null;
+        });
       },
       onDrop: (e: DragEvent<HTMLElement>) => {
         e.preventDefault();
