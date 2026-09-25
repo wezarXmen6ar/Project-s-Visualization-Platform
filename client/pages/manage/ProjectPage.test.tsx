@@ -42,6 +42,8 @@ describe('ProjectPage', () => {
     expect(await screen.findByRole('heading', { name: 'Portal' })).toBeInTheDocument();
     expect(screen.getByText(/2026-09-24 → 2026-09-30/)).toBeInTheDocument();
     expect(screen.getByTestId('gantt-row-12')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Portal' }).closest('main')).toHaveClass('page-wide');
+    expect(screen.getByText('24 Sep – 25 Sep')).toBeInTheDocument();
     const table = screen.getByRole('table');
     expect(within(table).getByText('Development')).toBeInTheDocument();
     expect(within(table).getAllByText('3')).toHaveLength(2);

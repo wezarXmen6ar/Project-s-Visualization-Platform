@@ -141,7 +141,7 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
       <section className="card">
         <h2>Preview</h2>
         <div className="chart-scroll" ref={chartRef}>
-          <Gantt rows={rows} range={range} width={chartWidth} />
+          <Gantt rows={rows} range={range} width={chartWidth} calendar={cal} detail="weeks" showDates />
         </div>
       </section>
     </>

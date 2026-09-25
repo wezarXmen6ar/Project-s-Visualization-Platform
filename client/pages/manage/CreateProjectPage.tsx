@@ -78,7 +78,7 @@ export function CreateProjectPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="page-header">
         <div>
           <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>

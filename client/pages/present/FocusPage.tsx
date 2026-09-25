@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router';
-import { todayLocal } from '../../../shared/calendar';
+import { DEFAULT_CALENDAR, todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
 import { api } from '../../api';
 import { Gantt } from '../../gantt/Gantt';
@@ -10,8 +10,10 @@ import { useAsync } from '../../useAsync';
 export function FocusPage() {
   const id = Number(useParams().id);
   const project = useAsync(() => api.getProject(id), [id]);
+  const calendar = useAsync(() => api.getCalendar(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
   const today = todayLocal();
+  const cal = calendar.data ?? DEFAULT_CALENDAR;
 
   if (project.error) {
     return (
@@ -29,7 +31,7 @@ export function FocusPage() {
   const backYear = span ? span.start.slice(0, 4) : today.slice(0, 4);
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="page-header">
         <div>
           <Link to={`/present?year=${backYear}`} className="crumb">← Portfolio</Link>
@@ -39,7 +41,15 @@ export function FocusPage() {
       </div>
       <section className="card">
         <div className="chart-scroll" ref={chartRef}>
-          <Gantt rows={rows} range={rangeFor(rows, today)} width={chartWidth} today={today} />
+          <Gantt
+            rows={rows}
+            range={rangeFor(rows, today)}
+            width={chartWidth}
+            today={today}
+            calendar={cal}
+            detail="weeks"
+            showDates
+          />
         </div>
       </section>
     </main>

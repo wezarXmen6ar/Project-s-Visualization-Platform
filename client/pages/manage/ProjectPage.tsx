@@ -79,7 +79,7 @@ export function ProjectPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="page-header">
         <div>
           <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>
@@ -112,7 +112,15 @@ export function ProjectPage() {
       <section className="card">
         <h2>Timeline</h2>
         <div className="chart-scroll" ref={chartRef}>
-          <Gantt rows={rows} range={rangeFor(rows, today)} width={chartWidth} today={today} />
+          <Gantt
+            rows={rows}
+            range={rangeFor(rows, today)}
+            width={chartWidth}
+            today={today}
+            calendar={cal}
+            detail="weeks"
+            showDates
+          />
         </div>
       </section>
 

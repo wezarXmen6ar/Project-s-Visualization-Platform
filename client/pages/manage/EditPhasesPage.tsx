@@ -124,7 +124,7 @@ export function EditPhasesPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="page-header">
         <div>
           <Link to={`/manage/projects/${id}`} className="crumb"><ArrowLeftIcon />{project.data.name}</Link>

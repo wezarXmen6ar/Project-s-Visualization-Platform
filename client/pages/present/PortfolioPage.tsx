@@ -17,7 +17,7 @@ export function PortfolioPage() {
   const rows = data ? groupedPortfolioRows(data.projects) : [];
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="page-header">
         <div>
           <Link to="/" className="crumb">← Start</Link>

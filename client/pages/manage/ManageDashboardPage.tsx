@@ -27,7 +27,7 @@ export function ManageDashboardPage() {
   const rows = portfolioRows(list);
 
   return (
-    <main className="page">
+    <main className="page page-wide">
       <div className="page-header">
         <div>
           <Link to="/" className="crumb"><ArrowLeftIcon />Start</Link>
