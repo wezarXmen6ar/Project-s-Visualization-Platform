@@ -5,9 +5,11 @@ import { projectSpan } from '../../../shared/scheduler';
 import type { ProjectRecord } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
+import { useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 import { useMe } from '../../useMe';
 import { useResources } from '../../useResources';
@@ -28,6 +30,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function ProjectPage() {
+  const t = useT();
   const id = Number(useParams().id);
   const [searchParams, setSearchParams] = useSearchParams();
   const starterParam = searchParams.get('starter');
@@ -47,7 +50,7 @@ export function ProjectPage() {
         <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>
         <div className="errors" role="alert">
           <AlertIcon />
-          <span>{project.error.message}</span>
+          <span>{messagesOf(project.error, t)[0]}</span>
         </div>
       </main>
     );

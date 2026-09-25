@@ -6,12 +6,14 @@ import { api } from '../../api';
 import { AlertIcon } from '../../icons';
 import { ToDoRow } from '../../components/ToDoRow';
 import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { byUrgency, toDoToInput } from '../../todos';
 import { useAsync } from '../../useAsync';
 import { useMe } from '../../useMe';
 
 /** My open to-dos across every project, most urgent first, at most 5. */
 export function MyNextSteps() {
+  const t = useT();
   const { me } = useMe();
   const [version, setVersion] = useState(0);
   const assigneeId = me?.resourceId ?? null;
@@ -22,13 +24,13 @@ export function MyNextSteps() {
   const today = todayLocal();
   const [errors, setErrors] = useState<string[]>([]);
 
-  async function toggleDone(t: ToDoRecord) {
+  async function toggleDone(toDo: ToDoRecord) {
     setErrors([]);
     try {
-      await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+      await api.updateToDo(toDo.id, toDoToInput(toDo, { done: !toDo.done }));
       setVersion((v) => v + 1);
     } catch (err) {
-      setErrors(messagesOf(err));
+      setErrors(messagesOf(err, t));
     }
   }
 

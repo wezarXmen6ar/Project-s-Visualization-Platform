@@ -1,4 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
+import type { MessageKey } from '../../shared/i18n/en';
+import { translate } from '../../shared/i18n/translate';
+import type { Params } from '../../shared/i18n/types';
 import { LIST_NAMES, type ListName, type ListValue, type Lists } from '../../shared/types';
 import { transaction } from '../db';
 
@@ -10,24 +13,26 @@ interface ListRow {
 }
 
 /**
- * How many things use a list value, and what to call them in the "in use" message. Most lists are referenced by id
- * from a projects column. Phases store their name on each project's phase rows, so a phase value is matched by name
- * (ignoring case). Roles are used by people.
+ * How many things use a list value, and the message key for the "in use" message (its own plural forms cover
+ * "project"/"projects" or "person"/"people"). Most lists are referenced by id from a projects column. Phases store
+ * their name on each project's phase rows, so a phase value is matched by name (ignoring case). Roles are used by
+ * people.
  */
-const USAGE: Record<ListName, { sql: string; one: string; many: string }> = {
-  mainProject: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE main_project_id = ?', one: 'project', many: 'projects' },
-  projectType: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE project_type_id = ?', one: 'project', many: 'projects' },
-  goal: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE goal_id = ?', one: 'project', many: 'projects' },
-  department: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE department_id = ?', one: 'project', many: 'projects' },
+const USAGE: Record<ListName, { sql: string; key: MessageKey }> = {
+  mainProject: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE main_project_id = ?', key: 'error.listValueInUseProjects' },
+  projectType: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE project_type_id = ?', key: 'error.listValueInUseProjects' },
+  goal: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE goal_id = ?', key: 'error.listValueInUseProjects' },
+  department: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE department_id = ?', key: 'error.listValueInUseProjects' },
   phase: {
     sql: 'SELECT COUNT(DISTINCT project_id) AS n FROM phases WHERE parent_id IS NULL AND name = ? COLLATE NOCASE',
-    one: 'project',
-    many: 'projects',
+    key: 'error.listValueInUseProjects',
   },
-  role: { sql: 'SELECT COUNT(*) AS n FROM resources WHERE role_id = ?', one: 'person', many: 'people' },
+  role: { sql: 'SELECT COUNT(*) AS n FROM resources WHERE role_id = ?', key: 'error.listValueInUsePeople' },
 };
 
-export type ListChange = { ok: true; value?: ListValue } | { ok: false; status: 404 | 409; error: string };
+export type ListChange =
+  | { ok: true; value?: ListValue }
+  | { ok: false; status: 404 | 409; error: string; code?: MessageKey; params?: Params };
 
 function toValue(row: ListRow): ListValue {
   return { id: row.id, list: row.list, name: row.name, order: row.sort_order };
@@ -37,6 +42,12 @@ function findByName(db: DatabaseSync, list: ListName, name: string): ListRow | u
   return db
     .prepare('SELECT * FROM list_values WHERE list = ? AND name = ? COLLATE NOCASE')
     .get(list, name) as unknown as ListRow | undefined;
+}
+
+/** All USAGE entries share the same params shape: `{ name, count }`. */
+function inUse(current: { name: string }, key: MessageKey, count: number): ListChange {
+  const params: Params = { name: current.name, count };
+  return { ok: false, status: 409, error: translate('en', key, params), code: key, params };
 }
 
 export function isListName(value: string): value is ListName {
@@ -68,9 +79,14 @@ export function addListValue(db: DatabaseSync, list: ListName, name: string): { 
 
 export function renameListValue(db: DatabaseSync, list: ListName, id: number, name: string): ListChange {
   const current = getListValue(db, id);
-  if (!current || current.list !== list) return { ok: false, status: 404, error: 'Value not found' };
+  if (!current || current.list !== list) {
+    return { ok: false, status: 404, error: translate('en', 'error.listValueNotFound'), code: 'error.listValueNotFound' };
+  }
   const clash = findByName(db, list, name);
-  if (clash && clash.id !== id) return { ok: false, status: 409, error: `"${clash.name}" already exists` };
+  if (clash && clash.id !== id) {
+    const params: Params = { name: clash.name };
+    return { ok: false, status: 409, error: translate('en', 'error.listValueExists', params), code: 'error.listValueExists', params };
+  }
   transaction(db, () => {
     db.prepare('UPDATE list_values SET name = ? WHERE id = ?').run(name, id);
     // Phase names live on each project's phases, so a renamed phase is renamed there too.
@@ -83,21 +99,17 @@ export function renameListValue(db: DatabaseSync, list: ListName, id: number, na
 
 export function deleteListValue(db: DatabaseSync, list: ListName, id: number): ListChange {
   const current = getListValue(db, id);
-  if (!current || current.list !== list) return { ok: false, status: 404, error: 'Value not found' };
+  if (!current || current.list !== list) {
+    return { ok: false, status: 404, error: translate('en', 'error.listValueNotFound'), code: 'error.listValueNotFound' };
+  }
   const usage = USAGE[list];
   const { n } = db.prepare(usage.sql).get(list === 'phase' ? current.name : id) as unknown as { n: number };
-  if (n > 0) return { ok: false, status: 409, error: `"${current.name}" is used by ${n} ${n === 1 ? usage.one : usage.many}` };
+  if (n > 0) return inUse(current, usage.key, n);
   if (list === 'phase') {
     const { n: starters } = db.prepare('SELECT COUNT(*) AS n FROM starter_todos WHERE phase_list_id = ?').get(id) as unknown as {
       n: number;
     };
-    if (starters > 0) {
-      return {
-        ok: false,
-        status: 409,
-        error: `"${current.name}" has ${starters} starter to-do${starters === 1 ? '' : 's'}; delete them in Starter to-dos first`,
-      };
-    }
+    if (starters > 0) return inUse(current, 'error.phaseHasStarters', starters);
   }
   db.prepare('DELETE FROM list_values WHERE id = ?').run(id);
   return { ok: true };

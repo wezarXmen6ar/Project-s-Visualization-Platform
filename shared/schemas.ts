@@ -1,8 +1,11 @@
 import { z } from 'zod';
 import { dayOfWeek, isISODate } from './calendar';
+import type { MessageKey } from './i18n/en';
+import { isMessageKey, translate } from './i18n/translate';
+import type { Params } from './i18n/types';
 import { ASSIGNMENT_ROLES, CATEGORIES, OVERLOAD_DECISIONS, PRIORITIES, SCOPE_KINDS, SIDES, SPECIALISATIONS } from './types';
 
-export const isoDate = z.string().refine(isISODate, 'Must be a valid date (YYYY-MM-DD)');
+export const isoDate = z.string().refine(isISODate, 'validation.invalidDate');
 
 /** Optional free text: blank becomes null. */
 const optionalText = (max: number) =>
@@ -41,7 +44,7 @@ const optionalUaeMobile = z
     if (!v) return null;
     const normalized = normalizeUaeMobile(v);
     if (normalized === null) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Enter a UAE mobile number, e.g. +971 50 123 4567' });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'validation.uaeMobile' });
       return z.NEVER;
     }
     return normalized;
@@ -54,18 +57,18 @@ const optionalEmail = z
   .max(200)
   .nullish()
   .transform((v) => (v ? v : null))
-  .refine((v) => v === null || z.string().email().safeParse(v).success, 'Enter a valid email address');
+  .refine((v) => v === null || z.string().email().safeParse(v).success, 'validation.email');
 
 export const assignmentInputSchema = z.object({
   resourceId: z
-    .number({ required_error: 'Choose a person', invalid_type_error: 'Choose a person' })
-    .int('Choose a person')
-    .positive('Choose a person'),
+    .number({ required_error: 'validation.choosePerson', invalid_type_error: 'validation.choosePerson' })
+    .int('validation.choosePerson')
+    .positive('validation.choosePerson'),
   allocation: z
-    .number({ invalid_type_error: 'Allocation must be a number' })
-    .int('Allocation must be a whole number')
-    .min(1, 'Allocation must be between 1% and 100%')
-    .max(100, 'Allocation must be between 1% and 100%'),
+    .number({ invalid_type_error: 'validation.allocationNumber' })
+    .int('validation.allocationWholeNumber')
+    .min(1, 'validation.allocationRange')
+    .max(100, 'validation.allocationRange'),
   role: z.enum(ASSIGNMENT_ROLES).default('contributor'),
 });
 
@@ -77,20 +80,20 @@ export const phaseAssignmentsSchema = z
     const seen = new Set<number>();
     list.forEach((a, i) => {
       if (seen.has(a.resourceId)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'The same person is assigned twice to this phase', path: [i, 'resourceId'] });
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'validation.samePersonTwice', path: [i, 'resourceId'] });
       }
       seen.add(a.resourceId);
     });
   });
 
 const workingDays = z
-  .number({ invalid_type_error: 'Duration must be a number' })
-  .int('Duration must be a whole number of days')
-  .min(1, 'Duration must be at least 1 working day')
-  .max(2000, 'Duration is too long');
+  .number({ invalid_type_error: 'validation.durationNumber' })
+  .int('validation.durationWholeNumber')
+  .min(1, 'validation.durationMin')
+  .max(2000, 'validation.durationTooLong');
 
-const phaseName = z.string().trim().min(1, 'Phase name is required').max(200);
-const subPhaseName = z.string().trim().min(1, 'Sub-phase name is required').max(200);
+const phaseName = z.string().trim().min(1, 'validation.phaseNameRequired').max(200);
+const subPhaseName = z.string().trim().min(1, 'validation.subPhaseNameRequired').max(200);
 const existingId = z.number().int().positive().optional();
 
 export const subPhaseInputSchema = z.object({
@@ -104,7 +107,7 @@ export const phaseInputSchema = z.object({
   name: phaseName,
   durationDays: workingDays,
   assignments: phaseAssignmentsSchema.default([]),
-  subPhases: z.array(subPhaseInputSchema).max(100, 'A phase can have at most 100 sub-phases').default([]),
+  subPhases: z.array(subPhaseInputSchema).max(100, 'validation.maxSubPhases').default([]),
 });
 
 export type SubPhaseInputData = z.output<typeof subPhaseInputSchema>;
@@ -120,12 +123,12 @@ export const schedulePhaseSchema = z.object({
   id: existingId,
   name: phaseName,
   durationDays: workingDays,
-  subPhases: z.array(scheduleSubPhaseSchema).max(100, 'A phase can have at most 100 sub-phases').default([]),
+  subPhases: z.array(scheduleSubPhaseSchema).max(100, 'validation.maxSubPhases').default([]),
 });
 
 export const scheduleUpdateSchema = z.object({
   startDate: isoDate,
-  phases: z.array(schedulePhaseSchema).min(1, 'Add at least one phase'),
+  phases: z.array(schedulePhaseSchema).min(1, 'validation.addAtLeastOnePhase'),
   removedToDos: z.enum(['keep', 'delete']).default('keep'),
 });
 
@@ -136,14 +139,14 @@ export const scopeItemInputSchema = z.object({
   /** Sent when editing an item that is already saved, so it keeps its date added. */
   id: z.number().int().positive().optional(),
   kind: z.enum(SCOPE_KINDS),
-  text: z.string().trim().min(1, 'Item text cannot be empty').max(2000),
+  text: z.string().trim().min(1, 'validation.itemTextEmpty').max(2000),
 });
 
 /** Everything about a project except its schedule (start date and phases). Used by create and by edit. */
 export const projectDetailsSchema = z.object({
-  name: z.string().trim().min(1, 'Project name is required').max(200),
+  name: z.string().trim().min(1, 'validation.projectNameRequired').max(200),
   jiraKey: optionalText(50),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Colour must look like #3b82f6'),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'validation.colorFormat'),
   priority: z.enum(PRIORITIES).default('medium'),
   projectManagerId: optionalId,
   businessPmId: optionalId,
@@ -164,11 +167,11 @@ export const projectDetailsSchema = z.object({
 
 export const newProjectSchema = projectDetailsSchema.extend({
   startDate: isoDate,
-  phases: z.array(phaseInputSchema).min(1, 'Add at least one phase'),
+  phases: z.array(phaseInputSchema).min(1, 'validation.addAtLeastOnePhase'),
 });
 
 export const listValueInputSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required').max(100, 'Name is too long'),
+  name: z.string().trim().min(1, 'validation.nameRequired').max(100, 'validation.nameTooLong'),
 });
 
 export type ProjectDetailsInput = z.input<typeof projectDetailsSchema>;
@@ -179,15 +182,27 @@ export type NewProject = z.output<typeof newProjectSchema>;
 export interface ValidationIssue {
   path: string;
   message: string;
+  /** The message key, when the message is one of our own (see `toIssues`); absent for zod's own built-in text. */
+  code?: MessageKey;
+  params?: Params;
 }
 
+/**
+ * Each issue's `message` is either one of our own message keys (set as the `.min()`/`.refine()` etc. message in
+ * shared/schemas.ts) or zod's own built-in English text. Either way the English `message` stays byte-identical to
+ * what this field used to hard-code: a known key is translated to English, and anything else is passed through.
+ */
 export function toIssues(error: z.ZodError): ValidationIssue[] {
-  return error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }));
+  return error.issues.map((i) => {
+    const path = i.path.join('.');
+    if (isMessageKey(i.message)) return { path, message: translate('en', i.message), code: i.message };
+    return { path, message: i.message, code: 'validation.invalid' as MessageKey };
+  });
 }
 
 export const resourceInputSchema = z
   .object({
-    name: z.string().trim().min(1, 'Name is required').max(200),
+    name: z.string().trim().min(1, 'validation.nameRequired').max(200),
     side: z.enum(SIDES),
     roleId: optionalId,
     specialisation: z
@@ -197,10 +212,10 @@ export const resourceInputSchema = z
     email: optionalEmail,
     phone: optionalUaeMobile,
     capacity: z
-      .number({ invalid_type_error: 'Capacity must be a number' })
-      .int('Capacity must be a whole number')
-      .min(1, 'Capacity must be between 1% and 100%')
-      .max(100, 'Capacity must be between 1% and 100%')
+      .number({ invalid_type_error: 'validation.capacityNumber' })
+      .int('validation.capacityWholeNumber')
+      .min(1, 'validation.capacityRange')
+      .max(100, 'validation.capacityRange')
       .default(100),
     active: z.boolean().default(true),
   })
@@ -209,7 +224,7 @@ export const resourceInputSchema = z
 
 export const leaveInputSchema = z
   .object({ start: isoDate, end: isoDate, note: optionalText(200) })
-  .refine((l) => l.end >= l.start, { message: 'End date must be on or after the start date', path: ['end'] });
+  .refine((l) => l.end >= l.start, { message: 'validation.endDateAfterStart', path: ['end'] });
 
 export type ResourceInput = z.input<typeof resourceInputSchema>;
 export type ResourceData = z.output<typeof resourceInputSchema>;
@@ -220,7 +235,7 @@ export const assignmentsUpdateSchema = z.object({ assignments: phaseAssignmentsS
 
 export const overloadDecisionSchema = z.object({
   resourceId: z.number().int().positive(),
-  weekStart: isoDate.refine((d) => !isISODate(d) || dayOfWeek(d) === 1, 'Week must start on a Monday'),
+  weekStart: isoDate.refine((d) => !isISODate(d) || dayOfWeek(d) === 1, 'validation.weekMustBeMonday'),
   decision: z.enum(OVERLOAD_DECISIONS),
   note: optionalText(500),
 });
@@ -231,7 +246,7 @@ export type OverloadDecisionInput = z.input<typeof overloadDecisionSchema>;
 export type OverloadDecisionData = z.output<typeof overloadDecisionSchema>;
 
 export const toDoInputSchema = z.object({
-  title: z.string().trim().min(1, 'Write what needs doing').max(200, 'Keep the title under 200 characters'),
+  title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200, 'validation.titleUnder200'),
   note: optionalText(2000),
   assigneeId: optionalId,
   dueDate: isoDate.nullish().transform((v) => v ?? null),
@@ -244,9 +259,9 @@ export type ToDoData = z.output<typeof toDoInputSchema>;
 
 export const starterToDoInputSchema = z.object({
   phaseListId: z.number().int().positive(),
-  title: z.string().trim().min(1, 'Write what needs doing').max(200),
+  title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200),
 });
-export const starterTitleSchema = z.object({ title: z.string().trim().min(1, 'Write what needs doing').max(200) });
+export const starterTitleSchema = z.object({ title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200) });
 export const starterAcceptSchema = z.object({
   items: z
     .array(z.object({ phaseId: z.number().int().positive(), title: z.string().trim().min(1).max(200) }))

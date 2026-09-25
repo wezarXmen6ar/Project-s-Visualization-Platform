@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import type { ListValue } from '../../../shared/types';
 import { AlertIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 
 interface StarterEditorProps {
@@ -11,6 +13,7 @@ interface StarterEditorProps {
 
 /** Starter to-do checklists kept per Phases-list value: offered, ticked, when a project gets one of these phases. */
 export function StarterEditor({ phases }: StarterEditorProps) {
+  const t = useT();
   const [version, setVersion] = useState(0);
   const starters = useAsync(() => api.listStarters(), [version]);
   const reload = () => setVersion((v) => v + 1);
@@ -36,7 +39,7 @@ export function StarterEditor({ phases }: StarterEditorProps) {
       afterSuccess?.();
       reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messagesOf(err, t)[0]);
     } finally {
       setBusy(false);
     }

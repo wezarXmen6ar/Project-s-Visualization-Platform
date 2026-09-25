@@ -3,6 +3,8 @@ import { Link } from 'react-router';
 import type { ListName } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 import { useResources } from '../../useResources';
 import { BackupsCard } from './BackupsCard';
@@ -20,6 +22,7 @@ const EDITORS: { list: ListName; title: string; singular: string }[] = [
 ];
 
 export function SettingsPage() {
+  const t = useT();
   const [version, setVersion] = useState(0);
   const lists = useAsync(() => api.getLists(), [version]);
   const reload = () => setVersion((v) => v + 1);
@@ -42,7 +45,7 @@ export function SettingsPage() {
       {lists.error ? (
         <div className="errors" role="alert">
           <AlertIcon />
-          <span>{lists.error.message}</span>
+          <span>{messagesOf(lists.error, t)[0]}</span>
         </div>
       ) : null}
       {!lists.data && !lists.error ? <p className="muted">Loading…</p> : null}

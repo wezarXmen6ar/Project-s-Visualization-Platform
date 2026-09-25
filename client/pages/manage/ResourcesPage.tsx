@@ -5,6 +5,8 @@ import { computeDailyLoad, computeWorkload, weekStartOf } from '../../../shared/
 import type { ResourceRecord, Side } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
 import { SIDE_LABEL, SPECIALISATION_LABEL } from './labels';
@@ -58,6 +60,7 @@ function projectOptions(people: ResourceRecord[]): { id: number; name: string }[
 }
 
 export function ResourcesPage() {
+  const t = useT();
   const people = useAsync(() => api.listResources(), []);
   const lists = useAsync(() => api.getLists(), []);
   const [side, setSide] = useState<Side | 'all'>('all');
@@ -117,7 +120,7 @@ export function ResourcesPage() {
       {people.error ? (
         <div className="errors" role="alert">
           <AlertIcon />
-          <span>{people.error.message}</span>
+          <span>{messagesOf(people.error, t)[0]}</span>
         </div>
       ) : null}
 
@@ -165,7 +168,7 @@ export function ResourcesPage() {
         {workloadError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>{workloadError.message}</span>
+            <span>{messagesOf(workloadError, t)[0]}</span>
           </div>
         ) : null}
         {!workload && !workloadError ? <p className="muted">Loading…</p> : null}

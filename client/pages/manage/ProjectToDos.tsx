@@ -6,27 +6,29 @@ import { ToDoForm } from '../../components/ToDoForm';
 import { ToDoMetaLine } from '../../components/ToDoMetaLine';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { AlertIcon } from '../../icons';
 import { useAsync } from '../../useAsync';
 import { byUrgency, toDoToInput } from '../../todos';
 
 /** Loads a project's to-dos (open and done); `reload` fetches them again after a change. */
 export function useProjectToDos(projectId: number) {
+  const t = useT();
   const [version, setVersion] = useState(0);
   const loaded = useAsync(() => api.listToDos({ projectId, includeDone: true }), [projectId, version]);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   const [toggleErrors, setToggleErrors] = useState<string[]>([]);
   const toggleDone = useCallback(
-    async (t: ToDoRecord) => {
+    async (toDo: ToDoRecord) => {
       setToggleErrors([]);
       try {
-        await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+        await api.updateToDo(toDo.id, toDoToInput(toDo, { done: !toDo.done }));
         reload();
       } catch (err) {
-        setToggleErrors(messagesOf(err));
+        setToggleErrors(messagesOf(err, t));
       }
     },
-    [reload],
+    [reload, t],
   );
   return { todos: loaded.data ?? [], error: loaded.error, reload, toggleDone, toggleErrors };
 }

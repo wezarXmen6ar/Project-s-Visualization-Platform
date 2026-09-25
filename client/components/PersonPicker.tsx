@@ -1,6 +1,8 @@
 import { useState, type KeyboardEvent } from 'react';
 import type { ResourceRecord, Side } from '../../shared/types';
-import { ApiError, api } from '../api';
+import { api } from '../api';
+import { messagesOf } from '../errors';
+import { useT } from '../i18n/LanguageProvider';
 
 const NONE = '';
 const ADD = '__add__';
@@ -21,6 +23,7 @@ interface PersonPickerProps {
 
 /** A dropdown of people from Resources, with an inline way to add someone (and a business contact's phone and email). */
 export function PersonPicker({ label, side, people, value, onChange, onAdded, noneLabel, newPersonRoleId = null }: PersonPickerProps) {
+  const t = useT();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -54,11 +57,7 @@ export function PersonPicker({ label, side, people, value, onChange, onAdded, no
       onChange(created.id);
       closeAdd();
     } catch (err) {
-      setErrors(
-        err instanceof ApiError && err.issues.length > 0
-          ? err.issues.map((i) => i.message)
-          : [err instanceof Error ? err.message : String(err)],
-      );
+      setErrors(messagesOf(err, t));
     } finally {
       setSaving(false);
     }

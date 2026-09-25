@@ -2,12 +2,15 @@ import { Link, useParams } from 'react-router';
 import { DEFAULT_CALENDAR, todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
+import { useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 
 export function FocusPage() {
+  const t = useT();
   const id = Number(useParams().id);
   const project = useAsync(() => api.getProject(id), [id]);
   const calendar = useAsync(() => api.getCalendar(), []);
@@ -19,7 +22,7 @@ export function FocusPage() {
     return (
       <main className="page">
         <Link to="/present" className="crumb">← Portfolio</Link>
-        <div className="errors" role="alert">{project.error.message}</div>
+        <div className="errors" role="alert">{messagesOf(project.error, t)[0]}</div>
       </main>
     );
   }

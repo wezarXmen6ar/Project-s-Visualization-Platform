@@ -54,7 +54,7 @@ describe('projects API', () => {
   it('returns 404 for an unknown project', async () => {
     const res = await buildApp(db).inject({ method: 'GET', url: '/api/projects/999' });
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toEqual({ error: 'Project not found' });
+    expect(res.json()).toEqual({ error: 'Project not found', code: 'error.projectNotFound' });
   });
 
   it('rejects invalid input with field issues', async () => {
@@ -295,16 +295,18 @@ describe('updateSchedule', () => {
     );
     const before = getProject(db, id)!;
 
-    const cases: { input: ScheduleUpdateInput; path: string; message: string }[] = [
+    const cases: { input: ScheduleUpdateInput; path: string; message: string; code: string }[] = [
       {
         input: { startDate: '2026-10-05', phases: [{ id: other.phases[0].id, name: 'A', durationDays: 5 }] },
         path: 'phases.0.id',
         message: 'Unknown phase',
+        code: 'error.unknownPhase',
       },
       {
         input: { startDate: '2026-10-05', phases: [{ id: c1.id, name: 'A', durationDays: 5 }] },
         path: 'phases.0.id',
         message: 'Unknown phase',
+        code: 'error.unknownPhase',
       },
       {
         input: {
@@ -313,6 +315,7 @@ describe('updateSchedule', () => {
         },
         path: 'phases.0.subPhases.0.id',
         message: 'Unknown sub-phase',
+        code: 'error.unknownSubPhase',
       },
       {
         input: {
@@ -321,15 +324,16 @@ describe('updateSchedule', () => {
         },
         path: 'phases.1.id',
         message: 'The same phase appears twice',
+        code: 'error.phaseAppearsTwice',
       },
     ];
-    for (const { input, path, message } of cases) {
+    for (const { input, path, message, code } of cases) {
       const r = updateSchedule(db, DEFAULT_CALENDAR, id, scheduleUpdateSchema.parse(input), TODAY);
       expect(r.ok).toBe(false);
       if (r.ok) continue;
       expect(r.status).toBe(400);
       if (r.status !== 400) continue;
-      expect(r.issues).toContainEqual({ path, message });
+      expect(r.issues).toContainEqual({ path, message, code });
     }
     expect(getProject(db, id)).toEqual(before);
   });
@@ -339,6 +343,6 @@ describe('updateSchedule', () => {
       startDate: '2026-10-05',
       phases: [{ name: 'A', durationDays: 2 }],
     }), TODAY);
-    expect(r).toEqual({ ok: false, status: 404, error: 'Project not found' });
+    expect(r).toEqual({ ok: false, status: 404, error: 'Project not found', code: 'error.projectNotFound' });
   });
 });

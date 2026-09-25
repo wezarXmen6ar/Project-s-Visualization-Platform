@@ -99,7 +99,7 @@ describe('PUT /api/projects/:id/schedule', () => {
     });
     expect(res.statusCode).toBe(400);
     const issues = res.json().issues as { path: string; message: string }[];
-    expect(issues).toContainEqual({ path: 'phases', message: 'Add at least one phase' });
+    expect(issues).toContainEqual({ path: 'phases', message: 'Add at least one phase', code: 'validation.addAtLeastOnePhase' });
   });
 
   it('returns 404 for a missing project', async () => {
@@ -163,14 +163,14 @@ describe('to-dos', () => {
 
     const missing = await app.inject({ method: 'POST', url: '/api/projects/999/todos', payload: { title: 'Chase Jira' } });
     expect(missing.statusCode).toBe(404);
-    expect(missing.json()).toEqual({ error: 'Project not found' });
+    expect(missing.json()).toEqual({ error: 'Project not found', code: 'error.projectNotFound' });
   });
 
   it('rejects an empty title', async () => {
     const { app, project } = await setup();
     const res = await app.inject({ method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: '' } });
     expect(res.statusCode).toBe(400);
-    expect(res.json().issues).toContainEqual({ path: 'title', message: 'Write what needs doing' });
+    expect(res.json().issues).toContainEqual({ path: 'title', message: 'Write what needs doing', code: 'validation.writeWhatNeedsDoing' });
   });
 
   it('marks a to-do done with today\'s date, and deletes it', async () => {
@@ -265,7 +265,7 @@ describe('starter to-dos', () => {
     ).json();
     const rejected = await app.inject({ method: 'POST', url: '/api/starter-todos', payload: { phaseListId: departmentValue.id, title: 'X' } });
     expect(rejected.statusCode).toBe(400);
-    expect(rejected.json()).toEqual({ error: 'Unknown phase' });
+    expect(rejected.json()).toEqual({ error: 'Unknown phase', code: 'error.unknownPhase' });
   });
 
   it('lists starter to-dos, renames one, and 404s on a missing id', async () => {
@@ -406,7 +406,7 @@ describe('"I am"', () => {
     const contact = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Mariam', side: 'business' } })).json();
     const rejected = await app.inject({ method: 'PUT', url: '/api/settings/me', payload: { resourceId: contact.id } });
     expect(rejected.statusCode).toBe(400);
-    expect(rejected.json()).toEqual({ error: 'Choose someone from your tech team' });
+    expect(rejected.json()).toEqual({ error: 'Choose someone from your tech team', code: 'error.chooseTechTeamMember' });
 
     const tech = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Sara', side: 'tech' } })).json();
     const set = await app.inject({ method: 'PUT', url: '/api/settings/me', payload: { resourceId: tech.id } });

@@ -1,5 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { ISODate } from '../../shared/calendar';
+import type { MessageKey } from '../../shared/i18n/en';
+import { translate } from '../../shared/i18n/translate';
 import type { StarterToDoData, ValidationIssue } from '../../shared/schemas';
 import type { StarterSuggestion, StarterToDo, ToDoRecord } from '../../shared/types';
 import { transaction } from '../db';
@@ -29,9 +31,9 @@ export function listStarters(db: DatabaseSync): StarterToDo[] {
   return rows.map(toStarterToDo);
 }
 
-export function addStarter(db: DatabaseSync, data: StarterToDoData): StarterToDo | { error: 'Unknown phase' } {
+export function addStarter(db: DatabaseSync, data: StarterToDoData): StarterToDo | { error: string; code: MessageKey } {
   const phase = db.prepare("SELECT id FROM list_values WHERE id = ? AND list = 'phase'").get(data.phaseListId);
-  if (!phase) return { error: 'Unknown phase' };
+  if (!phase) return { error: translate('en', 'error.unknownPhase'), code: 'error.unknownPhase' };
   const { next } = db
     .prepare('SELECT COALESCE(MAX(sort_order) + 1, 0) AS next FROM starter_todos WHERE phase_list_id = ?')
     .get(data.phaseListId) as unknown as { next: number };
@@ -101,7 +103,9 @@ export function acceptStarters(
   const validIds = new Set(phaseRows.map((r) => r.id));
   const issues: ValidationIssue[] = [];
   items.forEach((item, i) => {
-    if (!validIds.has(item.phaseId)) issues.push({ path: `items.${i}.phaseId`, message: 'Unknown phase' });
+    if (!validIds.has(item.phaseId)) {
+      issues.push({ path: `items.${i}.phaseId`, message: translate('en', 'error.unknownPhase'), code: 'error.unknownPhase' });
+    }
   });
   if (issues.length > 0) return { issues };
 

@@ -6,7 +6,8 @@ import type { ResourceRecord, Side, Specialisation, ToDoRecord } from '../../../
 import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
 import { ToDoRow } from '../../components/ToDoRow';
-import { messagesOf } from '../../errors';
+import { messageFor, messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { byUrgency, toDoToInput } from '../../todos';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
@@ -77,6 +78,7 @@ const workingDaysLabel = (n: number) => `${n} working day${n === 1 ? '' : 's'}`;
 
 /** Leave for one tech-team person: listed, added and removed right away. */
 function LeaveCard({ person, onChanged, calendar }: { person: ResourceRecord; onChanged: () => void; calendar: WorkCalendar }) {
+  const t = useT();
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [note, setNote] = useState('');
@@ -92,7 +94,7 @@ function LeaveCard({ person, onChanged, calendar }: { person: ResourceRecord; on
       setErrors([]);
       onChanged();
     } catch (err) {
-      setErrors(messagesOf(err));
+      setErrors(messagesOf(err, t));
     }
   }
 
@@ -102,7 +104,7 @@ function LeaveCard({ person, onChanged, calendar }: { person: ResourceRecord; on
       setErrors([]);
       onChanged();
     } catch (err) {
-      setErrors(messagesOf(err));
+      setErrors(messagesOf(err, t));
     }
   }
 
@@ -165,13 +167,14 @@ export function PersonPage() {
   );
   const todos = todosLoaded.data ?? [];
   const [todoErrors, setTodoErrors] = useState<string[]>([]);
-  async function toggleToDo(t: ToDoRecord) {
+  const t = useT();
+  async function toggleToDo(toDo: ToDoRecord) {
     setTodoErrors([]);
     try {
-      await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+      await api.updateToDo(toDo.id, toDoToInput(toDo, { done: !toDo.done }));
       setTodosVersion((v) => v + 1);
     } catch (err) {
-      setTodoErrors(messagesOf(err));
+      setTodoErrors(messagesOf(err, t));
     }
   }
 
@@ -179,10 +182,10 @@ export function PersonPage() {
   const back = <Link to="/manage/resources" className="crumb"><ArrowLeftIcon />Resources</Link>;
 
   if (!isNew && people.error) {
-    return <main className="page">{back}<Errors messages={[people.error.message]} /></main>;
+    return <main className="page">{back}<Errors messages={messagesOf(people.error, t)} /></main>;
   }
   if (!isNew && !people.data) return <main className="page"><p className="muted">Loading…</p></main>;
-  if (!isNew && !existing) return <main className="page">{back}<Errors messages={['Person not found']} /></main>;
+  if (!isNew && !existing) return <main className="page">{back}<Errors messages={[t('error.personNotFound')]} /></main>;
 
   // Until the user changes something, the form shows the saved person (or an empty one).
   const saved = existing ? draftFrom(existing) : EMPTY_PERSON;
@@ -194,7 +197,7 @@ export function PersonPage() {
     const input: ResourceInput = { ...draft };
     const parsed = resourceInputSchema.safeParse(input);
     if (!parsed.success) {
-      setIssues(toIssues(parsed.error).map((i) => i.message));
+      setIssues(toIssues(parsed.error).map((i) => messageFor(t, i)));
       return;
     }
     setIssues([]);
@@ -204,7 +207,7 @@ export function PersonPage() {
       else await api.createResource(input);
       navigate('/manage/resources');
     } catch (err) {
-      setIssues(messagesOf(err));
+      setIssues(messagesOf(err, t));
     } finally {
       setSaving(false);
     }
@@ -216,7 +219,7 @@ export function PersonPage() {
       await api.deleteResource(existing.id);
       navigate('/manage/resources');
     } catch (err) {
-      setIssues(messagesOf(err));
+      setIssues(messagesOf(err, t));
     }
   }
 

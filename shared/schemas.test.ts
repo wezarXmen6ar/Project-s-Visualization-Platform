@@ -20,16 +20,18 @@ describe('newProjectSchema', () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(toIssues(result.error)).toEqual(expect.arrayContaining([
-      { path: 'name', message: 'Project name is required' },
-      { path: 'startDate', message: 'Must be a valid date (YYYY-MM-DD)' },
-      { path: 'phases.0.durationDays', message: 'Duration must be at least 1 working day' },
+      { path: 'name', message: 'Project name is required', code: 'validation.projectNameRequired' },
+      { path: 'startDate', message: 'Must be a valid date (YYYY-MM-DD)', code: 'validation.invalidDate' },
+      { path: 'phases.0.durationDays', message: 'Duration must be at least 1 working day', code: 'validation.durationMin' },
     ]));
   });
   it('requires at least one phase', () => {
     const result = newProjectSchema.safeParse({ ...valid, phases: [] });
     expect(result.success).toBe(false);
     if (result.success) return;
-    expect(toIssues(result.error)).toContainEqual({ path: 'phases', message: 'Add at least one phase' });
+    expect(toIssues(result.error)).toContainEqual(
+      { path: 'phases', message: 'Add at least one phase', code: 'validation.addAtLeastOnePhase' },
+    );
   });
 });
 

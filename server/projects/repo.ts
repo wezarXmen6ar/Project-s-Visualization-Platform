@@ -1,5 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate, type WorkCalendar } from '../../shared/calendar';
+import type { MessageKey } from '../../shared/i18n/en';
+import { translate } from '../../shared/i18n/translate';
 import type { NewProject, ProjectDetails, ScheduleUpdate, ValidationIssue } from '../../shared/schemas';
 import { schedulePhases, type ScheduledSubPhase } from '../../shared/scheduler';
 import type {
@@ -69,31 +71,31 @@ function detailValues(d: ProjectDetails) {
   ];
 }
 
-const LIST_REFS: { field: 'mainProjectId' | 'projectTypeId' | 'goalId' | 'departmentId'; list: ListName; label: string }[] = [
-  { field: 'mainProjectId', list: 'mainProject', label: 'main project' },
-  { field: 'projectTypeId', list: 'projectType', label: 'project type' },
-  { field: 'goalId', list: 'goal', label: 'goal' },
-  { field: 'departmentId', list: 'department', label: 'business user (department)' },
+const LIST_REFS: { field: 'mainProjectId' | 'projectTypeId' | 'goalId' | 'departmentId'; list: ListName; key: MessageKey }[] = [
+  { field: 'mainProjectId', list: 'mainProject', key: 'error.unknownMainProject' },
+  { field: 'projectTypeId', list: 'projectType', key: 'error.unknownProjectType' },
+  { field: 'goalId', list: 'goal', key: 'error.unknownGoal' },
+  { field: 'departmentId', list: 'department', key: 'error.unknownDepartment' },
 ];
 
-const PERSON_REFS: { field: 'projectManagerId' | 'businessPmId'; side: Side; label: string }[] = [
-  { field: 'projectManagerId', side: 'tech', label: 'project manager (tech)' },
-  { field: 'businessPmId', side: 'business', label: 'business project manager' },
+const PERSON_REFS: { field: 'projectManagerId' | 'businessPmId'; side: Side; key: MessageKey }[] = [
+  { field: 'projectManagerId', side: 'tech', key: 'error.unknownProjectManager' },
+  { field: 'businessPmId', side: 'business', key: 'error.unknownBusinessPm' },
 ];
 
 /** Every chosen list value must exist in the right list, and every chosen person must exist on the right side. */
 export function checkRefs(db: DatabaseSync, details: ProjectDetails): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  for (const { field, list, label } of LIST_REFS) {
+  for (const { field, list, key } of LIST_REFS) {
     const id = details[field];
     if (id === null) continue;
-    if (getListValue(db, id)?.list !== list) issues.push({ path: field, message: `Unknown ${label}` });
+    if (getListValue(db, id)?.list !== list) issues.push({ path: field, message: translate('en', key), code: key });
   }
-  for (const { field, side, label } of PERSON_REFS) {
+  for (const { field, side, key } of PERSON_REFS) {
     const id = details[field];
     if (id === null) continue;
     const person = db.prepare('SELECT side FROM resources WHERE id = ?').get(id) as unknown as { side: Side } | undefined;
-    if (person?.side !== side) issues.push({ path: field, message: `Unknown ${label}` });
+    if (person?.side !== side) issues.push({ path: field, message: translate('en', key), code: key });
   }
   return issues;
 }
@@ -240,7 +242,7 @@ export function updateProjectDetails(
 
 export type ScheduleResult =
   | { ok: true; saved: ScheduleSaved }
-  | { ok: false; status: 404; error: string }
+  | { ok: false; status: 404; error: string; code?: MessageKey }
   | { ok: false; status: 400; issues: ValidationIssue[] };
 
 /** Every id must be this project's phase at the same level, and appear once. */
@@ -251,15 +253,15 @@ function checkScheduleIds(db: DatabaseSync, projectId: number, input: ScheduleUp
   const subLevel = new Set(rows.filter((r) => r.parent_id !== null).map((r) => r.id));
   const seen = new Set<number>();
   const issues: ValidationIssue[] = [];
-  const check = (id: number | undefined, allowed: Set<number>, path: string, unknown: string) => {
+  const check = (id: number | undefined, allowed: Set<number>, path: string, unknownKey: MessageKey) => {
     if (id === undefined) return;
-    if (seen.has(id)) issues.push({ path, message: 'The same phase appears twice' });
-    else if (!allowed.has(id)) issues.push({ path, message: unknown });
+    if (seen.has(id)) issues.push({ path, message: translate('en', 'error.phaseAppearsTwice'), code: 'error.phaseAppearsTwice' });
+    else if (!allowed.has(id)) issues.push({ path, message: translate('en', unknownKey), code: unknownKey });
     seen.add(id);
   };
   input.phases.forEach((p, i) => {
-    check(p.id, topLevel, `phases.${i}.id`, 'Unknown phase');
-    p.subPhases.forEach((s, j) => check(s.id, subLevel, `phases.${i}.subPhases.${j}.id`, 'Unknown sub-phase'));
+    check(p.id, topLevel, `phases.${i}.id`, 'error.unknownPhase');
+    p.subPhases.forEach((s, j) => check(s.id, subLevel, `phases.${i}.subPhases.${j}.id`, 'error.unknownSubPhase'));
   });
   return issues;
 }
@@ -268,7 +270,9 @@ function checkScheduleIds(db: DatabaseSync, projectId: number, input: ScheduleUp
 export function updateSchedule(
   db: DatabaseSync, cal: WorkCalendar, projectId: number, input: ScheduleUpdate, today: ISODate,
 ): ScheduleResult {
-  if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return { ok: false, status: 404, error: 'Project not found' };
+  if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) {
+    return { ok: false, status: 404, error: translate('en', 'error.projectNotFound'), code: 'error.projectNotFound' };
+  }
   const issues = checkScheduleIds(db, projectId, input);
   if (issues.length > 0) return { ok: false, status: 400, issues };
 

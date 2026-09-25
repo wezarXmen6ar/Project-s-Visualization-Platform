@@ -1,5 +1,8 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate } from '../../shared/calendar';
+import type { MessageKey } from '../../shared/i18n/en';
+import { translate } from '../../shared/i18n/translate';
+import type { Params, ReasonParam } from '../../shared/i18n/types';
 import type { LeaveData, ResourceData, ValidationIssue } from '../../shared/schemas';
 import type { LeaveRecord, PersonProject, ResourceRecord, Side, Specialisation } from '../../shared/types';
 import { transaction } from '../db';
@@ -38,20 +41,20 @@ function resourceValues(r: ResourceData) {
  * inactive but not deleted, so history keeps their name. Later features add their own entries here.
  * `sideChange` marks the entries that also block switching sides; to-dos are allowed on either side, so they don't.
  */
-const USAGE: { sql: string; reason: (n: number) => string; sideChange: boolean }[] = [
+const USAGE: { sql: string; key: MessageKey; sideChange: boolean }[] = [
   {
     sql: 'SELECT COUNT(*) AS n FROM projects WHERE ? IN (project_manager_id, business_pm_id)',
-    reason: (n) => `they are a project manager on ${n} project${n === 1 ? '' : 's'}`,
+    key: 'error.reasonPmOnProjects',
     sideChange: true,
   },
   {
     sql: 'SELECT COUNT(*) AS n FROM assignments WHERE resource_id = ?',
-    reason: (n) => `they are assigned to ${n} phase${n === 1 ? '' : 's'}`,
+    key: 'error.reasonAssignedPhases',
     sideChange: true,
   },
   {
     sql: 'SELECT COUNT(*) AS n FROM todos WHERE assignee_id = ?',
-    reason: (n) => `they have ${n} to-do${n === 1 ? '' : 's'}`,
+    key: 'error.reasonHasTodos',
     sideChange: false,
   },
 ];
@@ -176,7 +179,9 @@ export function getResource(db: DatabaseSync, id: number, today: ISODate = today
 
 /** A chosen role must exist in the role list. */
 export function checkResourceRefs(db: DatabaseSync, r: ResourceData): ValidationIssue[] {
-  if (r.roleId !== null && getListValue(db, r.roleId)?.list !== 'role') return [{ path: 'roleId', message: 'Unknown role' }];
+  if (r.roleId !== null && getListValue(db, r.roleId)?.list !== 'role') {
+    return [{ path: 'roleId', message: translate('en', 'error.unknownRole'), code: 'error.unknownRole' }];
+  }
   return [];
 }
 
@@ -196,21 +201,28 @@ export function updateResource(db: DatabaseSync, id: number, r: ResourceData): R
 }
 
 /** All USAGE entries by default; pass a filter to consider only some, e.g. side-change entries. */
-function usageReasons(db: DatabaseSync, id: number, filter: (u: (typeof USAGE)[number]) => boolean = () => true): string[] {
-  return USAGE.filter(filter).flatMap(({ sql, reason }) => {
+function usageReasons(db: DatabaseSync, id: number, filter: (u: (typeof USAGE)[number]) => boolean = () => true): ReasonParam[] {
+  return USAGE.filter(filter).flatMap(({ sql, key }) => {
     const { n } = db.prepare(sql).get(id) as unknown as { n: number };
-    return n > 0 ? [reason(n)] : [];
+    return n > 0 ? [{ code: key, count: n }] : [];
   });
 }
 
-export type ResourceDelete = { ok: true } | { ok: false; status: 404 | 409; error: string };
+export type ResourceDelete = { ok: true } | { ok: false; status: 404 | 409; error: string; code?: MessageKey; params?: Params };
 
 export function deleteResource(db: DatabaseSync, id: number): ResourceDelete {
   const person = getResource(db, id);
-  if (!person) return { ok: false, status: 404, error: 'Person not found' };
+  if (!person) return { ok: false, status: 404, error: translate('en', 'error.personNotFound'), code: 'error.personNotFound' };
   const reasons = usageReasons(db, id);
   if (reasons.length > 0) {
-    return { ok: false, status: 409, error: `${person.name} can't be deleted because ${reasons.join(' and ')}. Make them inactive instead.` };
+    const params: Params = { name: person.name, reasons };
+    return {
+      ok: false,
+      status: 409,
+      error: translate('en', 'error.personInUseDelete', params),
+      code: 'error.personInUseDelete',
+      params,
+    };
   }
   // Read whether they were "I am" before the delete: resources.id isn't AUTOINCREMENT, so once they're gone, a
   // reused id could otherwise leave a stale "I am" pointing at whoever gets that id next.
@@ -222,7 +234,9 @@ export function deleteResource(db: DatabaseSync, id: number): ResourceDelete {
   return { ok: true };
 }
 
-export type ResourceUpdate = { ok: true; resource: ResourceRecord } | { ok: false; status: 404 | 409; error: string };
+export type ResourceUpdate =
+  | { ok: true; resource: ResourceRecord }
+  | { ok: false; status: 404 | 409; error: string; code?: MessageKey; params?: Params };
 
 /**
  * Switching side while in use (a PM on a project, or assigned to a phase) would leave that project or phase pointing
@@ -231,11 +245,18 @@ export type ResourceUpdate = { ok: true; resource: ResourceRecord } | { ok: fals
  */
 export function updateResourceChecked(db: DatabaseSync, id: number, r: ResourceData): ResourceUpdate {
   const person = getResource(db, id);
-  if (!person) return { ok: false, status: 404, error: 'Person not found' };
+  if (!person) return { ok: false, status: 404, error: translate('en', 'error.personNotFound'), code: 'error.personNotFound' };
   if (r.side !== person.side) {
     const reasons = usageReasons(db, id, (u) => u.sideChange);
     if (reasons.length > 0) {
-      return { ok: false, status: 409, error: `${person.name} can't change side because ${reasons.join(' and ')}.` };
+      const params: Params = { name: person.name, reasons };
+      return {
+        ok: false,
+        status: 409,
+        error: translate('en', 'error.personInUseSideChange', params),
+        code: 'error.personInUseSideChange',
+        params,
+      };
     }
   }
   return { ok: true, resource: updateResource(db, id, r)! };

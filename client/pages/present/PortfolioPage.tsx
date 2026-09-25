@@ -1,11 +1,14 @@
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
 import { Gantt } from '../../gantt/Gantt';
 import { groupedPortfolioRows } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
+import { useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 
 export function PortfolioPage() {
+  const t = useT();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const year = Number(params.get('year')) || new Date().getFullYear();
@@ -30,7 +33,7 @@ export function PortfolioPage() {
         </div>
       </div>
 
-      {portfolio.error ? <div className="errors" role="alert">{portfolio.error.message}</div> : null}
+      {portfolio.error ? <div className="errors" role="alert">{messagesOf(portfolio.error, t)[0]}</div> : null}
       {!data && !portfolio.error ? <p className="muted">Loading…</p> : null}
 
       {data ? (

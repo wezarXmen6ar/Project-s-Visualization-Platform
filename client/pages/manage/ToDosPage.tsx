@@ -6,12 +6,14 @@ import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { api } from '../../api';
 import { ToDoRow } from '../../components/ToDoRow';
 import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { byUrgency, toDoToInput } from '../../todos';
 import { useAsync } from '../../useAsync';
 import { useMe } from '../../useMe';
 
 /** All to-dos across every project, filterable by project, assignee, done and a removed-phase flag kept in the URL. */
 export function ToDosPage() {
+  const t = useT();
   const [searchParams, setSearchParams] = useSearchParams();
   const { me } = useMe();
   const [version, setVersion] = useState(0);
@@ -63,13 +65,13 @@ export function ToDosPage() {
 
   const [toggleErrors, setToggleErrors] = useState<string[]>([]);
 
-  async function toggleDone(t: ToDoRecord) {
+  async function toggleDone(toDo: ToDoRecord) {
     setToggleErrors([]);
     try {
-      await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+      await api.updateToDo(toDo.id, toDoToInput(toDo, { done: !toDo.done }));
       setVersion((v) => v + 1);
     } catch (err) {
-      setToggleErrors(messagesOf(err));
+      setToggleErrors(messagesOf(err, t));
     }
   }
 
@@ -85,7 +87,7 @@ export function ToDosPage() {
       {loaded.error ? (
         <div className="errors" role="alert">
           <AlertIcon />
-          <span>{loaded.error.message}</span>
+          <span>{messagesOf(loaded.error, t)[0]}</span>
         </div>
       ) : null}
 

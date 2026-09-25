@@ -62,8 +62,10 @@ describe('checkToDo — assignees', () => {
 
   it('rejects someone not on the project, and an unknown id', () => {
     const data = (assigneeId: number | null) => toDoInputSchema.parse({ title: 'Task', assigneeId });
-    expect(checkToDo(db, project.id, data(out.id))).toEqual([{ path: 'assigneeId', message: "Out isn't on this project" }]);
-    expect(checkToDo(db, project.id, data(999))).toEqual([{ path: 'assigneeId', message: 'Unknown person' }]);
+    expect(checkToDo(db, project.id, data(out.id))).toEqual([
+      { path: 'assigneeId', message: "Out isn't on this project", code: 'error.personNotOnProject', params: { name: 'Out' } },
+    ]);
+    expect(checkToDo(db, project.id, data(999))).toEqual([{ path: 'assigneeId', message: 'Unknown person', code: 'error.unknownPerson' }]);
   });
 });
 
@@ -80,7 +82,9 @@ describe('checkToDo — updates', () => {
 
     const other = createToDo(db, project.id, toDoInputSchema.parse({ title: 'New task' }), '2026-09-25');
     const changeToOut = toDoInputSchema.parse({ title: 'New task', assigneeId: out.id });
-    expect(checkToDo(db, project.id, changeToOut, other)).toEqual([{ path: 'assigneeId', message: "Out isn't on this project" }]);
+    expect(checkToDo(db, project.id, changeToOut, other)).toEqual([
+      { path: 'assigneeId', message: "Out isn't on this project", code: 'error.personNotOnProject', params: { name: 'Out' } },
+    ]);
   });
 });
 
@@ -88,7 +92,7 @@ describe('checkToDo — phases', () => {
   it('rejects a phase from another project', () => {
     const other = createProject2();
     const data = toDoInputSchema.parse({ title: 'Task', phaseId: other.phases[0].id });
-    expect(checkToDo(db, project.id, data)).toEqual([{ path: 'phaseId', message: 'Unknown phase' }]);
+    expect(checkToDo(db, project.id, data)).toEqual([{ path: 'phaseId', message: 'Unknown phase', code: 'error.unknownPhase' }]);
   });
 
   it("accepts the project's own sub-phase, and the record reads 'Development › Increment 1'", () => {

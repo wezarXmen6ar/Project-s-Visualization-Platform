@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import type { ListName, ListValue } from '../../../shared/types';
 import { AlertIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 
 interface ListEditorProps {
   title: string;
@@ -15,6 +17,7 @@ interface ListEditorProps {
 
 /** Add, rename and delete the values of one dropdown list. */
 export function ListEditor({ title, singular, list, values, onChanged }: ListEditorProps) {
+  const t = useT();
   const [newName, setNewName] = useState('');
   const [editing, setEditing] = useState<{ id: number; name: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +32,7 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
       afterSuccess?.();
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messagesOf(err, t)[0]);
     } finally {
       setBusy(false);
     }

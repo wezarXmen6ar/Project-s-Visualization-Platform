@@ -1,4 +1,6 @@
 import type { WorkCalendar } from '../shared/calendar';
+import type { MessageKey } from '../shared/i18n/en';
+import type { Params } from '../shared/i18n/types';
 import type {
   AssignmentInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput,
   StarterToDoInput, ToDoInput, ValidationIssue,
@@ -11,10 +13,15 @@ import type {
 export class ApiError extends Error {
   status: number;
   issues: ValidationIssue[];
-  constructor(message: string, status: number, issues: ValidationIssue[] = []) {
+  /** The server's own message key for this error, when it has one; absent for a generic or unrecognised failure. */
+  code?: MessageKey;
+  params?: Params;
+  constructor(message: string, status: number, issues: ValidationIssue[] = [], code?: MessageKey, params?: Params) {
     super(message);
     this.status = status;
     this.issues = issues;
+    this.code = code;
+    this.params = params;
   }
 }
 
@@ -23,7 +30,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = init?.body === undefined ? init?.headers : { 'Content-Type': 'application/json', ...init?.headers };
   const res = await fetch(path, { ...init, headers });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(body.error ?? `Request failed (${res.status})`, res.status, body.issues ?? []);
+  if (!res.ok) {
+    throw new ApiError(body.error ?? `Request failed (${res.status})`, res.status, body.issues ?? [], body.code, body.params);
+  }
   return body as T;
 }
 

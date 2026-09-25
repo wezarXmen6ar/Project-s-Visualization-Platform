@@ -59,7 +59,7 @@ describe('resources API', () => {
     const goal = (await app.inject({ method: 'GET', url: '/api/lists' })).json().goal[0];
     const wrongList = await post({ name: 'X', side: 'tech', roleId: goal.id });
     expect(wrongList.statusCode).toBe(400);
-    expect(wrongList.json().issues).toEqual([{ path: 'roleId', message: 'Unknown role' }]);
+    expect(wrongList.json().issues).toEqual([{ path: 'roleId', message: 'Unknown role', code: 'error.unknownRole' }]);
   });
 
   it('lists the tech team first, then business contacts, each by name', async () => {
@@ -80,7 +80,7 @@ describe('resources API', () => {
     expect(res.json()).toMatchObject({ name: 'Omar Haddad', role: { name: 'Project manager' }, active: false });
     const missing = await app.inject({ method: 'PUT', url: '/api/resources/999', payload: { name: 'X', side: 'tech' } });
     expect(missing.statusCode).toBe(404);
-    expect(missing.json()).toEqual({ error: 'Person not found' });
+    expect(missing.json()).toEqual({ error: 'Person not found', code: 'error.personNotFound' });
   });
 
   it("refuses to switch an in-use person's side, but allows other edits", async () => {
@@ -101,6 +101,8 @@ describe('resources API', () => {
     expect(switched.statusCode).toBe(409);
     expect(switched.json()).toEqual({
       error: "Fatima can't change side because they are a project manager on 1 project.",
+      code: 'error.personInUseSideChange',
+      params: { name: 'Fatima', reasons: [{ code: 'error.reasonPmOnProjects', count: 1 }] },
     });
 
     const renamed = await app.inject({
@@ -124,7 +126,7 @@ describe('resources API', () => {
       method: 'POST', url: `/api/resources/${person.id}/leave`, payload: { start: '2026-10-16', end: '2026-10-12' },
     });
     expect(backwards.statusCode).toBe(400);
-    expect(backwards.json().issues).toEqual([{ path: 'end', message: 'End date must be on or after the start date' }]);
+    expect(backwards.json().issues).toEqual([{ path: 'end', message: 'End date must be on or after the start date', code: 'validation.endDateAfterStart' }]);
 
     const noPerson = await app.inject({
       method: 'POST', url: '/api/resources/999/leave', payload: { start: '2026-10-12', end: '2026-10-12' },
@@ -136,7 +138,7 @@ describe('resources API', () => {
     expect((await app.inject({ method: 'DELETE', url: `/api/leave/${added.json().id}` })).statusCode).toBe(204);
     const again = await app.inject({ method: 'DELETE', url: `/api/leave/${added.json().id}` });
     expect(again.statusCode).toBe(404);
-    expect(again.json()).toEqual({ error: 'Leave not found' });
+    expect(again.json()).toEqual({ error: 'Leave not found', code: 'error.leaveNotFound' });
   });
 
   it('deletes a person together with their leave', async () => {
@@ -151,7 +153,11 @@ describe('resources API', () => {
     await post({ name: 'Fatima', side: 'tech', roleId: roles.Developer });
     const res = await app.inject({ method: 'DELETE', url: `/api/lists/role/${roles.Developer}` });
     expect(res.statusCode).toBe(409);
-    expect(res.json()).toEqual({ error: '"Developer" is used by 1 person' });
+    expect(res.json()).toEqual({
+      error: '"Developer" is used by 1 person',
+      code: 'error.listValueInUsePeople',
+      params: { name: 'Developer', count: 1 },
+    });
   });
 
   it("won't delete a person with a to-do, but allows switching a business contact who has one to the tech team", async () => {

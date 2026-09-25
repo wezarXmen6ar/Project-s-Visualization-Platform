@@ -4,6 +4,8 @@ import { todayLocal } from '../../../shared/calendar';
 import { newProjectSchema, toIssues, type NewProjectInput, type ValidationIssue } from '../../../shared/schemas';
 import { AlertIcon, ArrowLeftIcon, ArrowRightIcon } from '../../icons';
 import { ApiError, api } from '../../api';
+import { messageFor, messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { useLists } from '../../useLists';
 import { useResources } from '../../useResources';
 import { useWorkload } from '../../useWorkload';
@@ -18,6 +20,7 @@ const LAST = STEPS.length - 1;
 
 export function CreateProjectPage() {
   const navigate = useNavigate();
+  const t = useT();
   const { lists, error: listsError, remember } = useLists();
   const { people, error: peopleError, remember: rememberPerson } = useResources();
   const { workload, error: workloadError } = useWorkload();
@@ -71,7 +74,7 @@ export function CreateProjectPage() {
       navigate(`/manage/projects/${project.id}?starter=all`);
     } catch (err) {
       if (err instanceof ApiError && err.issues.length > 0) showIssues(err.issues);
-      else setIssues([{ path: '', message: err instanceof Error ? err.message : String(err) }]);
+      else setIssues([{ path: '', message: messagesOf(err, t)[0] }]);
     } finally {
       setSaving(false);
     }
@@ -99,25 +102,25 @@ export function CreateProjectPage() {
         {issues.length > 0 ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <ul>{issues.map((i) => <li key={`${i.path}-${i.message}`}>{i.message}</li>)}</ul>
+            <ul>{issues.map((i) => <li key={`${i.path}-${i.message}`}>{messageFor(t, i)}</li>)}</ul>
           </div>
         ) : null}
         {listsError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load the dropdown lists: {listsError.message}</span>
+            <span>Could not load the dropdown lists: {messagesOf(listsError, t)[0]}</span>
           </div>
         ) : null}
         {peopleError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load people: {peopleError.message}</span>
+            <span>Could not load people: {messagesOf(peopleError, t)[0]}</span>
           </div>
         ) : null}
         {workloadError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load everyone's workload: {workloadError.message}</span>
+            <span>Could not load everyone's workload: {messagesOf(workloadError, t)[0]}</span>
           </div>
         ) : null}
 

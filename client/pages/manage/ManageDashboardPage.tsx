@@ -4,15 +4,18 @@ import { computeWorkload, weekStartOf } from '../../../shared/capacity';
 import { projectSpan } from '../../../shared/scheduler';
 import { AlertIcon, ArrowLeftIcon, FolderOpenIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
+import { messagesOf } from '../../errors';
 import { Gantt } from '../../gantt/Gantt';
 import { portfolioRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
+import { useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
 import { isAccepted } from './heatmap';
 import { MyNextSteps } from './MyNextSteps';
 
 export function ManageDashboardPage() {
+  const t = useT();
   const navigate = useNavigate();
   const projects = useAsync(() => api.listProjects(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
@@ -44,7 +47,7 @@ export function ManageDashboardPage() {
       {projects.error ? (
         <div className="errors" role="alert">
           <AlertIcon />
-          <span>{projects.error.message}</span>
+          <span>{messagesOf(projects.error, t)[0]}</span>
         </div>
       ) : null}
 

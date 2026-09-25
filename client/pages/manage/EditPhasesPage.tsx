@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { scheduleUpdateSchema, toIssues, type ValidationIssue } from '../../../shared/schemas';
 import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { ApiError, api } from '../../api';
+import { messageFor, messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 import { useLists } from '../../useLists';
 import { PhasesFields } from './PhasesFields';
@@ -54,6 +56,7 @@ function removalMessage(items: RemovedItem[]): string {
 export function EditPhasesPage() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
+  const t = useT();
   const project = useAsync(() => api.getProject(id), [id]);
   const projectToDos = useAsync(() => api.listToDos({ projectId: id, includeDone: true }), [id]);
   const { lists, error: listsError, remember } = useLists();
@@ -69,7 +72,7 @@ export function EditPhasesPage() {
         <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>
         <div className="errors" role="alert">
           <AlertIcon />
-          <span>{project.error.message}</span>
+          <span>{messagesOf(project.error, t)[0]}</span>
         </div>
       </main>
     );
@@ -111,7 +114,7 @@ export function EditPhasesPage() {
       setIssues(
         err instanceof ApiError && err.issues.length > 0
           ? err.issues
-          : [{ path: '', message: err instanceof Error ? err.message : String(err) }],
+          : [{ path: '', message: messagesOf(err, t)[0] }],
       );
     } finally {
       setSaving(false);
@@ -137,13 +140,13 @@ export function EditPhasesPage() {
         {issues.length > 0 ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <ul>{issues.map((i) => <li key={`${i.path}-${i.message}`}>{i.message}</li>)}</ul>
+            <ul>{issues.map((i) => <li key={`${i.path}-${i.message}`}>{messageFor(t, i)}</li>)}</ul>
           </div>
         ) : null}
         {listsError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load the dropdown lists: {listsError.message}</span>
+            <span>Could not load the dropdown lists: {messagesOf(listsError, t)[0]}</span>
           </div>
         ) : null}
         {confirming ? (

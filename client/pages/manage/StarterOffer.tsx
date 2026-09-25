@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { StarterSuggestion } from '../../../shared/types';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { AlertIcon } from '../../icons';
 import { useAsync } from '../../useAsync';
 
@@ -26,6 +27,7 @@ interface StarterOfferProps {
 
 /** Offered right after a project is created or gets new phases: starter checklists for its (new) top-level phases. */
 export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: StarterOfferProps) {
+  const t = useT();
   const phaseIds = parsePhaseIds(starterParam);
   const suggestions = useAsync(() => api.starterSuggestions(projectId, phaseIds), [projectId, starterParam]);
   const [checked, setChecked] = useState<Set<number> | null>(null);
@@ -65,7 +67,7 @@ export function StarterOffer({ projectId, starterParam, onAdded, onSkip }: Start
       await api.acceptStarters(projectId, items);
       onAdded();
     } catch (err) {
-      setErrors(messagesOf(err));
+      setErrors(messagesOf(err, t));
     } finally {
       setAdding(false);
     }

@@ -4,6 +4,7 @@ import { AssignmentsEditor } from '../../components/AssignmentsEditor';
 import { AlertIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { dayDate, overloadsWith, phaseWarnings, plannedFrom, type DraftAssignment } from '../../overloads';
 import { subPhaseLabel } from '../../todos';
 import { ASSIGNMENT_ROLE_LABEL } from './labels';
@@ -111,6 +112,7 @@ interface ProjectPeopleProps {
 
 /** The people on each phase and sub-phase, editable one at a time, with overbooking flagged before saving. */
 export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeopleProps) {
+  const t = useT();
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState<DraftAssignment[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -137,7 +139,7 @@ export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeo
       setEditing(null);
       onSaved(updated);
     } catch (err) {
-      setErrors(messagesOf(err));
+      setErrors(messagesOf(err, t));
     } finally {
       setSaving(false);
     }

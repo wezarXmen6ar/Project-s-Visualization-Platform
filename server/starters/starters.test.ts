@@ -53,7 +53,7 @@ describe('adding and listing', () => {
 
   it('rejects a non-phase list value id with "Unknown phase"', () => {
     const result = addStarter(db, starterToDoInputSchema.parse({ phaseListId: departmentId, title: 'Whatever' }));
-    expect(result).toEqual({ error: 'Unknown phase' });
+    expect(result).toEqual({ error: 'Unknown phase', code: 'error.unknownPhase' });
   });
 });
 
@@ -142,7 +142,7 @@ describe('accepting', () => {
     const other = createProject(['QA'], '2026-10-05');
 
     const result = acceptStarters(db, project.id, [{ phaseId: other.phases[0].id, title: 'Not this project' }], '2026-09-25');
-    expect(result).toEqual({ issues: [{ path: 'items.0.phaseId', message: 'Unknown phase' }] });
+    expect(result).toEqual({ issues: [{ path: 'items.0.phaseId', message: 'Unknown phase', code: 'error.unknownPhase' }] });
 
     const rows = db.prepare('SELECT COUNT(*) AS n FROM todos').get() as unknown as { n: number };
     expect(rows.n).toBe(0);

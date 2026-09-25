@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ResourceRecord } from '../../../shared/types';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { AlertIcon } from '../../icons';
 import { useMe } from '../../useMe';
 
@@ -11,6 +12,7 @@ interface MeSettingProps {
 
 /** Who "I am": an active tech-team person, used for Mine and My next steps. */
 export function MeSetting({ people }: MeSettingProps) {
+  const t = useT();
   const { me, reload } = useMe();
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -32,7 +34,7 @@ export function MeSetting({ people }: MeSettingProps) {
       setSaved(true);
       reload();
     } catch (err) {
-      setErrors(messagesOf(err));
+      setErrors(messagesOf(err, t));
     }
   }
 

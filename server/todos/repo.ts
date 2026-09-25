@@ -1,5 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { ISODate } from '../../shared/calendar';
+import { translate } from '../../shared/i18n/translate';
+import type { Params } from '../../shared/i18n/types';
 import type { ToDoData, ValidationIssue } from '../../shared/schemas';
 import type { ToDoRecord } from '../../shared/types';
 import { getMe } from '../settings';
@@ -118,14 +120,17 @@ export function checkToDo(db: DatabaseSync, projectId: number, data: ToDoData, e
   const issues: ValidationIssue[] = [];
   if (data.assigneeId !== null && data.assigneeId !== existing?.assignee?.id) {
     const person = db.prepare('SELECT name FROM resources WHERE id = ?').get(data.assigneeId) as unknown as { name: string } | undefined;
-    if (!person) issues.push({ path: 'assigneeId', message: 'Unknown person' });
+    if (!person) issues.push({ path: 'assigneeId', message: translate('en', 'error.unknownPerson'), code: 'error.unknownPerson' });
     else if (!projectPeopleIds(db, projectId).has(data.assigneeId)) {
-      issues.push({ path: 'assigneeId', message: `${person.name} isn't on this project` });
+      const params: Params = { name: person.name };
+      issues.push({
+        path: 'assigneeId', message: translate('en', 'error.personNotOnProject', params), code: 'error.personNotOnProject', params,
+      });
     }
   }
   if (data.phaseId !== null) {
     const phase = db.prepare('SELECT id FROM phases WHERE id = ? AND project_id = ?').get(data.phaseId, projectId);
-    if (!phase) issues.push({ path: 'phaseId', message: 'Unknown phase' });
+    if (!phase) issues.push({ path: 'phaseId', message: translate('en', 'error.unknownPhase'), code: 'error.unknownPhase' });
   }
   return issues;
 }

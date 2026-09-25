@@ -1,5 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { ISODate } from '../../shared/calendar';
+import { translate } from '../../shared/i18n/translate';
+import type { Params } from '../../shared/i18n/types';
 import type { AssignmentData, OverloadDecisionData, ValidationIssue } from '../../shared/schemas';
 import type {
   AssignmentRecord, AssignmentRole, OverloadDecision, OverloadDecisionKind, Side, WorkloadAssignment, WorkloadData,
@@ -61,9 +63,14 @@ export function checkAssignmentPeople(
       | { name: string; side: Side; active: number }
       | undefined;
     const at = `${path}.${i}.resourceId`;
-    if (!person) issues.push({ path: at, message: 'Unknown person' });
-    else if (person.side !== 'tech') issues.push({ path: at, message: `${person.name} is a business contact; only the tech team can be assigned` });
-    else if (person.active !== 1 && !alreadyOnPhase.has(a.resourceId)) issues.push({ path: at, message: `${person.name} is inactive` });
+    if (!person) issues.push({ path: at, message: translate('en', 'error.unknownPerson'), code: 'error.unknownPerson' });
+    else if (person.side !== 'tech') {
+      const params: Params = { name: person.name };
+      issues.push({ path: at, message: translate('en', 'error.notTechTeam', params), code: 'error.notTechTeam', params });
+    } else if (person.active !== 1 && !alreadyOnPhase.has(a.resourceId)) {
+      const params: Params = { name: person.name };
+      issues.push({ path: at, message: translate('en', 'error.personInactive', params), code: 'error.personInactive', params });
+    }
   });
   return issues;
 }

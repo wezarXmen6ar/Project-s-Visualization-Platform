@@ -39,10 +39,10 @@ describe('lists API', () => {
     const app = buildApp(db);
     const empty = await app.inject({ method: 'POST', url: '/api/lists/goal', payload: { name: '   ' } });
     expect(empty.statusCode).toBe(400);
-    expect(empty.json().issues).toEqual([{ path: 'name', message: 'Name is required' }]);
+    expect(empty.json().issues).toEqual([{ path: 'name', message: 'Name is required', code: 'validation.nameRequired' }]);
     const unknown = await app.inject({ method: 'POST', url: '/api/lists/colours', payload: { name: 'Red' } });
     expect(unknown.statusCode).toBe(404);
-    expect(unknown.json()).toEqual({ error: 'Unknown list' });
+    expect(unknown.json()).toEqual({ error: 'Unknown list', code: 'error.unknownList' });
   });
 
   it('renames a value, refusing a name that is already taken', async () => {
@@ -53,7 +53,11 @@ describe('lists API', () => {
     expect(ok.json()).toEqual({ ...customer, name: 'Customer services' });
     const clash = await app.inject({ method: 'PUT', url: `/api/lists/projectType/${customer.id}`, payload: { name: 'criminal' } });
     expect(clash.statusCode).toBe(409);
-    expect(clash.json()).toEqual({ error: '"Criminal" already exists' });
+    expect(clash.json()).toEqual({
+      error: '"Criminal" already exists',
+      code: 'error.listValueExists',
+      params: { name: 'Criminal' },
+    });
   });
 
   it('only changes a value through its own list', async () => {
@@ -61,7 +65,7 @@ describe('lists API', () => {
     const goal = (await app.inject({ method: 'GET', url: '/api/lists' })).json().goal[0];
     const res = await app.inject({ method: 'PUT', url: `/api/lists/projectType/${goal.id}`, payload: { name: 'X' } });
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toEqual({ error: 'Value not found' });
+    expect(res.json()).toEqual({ error: 'Value not found', code: 'error.listValueNotFound' });
   });
 
   it('deletes an unused value but refuses one that a project uses', async () => {
@@ -73,7 +77,11 @@ describe('lists API', () => {
 
     const refused = await app.inject({ method: 'DELETE', url: `/api/lists/projectType/${criminal.id}` });
     expect(refused.statusCode).toBe(409);
-    expect(refused.json()).toEqual({ error: '"Criminal" is used by 1 project' });
+    expect(refused.json()).toEqual({
+      error: '"Criminal" is used by 1 project',
+      code: 'error.listValueInUseProjects',
+      params: { name: 'Criminal', count: 1 },
+    });
 
     const deleted = await app.inject({ method: 'DELETE', url: `/api/lists/projectType/${customer.id}` });
     expect(deleted.statusCode).toBe(204);
@@ -100,7 +108,11 @@ describe('lists API', () => {
 
     const refused = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${development.id}` });
     expect(refused.statusCode).toBe(409);
-    expect(refused.json()).toEqual({ error: '"Development" is used by 1 project' });
+    expect(refused.json()).toEqual({
+      error: '"Development" is used by 1 project',
+      code: 'error.listValueInUseProjects',
+      params: { name: 'Development', count: 1 },
+    });
 
     const renamed = await app.inject({ method: 'PUT', url: `/api/lists/phase/${development.id}`, payload: { name: 'Build' } });
     expect(renamed.statusCode).toBe(200);
@@ -144,7 +156,11 @@ describe('lists API', () => {
 
     const refused = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${design.id}` });
     expect(refused.statusCode).toBe(409);
-    expect(refused.json()).toEqual({ error: '"Design" has 2 starter to-dos; delete them in Starter to-dos first' });
+    expect(refused.json()).toEqual({
+      error: '"Design" has 2 starter to-dos; delete them in Starter to-dos first',
+      code: 'error.phaseHasStarters',
+      params: { name: 'Design', count: 2 },
+    });
 
     const stillThere = (await app.inject({ method: 'GET', url: '/api/starter-todos' })).json();
     expect(stillThere.map((s: { id: number }) => s.id)).toEqual(expect.arrayContaining([first.id, second.id]));
@@ -152,7 +168,11 @@ describe('lists API', () => {
     await app.inject({ method: 'DELETE', url: `/api/starter-todos/${first.id}` });
     const stillOne = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${design.id}` });
     expect(stillOne.statusCode).toBe(409);
-    expect(stillOne.json()).toEqual({ error: '"Design" has 1 starter to-do; delete them in Starter to-dos first' });
+    expect(stillOne.json()).toEqual({
+      error: '"Design" has 1 starter to-do; delete them in Starter to-dos first',
+      code: 'error.phaseHasStarters',
+      params: { name: 'Design', count: 1 },
+    });
 
     await app.inject({ method: 'DELETE', url: `/api/starter-todos/${second.id}` });
     const deleted = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${design.id}` });

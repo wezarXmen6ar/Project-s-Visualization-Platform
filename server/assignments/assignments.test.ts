@@ -92,7 +92,7 @@ describe('assignments', () => {
 
     const missing = await app.inject({ method: 'PUT', url: '/api/phases/9999/assignments', payload: { assignments: [] } });
     expect(missing.statusCode).toBe(404);
-    expect(missing.json()).toEqual({ error: 'Phase not found' });
+    expect(missing.json()).toEqual({ error: 'Phase not found', code: 'error.phaseNotFound' });
   });
 
   it('gives the heatmap its data: active tech people with leave, every assignment, the calendar and decisions', async () => {
@@ -135,7 +135,7 @@ describe('assignments', () => {
       method: 'POST', url: '/api/overloads/decisions', payload: { resourceId: people.mariam, weekStart: '2026-10-05', decision: 'split' },
     });
     expect(business.statusCode).toBe(404);
-    expect(business.json()).toEqual({ error: 'Person not found' });
+    expect(business.json()).toEqual({ error: 'Person not found', code: 'error.personNotFound' });
   });
 
   it('lets a phase with an already-inactive person be saved again, but still refuses a newly-added inactive person', async () => {
@@ -211,6 +211,8 @@ describe('assignments', () => {
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({
       error: "Fatima Noor can't be deleted because they are assigned to 1 phase. Make them inactive instead.",
+      code: 'error.personInUseDelete',
+      params: { name: 'Fatima Noor', reasons: [{ code: 'error.reasonAssignedPhases', count: 1 }] },
     });
   });
 });

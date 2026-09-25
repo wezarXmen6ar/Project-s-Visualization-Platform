@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { toDoInputSchema, type ToDoInput } from '../../shared/schemas';
+import { toDoInputSchema, toIssues, type ToDoInput } from '../../shared/schemas';
 import type { Me, ProjectRecord, ToDoRecord } from '../../shared/types';
 import { AlertIcon } from '../icons';
-import { messagesOf } from '../errors';
+import { messageFor, messagesOf } from '../errors';
+import { useT } from '../i18n/LanguageProvider';
 import { assigneeChoices, phaseChoices, toDoToInput } from '../todos';
 
 interface ToDoFormProps {
@@ -27,6 +28,7 @@ export function ToDoForm({ project, me, initial, onSave, onCancel }: ToDoFormPro
   const [note, setNote] = useState(defaults.note ?? '');
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const t = useT();
 
   const choices = assigneeChoices(project, me, initial?.assignee ?? null);
   const phases = phaseChoices(project);
@@ -43,7 +45,7 @@ export function ToDoForm({ project, me, initial, onSave, onCancel }: ToDoFormPro
     };
     const parsed = toDoInputSchema.safeParse(input);
     if (!parsed.success) {
-      setErrors(parsed.error.issues.map((i) => i.message));
+      setErrors(toIssues(parsed.error).map((i) => messageFor(t, i)));
       return;
     }
     setSaving(true);
@@ -51,7 +53,7 @@ export function ToDoForm({ project, me, initial, onSave, onCancel }: ToDoFormPro
     try {
       await onSave(parsed.data);
     } catch (err) {
-      setErrors(messagesOf(err));
+      setErrors(messagesOf(err, t));
     } finally {
       setSaving(false);
     }

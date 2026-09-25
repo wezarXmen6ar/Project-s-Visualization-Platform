@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate } from '../shared/calendar';
+import { translate } from '../shared/i18n/translate';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
@@ -30,6 +31,12 @@ export interface AppOptions {
   backupDir?: string;
 }
 
+/** A plain error body from one of this route's own message keys (not from a repo result, which already carries one). */
+function err(key: 'error.unknownList' | 'error.personNotFound' | 'error.leaveNotFound' | 'error.projectNotFound' |
+  'error.phaseNotFound' | 'error.todoNotFound' | 'error.starterNotFound' | 'error.chooseTechTeamMember' | 'error.invalidYear') {
+  return { error: translate('en', key), code: key };
+}
+
 export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   const today = opts.today ?? todayLocal;
   const backupDir = opts.backupDir ?? 'backups';
@@ -44,7 +51,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.get('/api/lists', async () => getLists(db));
 
   app.post<{ Params: { list: string } }>('/api/lists/:list', async (req, reply) => {
-    if (!isListName(req.params.list)) return reply.code(404).send({ error: 'Unknown list' });
+    if (!isListName(req.params.list)) return reply.code(404).send(err('error.unknownList'));
     const parsed = listValueInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid value', issues: toIssues(parsed.error) });
     const { value, created } = addListValue(db, req.params.list, parsed.data.name);
@@ -52,17 +59,17 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   });
 
   app.put<{ Params: { list: string; id: string } }>('/api/lists/:list/:id', async (req, reply) => {
-    if (!isListName(req.params.list)) return reply.code(404).send({ error: 'Unknown list' });
+    if (!isListName(req.params.list)) return reply.code(404).send(err('error.unknownList'));
     const parsed = listValueInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid value', issues: toIssues(parsed.error) });
     const result = renameListValue(db, req.params.list, Number(req.params.id), parsed.data.name);
-    return result.ok ? result.value : reply.code(result.status).send({ error: result.error });
+    return result.ok ? result.value : reply.code(result.status).send({ error: result.error, code: result.code, params: result.params });
   });
 
   app.delete<{ Params: { list: string; id: string } }>('/api/lists/:list/:id', async (req, reply) => {
-    if (!isListName(req.params.list)) return reply.code(404).send({ error: 'Unknown list' });
+    if (!isListName(req.params.list)) return reply.code(404).send(err('error.unknownList'));
     const result = deleteListValue(db, req.params.list, Number(req.params.id));
-    return result.ok ? reply.code(204).send() : reply.code(result.status).send({ error: result.error });
+    return result.ok ? reply.code(204).send() : reply.code(result.status).send({ error: result.error, code: result.code, params: result.params });
   });
 
   app.get('/api/resources', async () => listResources(db));
@@ -81,30 +88,30 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const issues = checkResourceRefs(db, parsed.data);
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid person', issues });
     const result = updateResourceChecked(db, Number(req.params.id), parsed.data);
-    return result.ok ? result.resource : reply.code(result.status).send({ error: result.error });
+    return result.ok ? result.resource : reply.code(result.status).send({ error: result.error, code: result.code, params: result.params });
   });
 
   app.delete<{ Params: { id: string } }>('/api/resources/:id', async (req, reply) => {
     const result = deleteResource(db, Number(req.params.id));
-    return result.ok ? reply.code(204).send() : reply.code(result.status).send({ error: result.error });
+    return result.ok ? reply.code(204).send() : reply.code(result.status).send({ error: result.error, code: result.code, params: result.params });
   });
 
   app.post<{ Params: { id: string } }>('/api/resources/:id/leave', async (req, reply) => {
     const parsed = leaveInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid leave', issues: toIssues(parsed.error) });
     const leave = addLeave(db, Number(req.params.id), parsed.data);
-    if (!leave) return reply.code(404).send({ error: 'Person not found' });
+    if (!leave) return reply.code(404).send(err('error.personNotFound'));
     return reply.code(201).send(leave);
   });
 
   app.delete<{ Params: { id: string } }>('/api/leave/:id', async (req, reply) =>
-    deleteLeave(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send({ error: 'Leave not found' }));
+    deleteLeave(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send(err('error.leaveNotFound')));
 
   app.get('/api/projects', async () => listProjects(db));
 
   app.get<{ Params: { id: string } }>('/api/projects/:id', async (req, reply) => {
     const project = getProject(db, Number(req.params.id));
-    if (!project) return reply.code(404).send({ error: 'Project not found' });
+    if (!project) return reply.code(404).send(err('error.projectNotFound'));
     return project;
   });
 
@@ -128,7 +135,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const issues = checkRefs(db, parsed.data);
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid project', issues });
     const project = updateProjectDetails(db, Number(req.params.id), parsed.data, today());
-    if (!project) return reply.code(404).send({ error: 'Project not found' });
+    if (!project) return reply.code(404).send(err('error.projectNotFound'));
     return project;
   });
 
@@ -137,14 +144,14 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid schedule', issues: toIssues(parsed.error) });
     const result = updateSchedule(db, getCalendar(db), Number(req.params.id), parsed.data, today());
     if (result.ok) return result.saved;
-    if (result.status === 404) return reply.code(404).send({ error: result.error });
+    if (result.status === 404) return reply.code(404).send({ error: result.error, code: result.code });
     return reply.code(400).send({ error: 'Invalid schedule', issues: result.issues });
   });
 
   app.put<{ Params: { id: string } }>('/api/phases/:id/assignments', async (req, reply) => {
     const phaseId = Number(req.params.id);
     const projectId = phaseProjectId(db, phaseId);
-    if (projectId === undefined) return reply.code(404).send({ error: 'Phase not found' });
+    if (projectId === undefined) return reply.code(404).send(err('error.phaseNotFound'));
     const parsed = assignmentsUpdateSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid assignments', issues: toIssues(parsed.error) });
     const issues = checkAssignmentPeople(db, parsed.data.assignments, 'assignments', phaseAssignmentResourceIds(db, phaseId));
@@ -158,7 +165,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.post('/api/overloads/decisions', async (req, reply) => {
     const parsed = overloadDecisionSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid decision', issues: toIssues(parsed.error) });
-    if (!isTechPerson(db, parsed.data.resourceId)) return reply.code(404).send({ error: 'Person not found' });
+    if (!isTechPerson(db, parsed.data.resourceId)) return reply.code(404).send(err('error.personNotFound'));
     return reply.code(201).send(recordDecision(db, parsed.data, today()));
   });
 
@@ -178,7 +185,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.post<{ Params: { id: string } }>('/api/projects/:id/todos', async (req, reply) => {
     const projectId = Number(req.params.id);
-    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send({ error: 'Project not found' });
+    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send(err('error.projectNotFound'));
     const parsed = toDoInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid to-do', issues: toIssues(parsed.error) });
     const issues = checkToDo(db, projectId, parsed.data);
@@ -189,7 +196,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.put<{ Params: { id: string } }>('/api/todos/:id', async (req, reply) => {
     const id = Number(req.params.id);
     const existing = getToDo(db, id);
-    if (!existing) return reply.code(404).send({ error: 'To-do not found' });
+    if (!existing) return reply.code(404).send(err('error.todoNotFound'));
     const parsed = toDoInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid to-do', issues: toIssues(parsed.error) });
     const issues = checkToDo(db, existing.projectId, parsed.data, existing);
@@ -198,7 +205,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   });
 
   app.delete<{ Params: { id: string } }>('/api/todos/:id', async (req, reply) =>
-    deleteToDo(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send({ error: 'To-do not found' }));
+    deleteToDo(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send(err('error.todoNotFound')));
 
   app.get('/api/starter-todos', async () => listStarters(db));
 
@@ -206,7 +213,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const parsed = starterToDoInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid starter to-do', issues: toIssues(parsed.error) });
     const result = addStarter(db, parsed.data);
-    if ('error' in result) return reply.code(400).send({ error: result.error });
+    if ('error' in result) return reply.code(400).send({ error: result.error, code: result.code });
     return reply.code(201).send(result);
   });
 
@@ -214,17 +221,17 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const parsed = starterTitleSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid starter to-do', issues: toIssues(parsed.error) });
     const result = renameStarter(db, Number(req.params.id), parsed.data.title);
-    return result ?? reply.code(404).send({ error: 'Starter to-do not found' });
+    return result ?? reply.code(404).send(err('error.starterNotFound'));
   });
 
   app.delete<{ Params: { id: string } }>('/api/starter-todos/:id', async (req, reply) =>
-    deleteStarter(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send({ error: 'Starter to-do not found' }));
+    deleteStarter(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send(err('error.starterNotFound')));
 
   app.get<{ Params: { id: string }; Querystring: { phaseIds?: string } }>(
     '/api/projects/:id/starter-suggestions',
     async (req, reply) => {
       const projectId = Number(req.params.id);
-      if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send({ error: 'Project not found' });
+      if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send(err('error.projectNotFound'));
       const phaseIds = req.query.phaseIds
         ? req.query.phaseIds
             .split(',')
@@ -237,7 +244,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.post<{ Params: { id: string } }>('/api/projects/:id/todos/from-starters', async (req, reply) => {
     const projectId = Number(req.params.id);
-    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send({ error: 'Project not found' });
+    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send(err('error.projectNotFound'));
     const parsed = starterAcceptSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid items', issues: toIssues(parsed.error) });
     const result = acceptStarters(db, projectId, parsed.data.items, today());
@@ -255,7 +262,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
       const person = db.prepare("SELECT active FROM resources WHERE id = ? AND side = 'tech'").get(resourceId) as unknown as
         | { active: number }
         | undefined;
-      if (!person || person.active !== 1) return reply.code(400).send({ error: 'Choose someone from your tech team' });
+      if (!person || person.active !== 1) return reply.code(400).send(err('error.chooseTechTeamMember'));
     }
     setMe(db, resourceId);
     return getMe(db);
@@ -265,7 +272,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const now = today();
     const year = req.query.year === undefined ? Number(now.slice(0, 4)) : Number(req.query.year);
     if (!Number.isInteger(year) || year < 2000 || year > 2100) {
-      return reply.code(400).send({ error: 'year must be a whole number between 2000 and 2100' });
+      return reply.code(400).send(err('error.invalidYear'));
     }
     const all = listProjects(db);
     const inYear = all.filter((p) => {

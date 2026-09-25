@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { projectDetailsSchema, toIssues, type ValidationIssue } from '../../../shared/schemas';
 import { AlertIcon, ArrowLeftIcon } from '../../icons';
 import { ApiError, api } from '../../api';
+import { messageFor, messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 import { useLists } from '../../useLists';
 import { useResources } from '../../useResources';
@@ -13,6 +15,7 @@ import { detailsFromProject, detailsToInput, type DetailsDraft } from './project
 export function EditProjectPage() {
   const id = Number(useParams().id);
   const navigate = useNavigate();
+  const t = useT();
   const project = useAsync(() => api.getProject(id), [id]);
   const { lists, error: listsError, remember } = useLists();
   const { people, error: peopleError, remember: rememberPerson } = useResources();
@@ -26,7 +29,7 @@ export function EditProjectPage() {
         <Link to="/manage" className="crumb"><ArrowLeftIcon />Projects</Link>
         <div className="errors" role="alert">
           <AlertIcon />
-          <span>{project.error.message}</span>
+          <span>{messagesOf(project.error, t)[0]}</span>
         </div>
       </main>
     );
@@ -56,7 +59,7 @@ export function EditProjectPage() {
       setIssues(
         err instanceof ApiError && err.issues.length > 0
           ? err.issues
-          : [{ path: '', message: err instanceof Error ? err.message : String(err) }],
+          : [{ path: '', message: messagesOf(err, t)[0] }],
       );
     } finally {
       setSaving(false);
@@ -76,19 +79,19 @@ export function EditProjectPage() {
         {issues.length > 0 ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <ul>{issues.map((i) => <li key={`${i.path}-${i.message}`}>{i.message}</li>)}</ul>
+            <ul>{issues.map((i) => <li key={`${i.path}-${i.message}`}>{messageFor(t, i)}</li>)}</ul>
           </div>
         ) : null}
         {listsError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load the dropdown lists: {listsError.message}</span>
+            <span>Could not load the dropdown lists: {messagesOf(listsError, t)[0]}</span>
           </div>
         ) : null}
         {peopleError ? (
           <div className="errors" role="alert">
             <AlertIcon />
-            <span>Could not load people: {peopleError.message}</span>
+            <span>Could not load people: {messagesOf(peopleError, t)[0]}</span>
           </div>
         ) : null}
 

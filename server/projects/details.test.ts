@@ -107,8 +107,8 @@ describe('project details', () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().issues).toEqual([
-      { path: 'projectTypeId', message: 'Unknown project type' },
-      { path: 'departmentId', message: 'Unknown business user (department)' },
+      { path: 'projectTypeId', message: 'Unknown project type', code: 'error.unknownProjectType' },
+      { path: 'departmentId', message: 'Unknown business user (department)', code: 'error.unknownDepartment' },
     ]);
   });
 
@@ -149,7 +149,7 @@ describe('project details', () => {
   it('returns 404 for an unknown project and 400 for invalid details', async () => {
     const missing = await app.inject({ method: 'PUT', url: '/api/projects/999/details', payload: base });
     expect(missing.statusCode).toBe(404);
-    expect(missing.json()).toEqual({ error: 'Project not found' });
+    expect(missing.json()).toEqual({ error: 'Project not found', code: 'error.projectNotFound' });
 
     const created = (await app.inject({ method: 'POST', url: '/api/projects', payload: base })).json();
     const invalid = await app.inject({
@@ -167,8 +167,8 @@ describe('project details', () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().issues).toEqual([
-      { path: 'projectManagerId', message: 'Unknown project manager (tech)' },
-      { path: 'businessPmId', message: 'Unknown business project manager' },
+      { path: 'projectManagerId', message: 'Unknown project manager (tech)', code: 'error.unknownProjectManager' },
+      { path: 'businessPmId', message: 'Unknown business project manager', code: 'error.unknownBusinessPm' },
     ]);
   });
 
@@ -178,6 +178,8 @@ describe('project details', () => {
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({
       error: "Sara Ahmed can't be deleted because they are a project manager on 1 project. Make them inactive instead.",
+      code: 'error.personInUseDelete',
+      params: { name: 'Sara Ahmed', reasons: [{ code: 'error.reasonPmOnProjects', count: 1 }] },
     });
   });
 
@@ -185,6 +187,10 @@ describe('project details', () => {
     await app.inject({ method: 'POST', url: '/api/projects', payload: fullBody() });
     const res = await app.inject({ method: 'DELETE', url: `/api/lists/department/${ids.finance}` });
     expect(res.statusCode).toBe(409);
-    expect(res.json()).toEqual({ error: '"Finance" is used by 1 project' });
+    expect(res.json()).toEqual({
+      error: '"Finance" is used by 1 project',
+      code: 'error.listValueInUseProjects',
+      params: { name: 'Finance', count: 1 },
+    });
   });
 });

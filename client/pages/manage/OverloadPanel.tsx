@@ -6,6 +6,7 @@ import type { OverloadDecisionKind, WorkloadAssignment, WorkloadData } from '../
 import { AlertIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
+import { useT } from '../../i18n/LanguageProvider';
 import { dayDate, leaveInWeek, weekLabel } from '../../overloads';
 import { isAccepted } from './heatmap';
 
@@ -25,6 +26,7 @@ const keep = (a: WorkloadAssignment): AssignmentInput => ({ resourceId: a.resour
 
 /** One person's week: what is booked, and, when it is overbooked, a prompt to split, reassign or accept. */
 export function OverloadPanel({ data, person, week, onClose, onChanged }: OverloadPanelProps) {
+  const t = useT();
   const [mode, setMode] = useState<Mode>(null);
   const [allocations, setAllocations] = useState<Record<number, number>>({});
   const [moving, setMoving] = useState<number | null>(null);
@@ -70,7 +72,7 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
       setMode(null);
       onChanged();
     } catch (err) {
-      setErrors(messagesOf(err));
+      setErrors(messagesOf(err, t));
     } finally {
       setSaving(false);
     }

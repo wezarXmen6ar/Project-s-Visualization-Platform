@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { ListName, ListValue } from '../../shared/types';
 import { api } from '../api';
+import { messagesOf } from '../errors';
+import { useT } from '../i18n/LanguageProvider';
 
 const NONE = '';
 const ADD = '__add__';
@@ -25,6 +27,7 @@ interface OptionPickerProps {
 export function OptionPicker({
   label, list, options, value, onChange, onAdded, noneLabel, addLabel, hideLabel = false,
 }: OptionPickerProps) {
+  const t = useT();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +52,7 @@ export function OptionPicker({
       onChange(created.id);
       closeAdd();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(messagesOf(err, t)[0]);
     } finally {
       setSaving(false);
     }
