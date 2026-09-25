@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import { todayLocal } from '../../../shared/calendar';
 import type { Me, ToDoRecord } from '../../../shared/types';
-import { byUrgency, dueLabel } from '../../todos';
+import { byUrgency, dueLabel, formerPhaseLabel } from '../../todos';
 
 interface NextUpProps {
   todos: ToDoRecord[];
@@ -36,6 +36,7 @@ export function NextUp({ todos, me, onToggleDone }: NextUpProps) {
           {mine.map((t) => {
             const label = dueLabel(t, today);
             const overdue = label.startsWith('Overdue');
+            const former = formerPhaseLabel(t);
             return (
               <li key={t.id} className="todo">
                 <input
@@ -51,6 +52,7 @@ export function NextUp({ todos, me, onToggleDone }: NextUpProps) {
                     {label && t.phase ? ' · ' : ''}
                     {t.phase ? t.phase.name : ''}
                   </div>
+                  {former ? <div className="todo-meta">{former}</div> : null}
                 </div>
               </li>
             );

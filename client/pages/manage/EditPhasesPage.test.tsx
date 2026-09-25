@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { describe, expect, it } from 'vitest';
+import type { ToDoRecord } from '../../../shared/types';
 import { mockFetch, sampleLists, sampleProject, type MockHandler } from '../../testing/mockFetch';
 import { EditPhasesPage } from './EditPhasesPage';
 
@@ -39,9 +40,17 @@ function project() {
   });
 }
 
-function baseRoutes(): Record<string, MockHandler> {
+function todo(overrides: Partial<ToDoRecord> & Pick<ToDoRecord, 'id' | 'title'>): ToDoRecord {
+  return {
+    projectId: 1, projectName: 'Portal', note: null, assignee: null, dueDate: null, done: false, doneDate: null,
+    phase: null, formerPhase: null, createdAt: '2026-09-20T09:00:00.000Z', ...overrides,
+  };
+}
+
+function baseRoutes(todos: ToDoRecord[] = []): Record<string, MockHandler> {
   return {
     'GET /api/projects/1': () => ({ body: project() }),
+    'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
     'GET /api/lists': () => ({ body: sampleLists() }),
     'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
   };
@@ -114,6 +123,74 @@ describe('EditPhasesPage', () => {
     const sent = JSON.parse(put![1]!.body as string);
     const dev = sent.phases.find((p: { id?: number }) => p.id === 12);
     expect(dev.subPhases.map((s: { id?: number }) => s.id)).toEqual([22]);
+  });
+
+  it('shows people and open to-dos when removing a sub-phase that has both, with Keep checked by default', async () => {
+    mockFetch({
+      ...baseRoutes([
+        todo({ id: 300, title: 'A', phase: { id: 21, name: 'Development › Increment 1' } }),
+        todo({ id: 301, title: 'B', phase: { id: 21, name: 'Development › Increment 1' } }),
+        todo({ id: 302, title: 'C', phase: { id: 21, name: 'Development › Increment 1' }, done: true, doneDate: '2026-09-20' }),
+      ]),
+      'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 2 sub-phase 1 name');
+
+    await user.click(screen.getByRole('button', { name: 'Remove phase 2 sub-phase 1' }));
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+
+    expect(await screen.findByText('Saving will remove Development › Increment 1 (1 person, 2 open to-dos). The people on them will be unassigned.')).toBeInTheDocument();
+    const keep = screen.getByRole('radio', { name: 'Keep them on the project' });
+    const del = screen.getByRole('radio', { name: 'Delete them' });
+    expect(keep).toBeChecked();
+    expect(del).not.toBeChecked();
+  });
+
+  it('sends removedToDos: delete after choosing Delete them and Save anyway', async () => {
+    const fetchMock = mockFetch({
+      ...baseRoutes([
+        todo({ id: 300, title: 'A', phase: { id: 21, name: 'Development › Increment 1' } }),
+        todo({ id: 301, title: 'B', phase: { id: 21, name: 'Development › Increment 1' } }),
+      ]),
+      'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 2 sub-phase 1 name');
+
+    await user.click(screen.getByRole('button', { name: 'Remove phase 2 sub-phase 1' }));
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+    await screen.findByRole('radio', { name: 'Delete them' });
+    await user.click(screen.getByRole('radio', { name: 'Delete them' }));
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }));
+
+    expect(await screen.findByText('Project page')).toBeInTheDocument();
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects/1/schedule' && init?.method === 'PUT');
+    const sent = JSON.parse(put![1]!.body as string);
+    expect(sent.removedToDos).toBe('delete');
+  });
+
+  it('warns about a removed phase with to-dos but no people, without the unassigned line', async () => {
+    mockFetch({
+      ...baseRoutes([
+        todo({ id: 300, title: 'A', phase: { id: 11, name: 'Requirements gathering' } }),
+      ]),
+      'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 2 sub-phase 1 name');
+
+    // Phase 1 (Requirements gathering) has no people assigned, only the to-do above.
+    await user.click(screen.getByRole('button', { name: 'Remove phase 1' }));
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+
+    expect(await screen.findByRole('radio', { name: 'Keep them on the project' })).toBeInTheDocument();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Saving will remove Requirements gathering (1 open to-do).');
+    expect(alert).not.toHaveTextContent('unassigned');
   });
 
   it('moves a sub-phase down within its phase via keyboard', async () => {

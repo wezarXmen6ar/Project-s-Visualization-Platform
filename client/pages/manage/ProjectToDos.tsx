@@ -5,7 +5,7 @@ import { dayDate } from '../../overloads';
 import { ToDoForm } from '../../components/ToDoForm';
 import { api } from '../../api';
 import { useAsync } from '../../useAsync';
-import { byUrgency, dueLabel, toDoToInput } from '../../todos';
+import { byUrgency, dueLabel, formerPhaseLabel, toDoToInput } from '../../todos';
 
 /** Loads a project's to-dos (open and done); `reload` fetches them again after a change. */
 export function useProjectToDos(projectId: number) {
@@ -35,15 +35,19 @@ function ToDoMeta({ t, today }: ToDoRowMetaProps) {
   ];
   if (label) parts.push({ key: 'due', node: <span className={overdue ? 'overdue' : undefined}>{label}</span> });
   if (t.phase) parts.push({ key: 'phase', node: t.phase.name });
+  const former = formerPhaseLabel(t);
   return (
-    <div className="todo-meta">
-      {parts.map((p, i) => (
-        <span key={p.key}>
-          {i > 0 ? ' · ' : ''}
-          {p.node}
-        </span>
-      ))}
-    </div>
+    <>
+      <div className="todo-meta">
+        {parts.map((p, i) => (
+          <span key={p.key}>
+            {i > 0 ? ' · ' : ''}
+            {p.node}
+          </span>
+        ))}
+      </div>
+      {former ? <div className="todo-meta">{former}</div> : null}
+    </>
   );
 }
 

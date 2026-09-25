@@ -10,6 +10,7 @@ import { useElementWidth } from '../../gantt/useElementWidth';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
 import { isAccepted } from './heatmap';
+import { MyNextSteps } from './MyNextSteps';
 
 export function ManageDashboardPage() {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ export function ManageDashboardPage() {
           <h1>Projects</h1>
         </div>
         <div className="header-actions">
+          <Link to="/manage/todos" className="button secondary">To-dos</Link>
           <Link to="/manage/resources" className="button secondary">Resources</Link>
           <Link to="/manage/settings" className="button secondary">Settings</Link>
           <Link to="/manage/projects/new" className="button"><PlusIcon />New project</Link>
@@ -55,6 +57,8 @@ export function ManageDashboardPage() {
           <Link to="/manage/resources">See the workload</Link>
         </div>
       ) : null}
+
+      <MyNextSteps />
 
       {projects.loading && !projects.data ? (
         <section className="card">

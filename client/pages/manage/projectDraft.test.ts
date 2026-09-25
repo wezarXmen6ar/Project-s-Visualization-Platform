@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { scheduleUpdateSchema } from '../../../shared/schemas';
+import type { ToDoRecord } from '../../../shared/types';
 import { sampleProject } from '../../testing/mockFetch';
 import {
-  detailsFromProject, detailsToInput, emptyDetails, firstStepWithIssue, phasesToInput, removedWithPeople,
+  detailsFromProject, detailsToInput, emptyDetails, firstStepWithIssue, phasesToInput, removedItems,
   scheduleFromProject, scheduleToInput, stepOfIssue, type PhaseDraft,
 } from './projectDraft';
 
@@ -109,7 +110,7 @@ describe('projectDraft', () => {
     });
   });
 
-  describe('removedWithPeople', () => {
+  describe('removedItems', () => {
     const project = sampleProject({
       phases: [
         {
@@ -126,13 +127,17 @@ describe('projectDraft', () => {
         { id: 901, phaseId: 22, resource: { id: 72, name: 'Rami Saleh' }, allocation: 50, role: 'contributor' },
       ],
     });
+    const todo = (overrides: Partial<ToDoRecord> & Pick<ToDoRecord, 'id'>): ToDoRecord => ({
+      projectId: 1, projectName: 'Portal', title: 'x', note: null, assignee: null, dueDate: null, done: false,
+      doneDate: null, phase: null, formerPhase: null, createdAt: '2026-09-20T09:00:00.000Z', ...overrides,
+    });
 
     it('lists a removed sub-phase with its people', () => {
       const phases: PhaseDraft[] = [
         { id: 12, name: 'Development', durationDays: 5, subPhases: [{ id: 21, name: 'Increment 1', durationDays: 5, withPrevious: false }] },
         { id: 13, name: 'QA', durationDays: 5 },
       ];
-      expect(removedWithPeople(project, phases)).toEqual([{ label: 'Development › Increment 2', people: 2 }]);
+      expect(removedItems(project, phases, [])).toEqual([{ label: 'Development › Increment 2', people: 2, openToDos: 0 }]);
     });
 
     it('does not list a sub-phase moved under another phase', () => {
@@ -140,10 +145,10 @@ describe('projectDraft', () => {
         { id: 12, name: 'Development', durationDays: 5, subPhases: [{ id: 21, name: 'Increment 1', durationDays: 5, withPrevious: false }] },
         { id: 13, name: 'QA', durationDays: 5, subPhases: [{ id: 22, name: 'Increment 2', durationDays: 5, withPrevious: false }] },
       ];
-      expect(removedWithPeople(project, phases)).toEqual([]);
+      expect(removedItems(project, phases, [])).toEqual([]);
     });
 
-    it('does not list a removed phase that has no people', () => {
+    it('does not list a removed phase that has no people and no open to-dos', () => {
       const phases: PhaseDraft[] = [
         {
           id: 12, name: 'Development', durationDays: 10,
@@ -153,7 +158,22 @@ describe('projectDraft', () => {
           ],
         },
       ];
-      expect(removedWithPeople(project, phases)).toEqual([]);
+      expect(removedItems(project, phases, [])).toEqual([]);
+    });
+
+    it('counts only open to-dos, and lists a removed sub-phase that has to-dos but no people', () => {
+      // Removes sub-phase 21 (Increment 1) but keeps 22 (Increment 2), so only 21's to-dos should count.
+      const phases: PhaseDraft[] = [
+        { id: 12, name: 'Development', durationDays: 5, subPhases: [{ id: 22, name: 'Increment 2', durationDays: 5, withPrevious: false }] },
+        { id: 13, name: 'QA', durationDays: 5 },
+      ];
+      const todos = [
+        todo({ id: 300, phase: { id: 21, name: 'Development › Increment 1' } }),
+        todo({ id: 301, phase: { id: 21, name: 'Development › Increment 1' }, done: true, doneDate: '2026-10-01' }),
+      ];
+      expect(removedItems(project, phases, todos)).toEqual([
+        { label: 'Development › Increment 1', people: 0, openToDos: 1 },
+      ]);
     });
   });
 

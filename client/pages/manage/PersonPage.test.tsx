@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LeaveRecord, ResourceRecord, WorkloadData } from '../../../shared/types';
+import type { LeaveRecord, ResourceRecord, ToDoRecord, WorkloadData } from '../../../shared/types';
 import type { WorkCalendar } from '../../../shared/calendar';
 import { mockFetch, sampleLists, samplePeople, sampleWorkload, type MockHandler } from '../../testing/mockFetch';
 import { PersonPage } from './PersonPage';
@@ -45,6 +45,17 @@ function fakeServer(calendar: WorkCalendar = { weekendDays: [0, 6], holidays: []
       return { status: 204, body: null };
     },
     'GET /api/workload': () => ({ body: sampleWorkload() }),
+    'GET /api/todos?assigneeId=70': () => ({ body: [] }),
+    'GET /api/todos?assigneeId=71': () => ({ body: [] }),
+    'GET /api/todos?assigneeId=72': () => ({ body: [] }),
+    'GET /api/todos?assigneeId=80': () => ({ body: [] }),
+  };
+}
+
+function toDo(overrides: Partial<ToDoRecord> & Pick<ToDoRecord, 'id' | 'title'>): ToDoRecord {
+  return {
+    projectId: 1, projectName: 'Portal', note: null, assignee: null, dueDate: null, done: false, doneDate: null,
+    phase: null, formerPhase: null, createdAt: '2026-09-20T09:00:00.000Z', ...overrides,
   };
 }
 
@@ -215,5 +226,81 @@ describe('PersonPage', () => {
     renderAt('/manage/resources/80');
     await screen.findByLabelText('Name');
     expect(screen.queryByRole('heading', { name: 'Working on' })).toBeNull();
+  });
+
+  describe('To-dos', () => {
+    it("shows a tech person's open to-dos with project links", async () => {
+      mockFetch({
+        ...fakeServer(),
+        'GET /api/todos?assigneeId=71': () => ({
+          body: [
+            toDo({ id: 500, title: 'Review the API docs', dueDate: '2026-10-20' }),
+            toDo({ id: 501, title: 'Done already', done: true, doneDate: '2026-09-20' }),
+          ],
+        }),
+      });
+      renderAt('/manage/resources/71');
+
+      const heading = await screen.findByRole('heading', { name: 'To-dos' });
+      const card = heading.closest('section') as HTMLElement;
+      expect(within(card).getByText('Review the API docs')).toBeInTheDocument();
+      expect(within(card).getByRole('link', { name: 'Portal' })).toHaveAttribute('href', '/manage/projects/1');
+      expect(within(card).queryByText('Done already')).toBeNull();
+    });
+
+    it("shows a business contact's open to-dos too", async () => {
+      mockFetch({
+        ...fakeServer(),
+        'GET /api/todos?assigneeId=80': () => ({
+          body: [toDo({ id: 502, title: 'Get sign-off from the business' })],
+        }),
+      });
+      renderAt('/manage/resources/80');
+
+      const heading = await screen.findByRole('heading', { name: 'To-dos' });
+      const card = heading.closest('section') as HTMLElement;
+      expect(within(card).getByText('Get sign-off from the business')).toBeInTheDocument();
+    });
+
+    it('shows "No open to-dos." for a person with none', async () => {
+      mockFetch(fakeServer());
+      renderAt('/manage/resources/72');
+
+      const heading = await screen.findByRole('heading', { name: 'To-dos' });
+      const card = heading.closest('section') as HTMLElement;
+      expect(within(card).getByText('No open to-dos.')).toBeInTheDocument();
+    });
+  });
+
+  it('shows the to-do linked to a sub-phase under its assignment item in Working on', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+    const workload: WorkloadData = {
+      calendar: { weekendDays: [0, 6], holidays: [] },
+      resources: [{ id: 71, name: 'Fatima Noor', capacity: 100, leave: [] }],
+      assignments: [
+        {
+          id: 602, resourceId: 71, phaseId: 802, projectId: 95, projectName: 'E-Services Mobile App',
+          phaseName: 'Development › Increment 3 – Payments',
+          start: '2026-11-02', end: '2026-11-20', allocation: 60, role: 'responsible',
+        },
+      ],
+      decisions: [],
+    };
+    mockFetch({
+      ...fakeServer(),
+      'GET /api/workload': () => ({ body: workload }),
+      'GET /api/todos?assigneeId=71': () => ({
+        body: [toDo({
+          id: 503, title: "Review the payment provider's API documentation", dueDate: '2026-12-18',
+          projectId: 95, projectName: 'E-Services Mobile App', phase: { id: 802, name: 'Development › Increment 3 – Payments' },
+        })],
+      }),
+    });
+    renderAt('/manage/resources/71');
+
+    const heading = await screen.findByRole('heading', { name: 'Working on' });
+    const card = heading.closest('section') as HTMLElement;
+    expect(within(card).getByText(/Review the payment provider's API documentation/)).toBeInTheDocument();
   });
 });

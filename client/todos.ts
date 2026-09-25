@@ -28,6 +28,12 @@ export function dueLabel(t: ToDoRecord, today: ISODate): string {
   return `Due ${dayDate(t.dueDate)}`;
 }
 
+/** "Was on Development › Increment 2 (removed Fri 25 Sep)" for a to-do kept from a removed phase, else null. */
+export function formerPhaseLabel(t: ToDoRecord): string | null {
+  if (!t.formerPhase) return null;
+  return `Was on ${t.formerPhase.name} (removed ${dayDate(t.formerPhase.removedOn)})`;
+}
+
 /** The to-do's saved fields as a `ToDoInput`, with an optional patch applied on top. */
 export function toDoToInput(t: ToDoRecord, patch: Partial<ToDoInput> = {}): ToDoInput {
   return {

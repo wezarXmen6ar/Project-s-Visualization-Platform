@@ -2,14 +2,35 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { countWorkingDays, DEFAULT_CALENDAR, todayLocal, type WorkCalendar } from '../../../shared/calendar';
 import { resourceInputSchema, toIssues, type ResourceInput } from '../../../shared/schemas';
-import type { ResourceRecord, Side, Specialisation } from '../../../shared/types';
+import type { ResourceRecord, Side, Specialisation, ToDoRecord } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
+import { ToDoRow } from '../../components/ToDoRow';
 import { messagesOf } from '../../errors';
+import { byUrgency, toDoToInput } from '../../todos';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
 import { SPECIALISATION_LABEL, formatDate } from './labels';
 import { PersonWork } from './PersonWork';
+
+/** A person's open to-dos across every project. */
+function PersonToDos({ todos, today, onToggle }: { todos: ToDoRecord[]; today: string; onToggle: (t: ToDoRecord) => void }) {
+  const open = byUrgency(todos.filter((t) => !t.done));
+  return (
+    <section className="card">
+      <h2>To-dos</h2>
+      {open.length === 0 ? (
+        <p className="muted">No open to-dos.</p>
+      ) : (
+        <ul className="todo-list">
+          {open.map((t) => (
+            <ToDoRow key={t.id} todo={t} today={today} showProject onToggle={onToggle} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 interface PersonDraft {
   name: string;
@@ -134,6 +155,16 @@ export function PersonPage() {
   const [edited, setEdited] = useState<PersonDraft | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [todosVersion, setTodosVersion] = useState(0);
+  const todosLoaded = useAsync(
+    () => (isNew ? Promise.resolve([] as ToDoRecord[]) : api.listToDos({ assigneeId: id })),
+    [isNew, id, todosVersion],
+  );
+  const todos = todosLoaded.data ?? [];
+  async function toggleToDo(t: ToDoRecord) {
+    await api.updateToDo(t.id, toDoToInput(t, { done: !t.done }));
+    setTodosVersion((v) => v + 1);
+  }
 
   const existing = isNew ? undefined : people.data?.find((p) => p.id === id);
   const back = <Link to="/manage/resources" className="crumb"><ArrowLeftIcon />Resources</Link>;
@@ -281,9 +312,13 @@ export function PersonPage() {
 
       {existing && existing.side === 'tech' ? (
         <>
-          <PersonWork personId={existing.id} workload={workload} today={todayLocal()} />
+          <PersonWork personId={existing.id} workload={workload} today={todayLocal()} todos={todos} />
           <LeaveCard person={existing} onChanged={() => setVersion((v) => v + 1)} calendar={calendar.data ?? DEFAULT_CALENDAR} />
         </>
+      ) : null}
+
+      {existing ? (
+        <PersonToDos todos={todos} today={todayLocal()} onToggle={(t) => void toggleToDo(t)} />
       ) : null}
     </main>
   );

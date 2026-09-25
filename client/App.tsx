@@ -9,6 +9,7 @@ import { PersonPage } from './pages/manage/PersonPage';
 import { ProjectPage } from './pages/manage/ProjectPage';
 import { ResourcesPage } from './pages/manage/ResourcesPage';
 import { SettingsPage } from './pages/manage/SettingsPage';
+import { ToDosPage } from './pages/manage/ToDosPage';
 import { FocusPage } from './pages/present/FocusPage';
 import { PortfolioPage } from './pages/present/PortfolioPage';
 
@@ -18,6 +19,7 @@ export function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/manage" element={<ManageDashboardPage />} />
       <Route path="/manage/settings" element={<SettingsPage />} />
+      <Route path="/manage/todos" element={<ToDosPage />} />
       <Route path="/manage/resources" element={<ResourcesPage />} />
       <Route path="/manage/resources/new" element={<PersonPage />} />
       <Route path="/manage/resources/:id" element={<PersonPage />} />

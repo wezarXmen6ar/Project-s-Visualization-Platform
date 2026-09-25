@@ -568,6 +568,8 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 .sub-phase-people { margin-left: var(--sp-5); }
 .work-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--sp-3); }
 .work-list .muted { display: block; font-size: 0.875rem; }
+.work-todo-list { list-style: none; padding: 0; margin: var(--sp-1) 0 0; display: grid; gap: 0.15rem; }
+.work-todo-list li { font-size: 0.875rem; }
 .badge {
   display: inline-block;
   margin-left: var(--sp-2);

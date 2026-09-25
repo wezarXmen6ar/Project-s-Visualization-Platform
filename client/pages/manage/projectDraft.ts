@@ -1,6 +1,6 @@
 import type { ProjectDetailsInput, ScheduleUpdateInput, ValidationIssue } from '../../../shared/schemas';
 import { subPhaseSpan, type PhaseInput } from '../../../shared/scheduler';
-import { SCOPE_KINDS, type Category, type Priority, type ProjectRecord, type ScopeKind } from '../../../shared/types';
+import { SCOPE_KINDS, type Category, type Priority, type ProjectRecord, type ScopeKind, type ToDoRecord } from '../../../shared/types';
 import type { DraftItem } from '../../components/ItemTable';
 import type { DraftAssignment } from '../../overloads';
 
@@ -159,26 +159,33 @@ export function scheduleToInput(startDate: string, phases: PhaseDraft[]): Schedu
 }
 
 /**
- * Every saved phase and sub-phase whose id is no longer anywhere in `phases` and that has at least one assignment,
- * in plan order. A removed phase's sub-phases that were not moved elsewhere count as removed too.
+ * Every saved phase and sub-phase whose id is no longer anywhere in `phases` and that has people or open to-dos on
+ * it, in plan order. A removed phase's sub-phases that were not moved elsewhere count as removed too.
  */
-export function removedWithPeople(p: ProjectRecord, phases: PhaseDraft[]): { label: string; people: number }[] {
+export function removedItems(
+  p: ProjectRecord,
+  phases: PhaseDraft[],
+  todos: ToDoRecord[],
+): { label: string; people: number; openToDos: number }[] {
   const keptPhaseIds = new Set(phases.map((ph) => ph.id).filter((id): id is number => id !== undefined));
   const keptSubIds = new Set(
     phases.flatMap((ph) => ph.subPhases ?? []).map((s) => s.id).filter((id): id is number => id !== undefined),
   );
   const peopleOn = (id: number) => p.assignments.filter((a) => a.phaseId === id).length;
+  const openToDosOn = (id: number) => todos.filter((t) => !t.done && t.phase?.id === id).length;
 
-  const result: { label: string; people: number }[] = [];
+  const result: { label: string; people: number; openToDos: number }[] = [];
   for (const phase of p.phases) {
     if (!keptPhaseIds.has(phase.id)) {
       const people = peopleOn(phase.id);
-      if (people > 0) result.push({ label: phase.name, people });
+      const openToDos = openToDosOn(phase.id);
+      if (people > 0 || openToDos > 0) result.push({ label: phase.name, people, openToDos });
     }
     for (const sub of phase.subPhases) {
       if (!keptSubIds.has(sub.id)) {
         const people = peopleOn(sub.id);
-        if (people > 0) result.push({ label: `${phase.name} › ${sub.name}`, people });
+        const openToDos = openToDosOn(sub.id);
+        if (people > 0 || openToDos > 0) result.push({ label: `${phase.name} › ${sub.name}`, people, openToDos });
       }
     }
   }
