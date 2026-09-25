@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
-import { addDays, DEFAULT_CALENDAR, isWorkingDay, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
+import { addDays, countWorkingDays, DEFAULT_CALENDAR, isWorkingDay, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
 import { formatBarDates } from './barDates';
 import { createTimeScale, thinLabels, workWeekEnds } from './scale';
 
@@ -361,11 +361,23 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                   takenLabels.push(dateLabel.anchor === 'start' ? [dateLabel.x, dateLabel.x + labelW] : [dateLabel.x - labelW, dateLabel.x]);
                 }
                 const segmentBoxes = segments
-                  ? segments.flatMap((seg) => {
-                      const b = segmentBox(seg, range, scale);
-                      return b ? [{ seg, ...b }] : [];
-                    })
+                  ? segments
+                      .flatMap((seg) => {
+                        const b = segmentBox(seg, range, scale);
+                        return b ? [{ seg, ...b }] : [];
+                      })
+                      .sort((a, b) => a.x - b.x)
                   : [];
+                // When only non-working days (usually a weekend) separate two pieces, stretch the first to meet the
+                // next, so they share one divider instead of leaving a thin sliver of bar between two dividers.
+                for (let i = 0; i + 1 < segmentBoxes.length; i++) {
+                  const current = segmentBoxes[i];
+                  const next = segmentBoxes[i + 1];
+                  const between = addDays(next.seg.start, -1);
+                  const onlyNonWorking =
+                    current.seg.end < between && countWorkingDays(addDays(current.seg.end, 1), between, cal) === 0;
+                  if (onlyNonWorking) current.w = next.x - current.x;
+                }
                 // The parts of the bar no lane-0 segment covers, shown in a lighter shade — but only where the gap
                 // has a working day, so a gap made up entirely of weekend (e.g. Fri to Mon) stays a plain bar.
                 const gapBoxes = segments

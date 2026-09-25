@@ -261,6 +261,14 @@ describe('Gantt', () => {
       expect(screen.queryAllByTestId(/^gantt-gap-/)).toHaveLength(0);
     });
 
+    it('makes segments separated only by a weekend meet at a single divider', () => {
+      const { container } = render(<Gantt rows={gapRow('2026-10-19')} range={octoberRange} width={1200} />);
+      const s1 = screen.getByTestId('gantt-segment-s1');
+      const s2 = screen.getByTestId('gantt-segment-s2');
+      expect(Number(s1.getAttribute('x')) + Number(s1.getAttribute('width'))).toBeCloseTo(Number(s2.getAttribute('x')));
+      expect(container.querySelectorAll('.gantt-divider')).toHaveLength(1);
+    });
+
     it('draws a lighter gap element when the gap between segments contains a working day', () => {
       render(<Gantt rows={gapRow('2026-10-21')} range={octoberRange} width={1200} />); // gap: Sat 17 – Tue 20 Oct
       expect(screen.queryAllByTestId(/^gantt-gap-/)).toHaveLength(1);
