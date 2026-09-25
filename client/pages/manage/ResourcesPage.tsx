@@ -8,12 +8,12 @@ import { AlertIcon, ArrowLeftIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
 import { useLang, useT } from '../../i18n/LanguageProvider';
-import { listName, phaseName } from '../../i18n/listNames';
+import { listName, phaseName, roleName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
 import { SIDE_KEY, SPECIALISATION_KEY } from './labels';
 import { OverloadPanel } from './OverloadPanel';
-import { roleName, sortPeople, workingOn, type SortDir, type SortKey } from './peopleTable';
+import { sortPeople, workingOn, type SortDir, type SortKey } from './peopleTable';
 import { DayHeatmap } from './DayHeatmap';
 import { WorkloadHeatmap } from './WorkloadHeatmap';
 

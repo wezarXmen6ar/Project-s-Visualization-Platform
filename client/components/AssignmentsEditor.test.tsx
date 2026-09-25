@@ -3,13 +3,14 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import type { ResourceRecord } from '../../shared/types';
+import type { ListValue, ResourceRecord } from '../../shared/types';
+import { LanguageProvider } from '../i18n/LanguageProvider';
 import type { DraftAssignment } from '../overloads';
-import { samplePeople } from '../testing/mockFetch';
+import { sampleLists, samplePeople } from '../testing/mockFetch';
 import { AssignmentsEditor } from './AssignmentsEditor';
 
-function Harness({ spy, warnings = new Map(), people = samplePeople() }: {
-  spy?: (v: DraftAssignment[]) => void; warnings?: Map<number, string[]>; people?: ResourceRecord[];
+function Harness({ spy, warnings = new Map(), people = samplePeople(), roles = [] }: {
+  spy?: (v: DraftAssignment[]) => void; warnings?: Map<number, string[]>; people?: ResourceRecord[]; roles?: ListValue[];
 }) {
   const [value, setValue] = useState<DraftAssignment[]>([]);
   return (
@@ -17,6 +18,7 @@ function Harness({ spy, warnings = new Map(), people = samplePeople() }: {
       phaseName="Development"
       dates="5 Oct – 16 Oct"
       people={people}
+      roles={roles}
       value={value}
       onChange={(v) => {
         spy?.(v);
@@ -75,5 +77,17 @@ describe('AssignmentsEditor', () => {
     expect(screen.queryByText('Week of 5 Oct: 150% booked, 100% available')).toBeNull();
     await user.selectOptions(screen.getByLabelText('Development person 1'), 'Fatima Noor · Developer');
     expect(screen.getByText('Week of 5 Oct: 150% booked, 100% available')).toBeInTheDocument();
+  });
+
+  it("shows a person's role in Arabic, from the Roles list", async () => {
+    const user = userEvent.setup();
+    render(
+      <LanguageProvider lang="ar">
+        <Harness roles={sampleLists().role} />
+      </LanguageProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'إضافة شخص إلى Development' }));
+    const options = within(screen.getByLabelText('الشخص 1 في Development')).getAllByRole('option').map((o) => o.textContent);
+    expect(options).toContain('Fatima Noor · مطوّر');
   });
 });

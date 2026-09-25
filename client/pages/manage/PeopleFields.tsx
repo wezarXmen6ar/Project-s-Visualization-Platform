@@ -1,6 +1,6 @@
 import { DEFAULT_CALENDAR, isISODate } from '../../../shared/calendar';
 import { schedulePhases, type ScheduledPhase } from '../../../shared/scheduler';
-import type { ResourceRecord, WorkloadData } from '../../../shared/types';
+import type { ListValue, ResourceRecord, WorkloadData } from '../../../shared/types';
 import { AssignmentsEditor } from '../../components/AssignmentsEditor';
 import { dayDate, overloadsWith, phaseWarnings, plannedFrom } from '../../overloads';
 import { useLang, useT } from '../../i18n/LanguageProvider';
@@ -16,11 +16,13 @@ interface PeopleFieldsProps {
   workload: WorkloadData | undefined;
   /** Maps a phase's stored name to its display name (e.g. its Arabic name). Sub-phase names never change. */
   nameFor?: PhaseNameFor;
+  /** The Roles list, for each person's role name in Arabic. */
+  roles?: ListValue[];
 }
 
 /** Wizard Step 4: who works on each phase, with overbooking flagged against everything already booked. */
 export function PeopleFields({
-  projectName, startDate, phases, onPhases, people, workload, nameFor = (name) => name,
+  projectName, startDate, phases, onPhases, people, workload, nameFor = (name) => name, roles = [],
 }: PeopleFieldsProps) {
   const t = useT();
   const { lang } = useLang();
@@ -49,6 +51,7 @@ export function PeopleFields({
             phaseName={nameFor(s.name)}
             dates={`${dayDate(s.start, lang)} – ${dayDate(s.end, lang)}`}
             people={people}
+            roles={roles}
             value={phases[i].assignments ?? []}
             onChange={(value) => onPhases(phases.map((p, j) => (j === i ? { ...p, assignments: value } : p)))}
             warnings={phaseWarnings(overloads, s, cal, lang)}
@@ -59,6 +62,7 @@ export function PeopleFields({
                 phaseName={subPhaseLabel(nameFor(s.name), sub.name)}
                 dates={`${dayDate(sub.start, lang)} – ${dayDate(sub.end, lang)}`}
                 people={people}
+                roles={roles}
                 value={phases[i].subPhases?.[j]?.assignments ?? []}
                 onChange={(value) =>
                   onPhases(

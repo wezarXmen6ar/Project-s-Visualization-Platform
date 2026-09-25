@@ -1,7 +1,7 @@
 import { translate } from '../../../shared/i18n/translate';
 import type { Lang } from '../../../shared/i18n/types';
-import type { ListValue, Ref, ResourceRecord } from '../../../shared/types';
-import { listName } from '../../i18n/listNames';
+import type { ListValue, ResourceRecord } from '../../../shared/types';
+import { roleName } from '../../i18n/listNames';
 import { SIDE_KEY, SPECIALISATION_KEY } from './labels';
 
 export type SortKey = 'name' | 'side' | 'role' | 'capacity' | 'contact' | 'status' | 'projects';
@@ -23,14 +23,6 @@ function compare(a: Key, b: Key, dir: SortDir): number {
   if (b === null) return -1;
   const base = typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
   return dir === 'asc' ? base : -base;
-}
-
-/**
- * A person's role name in `lang`. People carry their role as a plain Ref, so its Arabic name comes from the Roles
- * list (`roles`) when it is there.
- */
-export function roleName(role: Ref, roles: ListValue[], lang: Lang): string {
-  return listName(roles.find((r) => r.id === role.id) ?? role, lang);
 }
 
 /** The Role column's text: the role name, plus the specialisation shown after it; null when no role is set. */

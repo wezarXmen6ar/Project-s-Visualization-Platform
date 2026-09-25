@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import type { ProjectRecord, ResourceRecord, WorkloadData } from '../../../shared/types';
+import type { ListValue, ProjectRecord, ResourceRecord, WorkloadData } from '../../../shared/types';
 import { AssignmentsEditor } from '../../components/AssignmentsEditor';
 import { AlertIcon } from '../../icons';
 import { api } from '../../api';
@@ -18,6 +18,7 @@ interface PhasePeopleBlockProps {
   end: string;
   project: ProjectRecord;
   people: ResourceRecord[];
+  roles: ListValue[];
   workload: WorkloadData | undefined;
   editing: number | null;
   draft: DraftAssignment[];
@@ -31,7 +32,7 @@ interface PhasePeopleBlockProps {
 
 /** The people on one phase or sub-phase, editable on its own, with overbooking flagged before saving. */
 function PhasePeopleBlock({
-  id, label, start, end, project, people, workload, editing, draft, errors, saving, onStartEdit, onSave, onCancel, onChangeDraft,
+  id, label, start, end, project, people, roles, workload, editing, draft, errors, saving, onStartEdit, onSave, onCancel, onChangeDraft,
 }: PhasePeopleBlockProps) {
   const t = useT();
   const { lang } = useLang();
@@ -55,6 +56,7 @@ function PhasePeopleBlock({
           phaseName={label}
           dates={dates}
           people={people}
+          roles={roles}
           value={draft}
           onChange={onChangeDraft}
           warnings={warnings}
@@ -164,6 +166,7 @@ export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeo
             end={phase.end}
             project={project}
             people={people}
+            roles={lists.role}
             workload={workload}
             editing={editing}
             draft={draft}
@@ -183,6 +186,7 @@ export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeo
               end={sub.end}
               project={project}
               people={people}
+              roles={lists.role}
               workload={workload}
               editing={editing}
               draft={draft}

@@ -112,7 +112,7 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
 
     await user.click(await screen.findByRole('button', { name: 'أسابيع' }));
     expect(
-      screen.getByRole('button', {
+      await screen.findByRole('button', {
         name: 'Rami Saleh، الاثنين 19 أكتوبر – الجمعة 23 أكتوبر: محجوز 0% من أصل 48% متاح، غير محجوز، في إجازة الاثنين 19 أكتوبر – الثلاثاء 20 أكتوبر',
       }),
     ).toBeInTheDocument();

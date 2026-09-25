@@ -47,19 +47,15 @@ export function beneficiaryLabel(b: { employees: boolean; customers: boolean }, 
   return '—';
 }
 
-/** Catalogue keys for each side; `SIDE_LABEL` is their English text. */
+/** Catalogue keys for each side; their English text is available via `translate('en', ...)`. */
 export const SIDE_KEY: Record<Side, MessageKey> = { tech: 'person.sideTech', business: 'person.sideBusiness' };
 
-export const SIDE_LABEL: Record<Side, string> = english(SIDE_KEY);
-
-/** Catalogue keys for each specialisation; `SPECIALISATION_LABEL` is their English text. */
+/** Catalogue keys for each specialisation; their English text is available via `translate('en', ...)`. */
 export const SPECIALISATION_KEY: Record<Specialisation, MessageKey> = {
   'front-end': 'person.specFrontEnd',
   'back-end': 'person.specBackEnd',
   'full-stack': 'person.specFullStack',
 };
-
-export const SPECIALISATION_LABEL: Record<Specialisation, string> = english(SPECIALISATION_KEY);
 
 /** "Mon 12 Oct 2026". English; the language-aware form is `formatDate` in `i18n/format`. */
 export function formatDate(d: ISODate): string {

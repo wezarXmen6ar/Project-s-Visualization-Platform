@@ -1,5 +1,5 @@
 import type { Lang } from '../../shared/i18n/types';
-import type { Lists } from '../../shared/types';
+import type { ListValue, Lists, Ref } from '../../shared/types';
 
 /** Anything with an English name and an optional Arabic one: a ListValue, or a Ref to one. */
 export interface Named {
@@ -28,4 +28,12 @@ export function phaseNameFrom(name: string, phases: Named[], lang: Lang): string
   if (lang !== 'ar') return name;
   const match = phases.find((p) => p.name.localeCompare(name, undefined, { sensitivity: 'base' }) === 0);
   return match ? listName(match, lang) : name;
+}
+
+/**
+ * A person's role name in `lang`. People carry their role as a plain Ref, so its Arabic name comes from the Roles
+ * list (`roles`) when it is there.
+ */
+export function roleName(role: Ref, roles: ListValue[], lang: Lang): string {
+  return listName(roles.find((r) => r.id === role.id) ?? role, lang);
 }

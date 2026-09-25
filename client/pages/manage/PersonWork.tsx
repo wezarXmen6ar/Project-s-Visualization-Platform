@@ -47,7 +47,7 @@ export function PersonWork({ personId, workload, today, todos = [], nameFor }: P
                       const label = dueLabel(x, today, lang);
                       return (
                         <li key={x.id} className="muted">
-                          ☐ {x.title}
+                          ☐ <span dir="auto" data-user-content="">{x.title}</span>
                           {label ? ` · ${label}` : ''}
                         </li>
                       );

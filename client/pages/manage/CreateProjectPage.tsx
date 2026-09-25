@@ -157,6 +157,7 @@ export function CreateProjectPage() {
             people={people}
             workload={workload}
             nameFor={(name) => phaseName(name, lists, lang)}
+            roles={lists.role}
           />
         ) : null}
 

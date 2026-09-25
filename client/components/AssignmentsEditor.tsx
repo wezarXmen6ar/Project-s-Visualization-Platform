@@ -1,7 +1,7 @@
-import type { AssignmentRole, ResourceRecord } from '../../shared/types';
+import type { AssignmentRole, ListValue, ResourceRecord } from '../../shared/types';
 import { PlusIcon, TrashIcon } from '../icons';
 import { useLang, useT } from '../i18n/LanguageProvider';
-import { listName } from '../i18n/listNames';
+import { roleName } from '../i18n/listNames';
 import type { DraftAssignment } from '../overloads';
 
 interface AssignmentsEditorProps {
@@ -14,15 +14,17 @@ interface AssignmentsEditorProps {
   onChange: (value: DraftAssignment[]) => void;
   /** Overbooking warning lines per person, for this phase. */
   warnings: Map<number, string[]>;
+  /** The Roles list, for each person's role name in Arabic. */
+  roles?: ListValue[];
 }
 
 /** The people on one phase: who, how much of their week, and whether they are responsible or contributing. */
-export function AssignmentsEditor({ phaseName, dates, people, value, onChange, warnings }: AssignmentsEditorProps) {
+export function AssignmentsEditor({ phaseName, dates, people, value, onChange, warnings, roles = [] }: AssignmentsEditorProps) {
   const t = useT();
   const { lang } = useLang();
   /** "Fatima Noor · Developer", with "(inactive)" after someone no longer active. */
   const personLabel = (p: ResourceRecord) => {
-    const who = p.role ? `${p.name} · ${listName(p.role, lang)}` : p.name;
+    const who = p.role ? `${p.name} · ${roleName(p.role, roles, lang)}` : p.name;
     return p.active ? who : t('common.inactive', { name: who });
   };
   const update = (index: number, patch: Partial<DraftAssignment>) =>

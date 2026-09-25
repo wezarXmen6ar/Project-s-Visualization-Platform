@@ -123,7 +123,7 @@ function LeaveCard({ person, onChanged, calendar }: { person: ResourceRecord; on
             <li key={l.id} className="list-editor-row">
               <span className="list-editor-name">
                 {t('person.leaveRange', { start: formatDate(lang, l.start), end: formatDate(lang, l.end) })}
-                {l.note ? ` · ${l.note}` : ''} ·{' '}
+                {l.note ? <> · <span dir="auto" data-user-content="">{l.note}</span></> : ''} ·{' '}
                 {t('person.workingDays', { count: countWorkingDays(l.start, l.end, calendar) })}
               </span>
               <button
