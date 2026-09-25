@@ -315,7 +315,8 @@ The user sends layout comments as they notice them. They are kept here, and M10 
 ## 8. Language: Arabic first (user decision, 2026-09-26; built in M6)
 - **The app opens in Arabic.** A language switch in the header changes it to English, and the choice is remembered on that device. Both the management and the presentation sides are bilingual.
 - **The Arabic must be good, natural Arabic,** written the way a UAE government or business product would say it, not a word-for-word translation of the English. Sentences are rewritten so they read naturally in Arabic, and the tone is short, clear and professional.
-- **A glossary comes first.** The key terms (project, main project, phase, sub-phase, to-do, workload, overbooked, leave, business project manager, change request, baseline, hold, and so on) are agreed with the user before the screens are translated, and are used the same way everywhere. The glossary lives in the docs and grows with each milestone.
+- **As little English as possible (user, 2026-09-26).** A term stays in English only when the team really says it in English at work, where the Arabic would sound unnatural. "Change Request" is the user's example. Known acronyms may follow the Arabic in brackets, e.g. "ضمان الجودة (QA)". Everything else is Arabic.
+- **A glossary comes first.** The key terms (project, main project, phase, sub-phase, to-do, workload, overbooked, leave, business project manager, change request, baseline, hold, and so on) are agreed with the user before the screens are translated, and are used the same way everywhere. The glossary lives in `docs/superpowers/glossary-ar.md` and grows with each milestone.
 - **Right-to-left.** In Arabic the whole interface mirrors: navigation, tables, forms, cards, icons with a direction (arrows, "back"), and **Gantt charts, whose time runs from right to left** (earliest dates on the right, phase names on the right). The English version is unchanged.
 - **Numbers and dates:**
   - Western digits (0–9) are used in both languages.
@@ -324,9 +325,7 @@ The user sends layout comments as they notice them. They are kept here, and M10 
 - **What gets translated:** everything the app itself says: labels, buttons, headings, hints, empty states, confirmations, errors (including server validation messages), the default list values it ships with (phases, roles, project types, goals), demo wording where practical, and generated text such as "Was on … (removed …)".
 - **What doesn't get translated:** anything people type in, such as project names, scope items, to-do titles and notes. It is shown as written, and text direction is detected per field, so English text inside the Arabic interface still reads correctly.
 - **Font:** a font that renders Arabic well, with the same weight and size scale in both languages.
-- **Open questions for the M6 plan:**
-  - whether the built-in list values (the default phases and roles) keep one name each, or get an Arabic and an English name;
-  - how the presentation side's language is chosen when presenting to stakeholders.
+- **List values have an optional Arabic name** (M6 plan). The values the app ships with come with Arabic. Phase names on projects are shown in Arabic when they match a list value. **The presentation side uses the same device language switch.**
 
 ## 6. Out of scope (for now)
 - Money or cost figures (these could be added later from rates per role).
