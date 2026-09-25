@@ -1,8 +1,10 @@
 import { Link } from 'react-router';
 import { todayLocal, type ISODate } from '../../../shared/calendar';
 import { weekStartOf, type DayLoad, type PersonDays } from '../../../shared/capacity';
+import type { Lang } from '../../../shared/i18n/types';
 import type { OverloadDecision } from '../../../shared/types';
-import { dayDate, dayRangeLabel } from '../../overloads';
+import { useLang } from '../../i18n/LanguageProvider';
+import { dayDate, dayRange, weekdayLetter } from '../../i18n/format';
 import { dayLevel, isAccepted, LEVEL_TEXT, type HeatLevel } from './heatmap';
 
 interface DayHeatmapProps {
@@ -31,8 +33,8 @@ function dayText(day: DayLoad): string {
   return day.onLeave ? 'Leave' : '';
 }
 
-function dayAria(name: string, day: DayLoad, level: HeatLevel): string {
-  const when = `${name}, ${dayDate(day.date)}`;
+function dayAria(lang: Lang, name: string, day: DayLoad, level: HeatLevel): string {
+  const when = `${name}, ${dayDate(lang, day.date)}`;
   if (day.onLeave && day.load === 0) return `${when}: on leave`;
   const leave = day.onLeave ? ', on leave' : '';
   return `${when}: ${Math.round(day.load)}% booked of ${Math.round(day.available)}% available, ${LEVEL_TEXT[level]}${leave}`;
@@ -40,6 +42,7 @@ function dayAria(name: string, day: DayLoad, level: HeatLevel): string {
 
 /** People by working days, grouped into weeks: one block per day, so leave covers exactly the days it falls on. */
 export function DayHeatmap({ people, decisions, selected, onSelect }: DayHeatmapProps) {
+  const { lang } = useLang();
   if (people.length === 0) return <p className="muted">No active tech-team people yet.</p>;
   const groups = weekGroups(people[0].days);
   const today = todayLocal();
@@ -53,15 +56,15 @@ export function DayHeatmap({ people, decisions, selected, onSelect }: DayHeatmap
             <th scope="col" rowSpan={2} className="heatmap-person">Person</th>
             {groups.map((g) => (
               <th key={g.weekStart} scope="colgroup" colSpan={g.dates.length} className="week-group">
-                {dayRangeLabel(g.dates[0], g.dates[g.dates.length - 1])}
+                {dayRange(lang, g.dates[0], g.dates[g.dates.length - 1])}
               </th>
             ))}
           </tr>
           <tr>
             {groups.flatMap((g) =>
               g.dates.map((date) => (
-                <th key={date} scope="col" aria-label={dayDate(date)} className={`day-head${todayClass(date)}`}>
-                  <span className="day-letter">{dayDate(date)[0]}</span>
+                <th key={date} scope="col" aria-label={dayDate(lang, date)} className={`day-head${todayClass(date)}`}>
+                  <span className="day-letter">{weekdayLetter(lang, date)}</span>
                   <span className="day-number">{Number(date.slice(8, 10))}</span>
                 </th>
               )),
@@ -87,7 +90,7 @@ export function DayHeatmap({ people, decisions, selected, onSelect }: DayHeatmap
                       type="button"
                       className={classes}
                       aria-pressed={isSelected}
-                      aria-label={dayAria(person.name, day, level)}
+                      aria-label={dayAria(lang, person.name, day, level)}
                       onClick={() => onSelect(person.resourceId, weekStart)}
                     >
                       {dayText(day)}

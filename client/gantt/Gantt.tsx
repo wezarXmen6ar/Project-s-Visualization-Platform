@@ -1,5 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import { addDays, countWorkingDays, DEFAULT_CALENDAR, isWorkingDay, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
+import type { Lang } from '../../shared/i18n/types';
+import { useLang } from '../i18n/LanguageProvider';
 import { formatBarDates } from './barDates';
 import { createTimeScale, thinLabels, workWeekEnds } from './scale';
 
@@ -57,6 +59,11 @@ export interface GanttProps {
    * row but not other date labels, so this is meant for a chart with one bar per row.
    */
   showDates?: boolean;
+  /**
+   * 'rtl' puts the name column on the right and runs time from right to left. Defaults to the language's direction
+   * (`useLang().dir`).
+   */
+  dir?: 'ltr' | 'rtl';
 }
 
 const LABEL_W = 200;
@@ -87,14 +94,18 @@ interface BarPlacement {
   barH: number;
 }
 
-/** Where a bar's dates label fits without covering another bar in the row, or null when it fits nowhere. */
+/**
+ * Where a bar's dates label fits without covering another bar in the row, or null when it fits nowhere. Works in
+ * logical (left-to-right) coordinates: "after" is past the bar's end, which a right-to-left chart draws on its left.
+ */
 function placeDateLabel(
   placement: BarPlacement,
   others: BarPlacement[],
   chartRightEdge: number,
   takenLabels: [number, number][] = [],
+  lang: Lang = 'en',
 ): { x: number; anchor: 'start' | 'end' } | null {
-  const label = formatBarDates(placement.bar.start, placement.bar.end);
+  const label = formatBarDates(placement.bar.start, placement.bar.end, lang);
   const approxWidth = label.length * APPROX_CHAR_W;
 
   const overlapsOther = (labelStart: number, labelEnd: number) =>
@@ -171,7 +182,9 @@ function workingDayGaps(bar: GanttBar, segments: GanttSegment[], cal: WorkCalend
   return spans.filter((g) => hasWorkingDay(g.start, g.end, cal));
 }
 
-export function Gantt({ rows, range, width, today, onRowClick, calendar, detail = 'months', showDates = false }: GanttProps) {
+export function Gantt({ rows, range, width, today, onRowClick, calendar, detail = 'months', showDates = false, dir }: GanttProps) {
+  const { lang, dir: langDir } = useLang();
+  const rtl = (dir ?? langDir) === 'rtl';
   const cal = calendar ?? DEFAULT_CALENDAR;
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -188,7 +201,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
   });
 
   const chartW = Math.max(width - LABEL_W, 100);
-  const scale = createTimeScale(range.start, range.end, chartW);
+  const scale = createTimeScale(range.start, range.end, chartW, lang);
   const headerRows = detail === 'weeks' ? 3 : 2;
   const HEADER_H = headerRows * HEADER_ROW_H;
   const rowHeights = rows.map((row) => (row.kind === 'lane' ? LANE_H : ROW_H));
@@ -201,6 +214,16 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
   const height = HEADER_H + bodyH;
   const totalW = LABEL_W + chartW;
   const weekEnds = detail === 'weeks' ? workWeekEnds(range, cal) : [];
+
+  // Every x below is worked out in logical, left-to-right coordinates: the name column at [0, LABEL_W] and the
+  // chart after it. A right-to-left chart is the exact mirror image, so each position is mapped once, when drawn:
+  // a box {x, w} becomes {totalW - x - w, w} and a point x becomes totalW - x. Text keeps its anchor, because the
+  // svg's `direction="rtl"` makes "start" the text's right edge, so a label still runs away from its anchor point
+  // into the same (mirrored) space.
+  const X = (x: number, w = 0) => (rtl ? totalW - x - w : x);
+  // The header is drawn in the chart area's own coordinates (translated past the name column in LTR).
+  const headerX = (x: number) => (rtl ? chartW - x : x);
+  const box = (b: PieceBox): PieceBox => ({ ...b, x: X(b.x, b.w) });
 
   const showYear = thinLabels(scale.years.map((y) => y.x), MIN_MONTH_LABEL_GAP);
   const showMonth = thinLabels(scale.ticks.map((t) => t.x), MIN_MONTH_LABEL_GAP);
@@ -240,14 +263,16 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
     card.style.top = `${Math.round(top)}px`;
   }, [active, height, totalW]);
 
-  function pieceProps(key: string, pieceDetail: GanttDetail | undefined, box: PieceBox) {
+  /** `logicalBox` is in logical coordinates; the card is placed from where the piece is actually drawn. */
+  function pieceProps(key: string, pieceDetail: GanttDetail | undefined, logicalBox: PieceBox) {
     if (!pieceDetail) return {};
+    const drawn = box(logicalBox);
     const make = (x: number, pinned: boolean): ActiveDetail => ({
-      key, detail: pieceDetail, x, top: box.top, bottom: box.bottom, pinned,
+      key, detail: pieceDetail, x, top: drawn.top, bottom: drawn.bottom, pinned,
     });
     const pointerX = (e: MouseEvent) => {
       const rect = wrapRef.current?.getBoundingClientRect();
-      return rect && e.clientX ? e.clientX - rect.left : box.x + box.w / 2;
+      return rect && e.clientX ? e.clientX - rect.left : drawn.x + drawn.w / 2;
     };
     const props: Record<string, unknown> = {
       tabIndex: 0,
@@ -257,7 +282,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
         setActive((a) => (a?.key === key ? a : make(x, false)));
       },
       onMouseLeave: () => setActive((a) => (a?.key === key && !a.pinned ? null : a)),
-      onFocus: () => setActive((a) => (a?.key === key ? a : make(box.x + box.w / 2, false))),
+      onFocus: () => setActive((a) => (a?.key === key ? a : make(drawn.x + drawn.w / 2, false))),
       onBlur: () => setActive((a) => (a?.key === key ? null : a)),
     };
     // On a device that can hover, hover already shows the card, so a click would only "pin" it with no visible
@@ -273,15 +298,15 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
 
   return (
     <div className="gantt-wrap" ref={wrapRef} style={{ width: totalW }}>
-      <svg width={totalW} height={height} role="img" aria-label="Gantt chart" className="gantt">
-        <g transform={`translate(${LABEL_W},0)`}>
+      <svg width={totalW} height={height} role="img" aria-label="Gantt chart" className="gantt" direction={rtl ? 'rtl' : 'ltr'}>
+        <g transform={`translate(${rtl ? 0 : LABEL_W},0)`}>
           {scale.years.map((y, i) => (showYear[i] ? (
-            <text key={y.year} x={y.x + 4} y={12} className="gantt-year">{y.year}</text>
+            <text key={y.year} x={headerX(y.x + 4)} y={12} className="gantt-year">{y.year}</text>
           ) : null))}
           {scale.ticks.map((t, i) => (
             <g key={t.date}>
-              <line x1={t.x} x2={t.x} y1={0} y2={height} className="gantt-grid" />
-              {showMonth[i] ? <text x={t.x + 4} y={28} className="gantt-tick">{t.label}</text> : null}
+              <line x1={headerX(t.x)} x2={headerX(t.x)} y1={0} y2={height} className="gantt-grid" />
+              {showMonth[i] ? <text x={headerX(t.x + 4)} y={28} className="gantt-tick">{t.label}</text> : null}
             </g>
           ))}
           {weekEnds.map((d, i) => {
@@ -292,10 +317,10 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
             return (
               <g key={d}>
                 {showLine ? (
-                  <line x1={endOfDayX} x2={endOfDayX} y1={HEADER_H} y2={height} className="gantt-grid-week" />
+                  <line x1={headerX(endOfDayX)} x2={headerX(endOfDayX)} y1={HEADER_H} y2={height} className="gantt-grid-week" />
                 ) : null}
                 {showLabel ? (
-                  <text x={scale.x(d) + scale.dayWidth / 2} y={44} textAnchor="middle" className="gantt-week-tick">{dayNum}</text>
+                  <text x={headerX(scale.x(d) + scale.dayWidth / 2)} y={44} textAnchor="middle" className="gantt-week-tick">{dayNum}</text>
                 ) : null}
               </g>
             );
@@ -340,7 +365,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                 const labelDetail = labelBar?.detail;
                 return (
                   <text
-                    x={row.kind === 'child' ? 22 : 8}
+                    x={X(row.kind === 'child' ? 22 : 8)}
                     y={textY}
                     className={['gantt-label', labelDetail ? 'gantt-piece' : ''].filter(Boolean).join(' ')}
                     {...pieceProps(`label-${row.id}`, labelDetail, { x: 0, w: LABEL_W, top: y, bottom: y + rowH })}
@@ -354,8 +379,8 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                 const { bar, x, w } = placement;
                 const segments = !isGroup && bar.segments && bar.segments.length > 0 ? bar.segments : null;
                 const showLabel = !isGroup && !segments && bar.label !== undefined && bar.label.length * APPROX_CHAR_W + 12 < w;
-                const dateText = formatBarDates(bar.start, bar.end);
-                const dateLabel = !isGroup && showDates ? placeDateLabel(placement, placements, totalW, takenLabels) : null;
+                const dateText = formatBarDates(bar.start, bar.end, lang);
+                const dateLabel = !isGroup && showDates ? placeDateLabel(placement, placements, totalW, takenLabels, lang) : null;
                 if (dateLabel) {
                   const labelW = dateText.length * APPROX_CHAR_W;
                   takenLabels.push(dateLabel.anchor === 'start' ? [dateLabel.x, dateLabel.x + labelW] : [dateLabel.x - labelW, dateLabel.x]);
@@ -397,11 +422,11 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                   <g key={bar.id} data-testid={`gantt-bar-${bar.id}`}>
                     {segments ? (
                       <clipPath id={clipId}>
-                        <rect x={x} y={barY} width={w} height={barH} rx={4} />
+                        <rect x={X(x, w)} y={barY} width={w} height={barH} rx={4} />
                       </clipPath>
                     ) : null}
                     <rect
-                      x={x}
+                      x={X(x, w)}
                       y={barY}
                       width={w}
                       height={barH}
@@ -420,7 +445,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                       <rect
                         key={`gap-${gi}`}
                         data-testid={`gantt-gap-${bar.id}-${gi}`}
-                        x={g.x}
+                        x={X(g.x, g.w)}
                         y={barY}
                         width={g.w}
                         height={barH}
@@ -433,7 +458,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                       <rect
                         key={seg.id}
                         data-testid={`gantt-segment-${seg.id}`}
-                        x={sx}
+                        x={X(sx, sw)}
                         y={barY}
                         width={sw}
                         height={barH}
@@ -446,20 +471,20 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                       </rect>
                     ))}
                     {[...dividers].map((dx) => (
-                      <line key={dx} x1={dx} x2={dx} y1={barY} y2={barY + barH} strokeWidth={DIVIDER_W} className="gantt-divider" />
+                      <line key={dx} x1={X(dx)} x2={X(dx)} y1={barY} y2={barY + barH} strokeWidth={DIVIDER_W} className="gantt-divider" />
                     ))}
                     {segmentBoxes.map(({ seg, x: sx, w: sw }) => {
                       const maxChars = Math.floor((sw - 12) / APPROX_CHAR_W);
                       if (maxChars < MIN_TRUNCATED_LABEL_CHARS) return null;
                       return (
-                        <text key={seg.id} x={sx + 6} y={textY} className="gantt-bar-label">{truncate(seg.label, maxChars)}</text>
+                        <text key={seg.id} x={X(sx + 6)} y={textY} className="gantt-bar-label">{truncate(seg.label, maxChars)}</text>
                       );
                     })}
                     {showLabel ? (
-                      <text x={x + 6} y={textY} className="gantt-bar-label">{bar.label}</text>
+                      <text x={X(x + 6)} y={textY} className="gantt-bar-label">{bar.label}</text>
                     ) : null}
                     {dateLabel ? (
-                      <text x={dateLabel.x} y={textY} textAnchor={dateLabel.anchor} className="gantt-bar-dates">
+                      <text x={X(dateLabel.x)} y={textY} textAnchor={dateLabel.anchor} className="gantt-bar-dates">
                         {dateText}
                       </text>
                     ) : null}
@@ -473,8 +498,8 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
         {today && today >= range.start && today <= range.end ? (
           <line
             data-testid="gantt-today"
-            x1={LABEL_W + scale.x(today)}
-            x2={LABEL_W + scale.x(today)}
+            x1={X(LABEL_W + scale.x(today))}
+            x2={X(LABEL_W + scale.x(today))}
             y1={HEADER_H - 4}
             y2={height}
             className="gantt-today"

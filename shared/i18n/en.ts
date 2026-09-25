@@ -33,6 +33,9 @@ export const en = {
   'notFound.body': 'This page does not exist yet.',
   'notFound.back': 'Back to start',
 
+  // A column heading in the weekly workload heatmap, e.g. "Week 42".
+  'heatmap.week': 'Week {number}',
+
   // Zod schema messages (shared/schemas.ts). The string passed to zod is the key itself, so `toIssues` can turn it
   // back into English text and a `code`, byte-identical to what these fields used to hard-code.
   'validation.invalid': 'Invalid value',

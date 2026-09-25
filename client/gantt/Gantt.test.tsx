@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CALENDAR } from '../../shared/calendar';
+import { LanguageProvider } from '../i18n/LanguageProvider';
 import { Gantt, type GanttRow } from './Gantt';
 import { workWeekEnds } from './scale';
 
@@ -314,3 +316,78 @@ describe('Gantt', () => {
   });
 });
 
+
+describe('Gantt in Arabic (right to left)', () => {
+  const twoPhases: GanttRow[] = [
+    { id: 'a', label: 'Requirements', bars: [{ id: 'a1', start: '2026-01-01', end: '2026-01-05', color: '#3b82f6' }] },
+    { id: 'c', label: 'Build', bars: [{ id: 'c1', start: '2026-01-06', end: '2026-01-10', color: '#16a34a' }] },
+  ];
+  const renderAr = (ui: ReactElement) => render(<LanguageProvider lang="ar">{ui}</LanguageProvider>);
+  const barRect = (id: string) => screen.getByTestId(`gantt-bar-${id}`).querySelector('rect')!;
+
+  it('runs time from right to left: an earlier phase sits further right', () => {
+    renderAr(<Gantt rows={twoPhases} range={range} width={300} />);
+    // chartW = 100, 10px a day. Jan 1–5 is the right half of the chart, Jan 6–10 the left half.
+    expect(barRect('a1').getAttribute('x')).toBe('50');
+    expect(barRect('a1').getAttribute('width')).toBe('50');
+    expect(barRect('c1').getAttribute('x')).toBe('0');
+    expect(Number(barRect('a1').getAttribute('x'))).toBeGreaterThan(Number(barRect('c1').getAttribute('x')));
+  });
+
+  it('puts the name column on the right, with right-to-left text', () => {
+    renderAr(<Gantt rows={twoPhases} range={range} width={300} />);
+    const label = screen.getByText('Requirements', { selector: '.gantt-label' });
+    expect(Number(label.getAttribute('x'))).toBeGreaterThan(100);
+    expect(screen.getByRole('img', { name: 'Gantt chart' })).toHaveAttribute('direction', 'rtl');
+  });
+
+  it('labels the months in Arabic', () => {
+    renderAr(<Gantt rows={twoPhases} range={octoberRange} width={700} />);
+    expect(screen.getByText('أكتوبر', { selector: '.gantt-tick' })).toBeInTheDocument();
+    expect(screen.queryByText('Oct', { selector: '.gantt-tick' })).toBeNull();
+  });
+
+  it('mirrors the today line', () => {
+    renderAr(<Gantt rows={twoPhases} range={range} width={300} today="2026-01-03" />);
+    // Logical x inside the chart is 20 (two days in); mirrored, the line sits 20px from the chart's right edge.
+    expect(screen.getByTestId('gantt-today')).toHaveAttribute('x1', '80');
+  });
+
+  it('mirrors segments and their dividers', () => {
+    const segmented: GanttRow[] = [{
+      id: 'p', label: 'Development', bars: [{
+        id: 'p1', start: '2026-01-01', end: '2026-01-10', color: '#3b82f6',
+        segments: [
+          { id: 's1', start: '2026-01-01', end: '2026-01-05', label: 'One' },
+          { id: 's2', start: '2026-01-06', end: '2026-01-10', label: 'Two' },
+        ],
+      }],
+    }];
+    renderAr(<Gantt rows={segmented} range={range} width={300} />);
+    expect(screen.getByTestId('gantt-segment-s1')).toHaveAttribute('x', '50');
+    expect(screen.getByTestId('gantt-segment-s2')).toHaveAttribute('x', '0');
+    const divider = screen.getByTestId('gantt-bar-p1').querySelector('.gantt-divider')!;
+    expect(divider).toHaveAttribute('x1', '50');
+  });
+
+  it('shows the bar dates in Arabic, to the left of the bar', () => {
+    const one: GanttRow[] = [twoPhases[0]];
+    renderAr(<Gantt rows={one} range={{ start: '2026-01-01', end: '2026-01-10' }} width={700} showDates />);
+    const dates = screen.getByText('1 يناير – 5 يناير', { selector: '.gantt-bar-dates' });
+    expect(Number(dates.getAttribute('x'))).toBeLessThan(Number(barRect('a1').getAttribute('x')));
+    // With direction="rtl", text-anchor "start" is the text's right edge, so the label runs leftwards from x.
+    expect(dates).toHaveAttribute('text-anchor', 'start');
+  });
+
+  it('mirrors the week numbers with detail="weeks"', () => {
+    renderAr(<Gantt rows={twoPhases} range={octoberRange} width={700} detail="weeks" />);
+    const nine = screen.getByText('9', { selector: '.gantt-week-tick' });
+    const sixteen = screen.getByText('16', { selector: '.gantt-week-tick' });
+    expect(Number(nine.getAttribute('x'))).toBeGreaterThan(Number(sixteen.getAttribute('x')));
+  });
+
+  it('takes the direction from a dir prop too', () => {
+    render(<Gantt rows={twoPhases} range={range} width={300} dir="rtl" />);
+    expect(barRect('a1').getAttribute('x')).toBe('50');
+  });
+});

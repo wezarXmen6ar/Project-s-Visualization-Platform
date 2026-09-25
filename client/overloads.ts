@@ -1,6 +1,7 @@
 import { addDays, dayOfWeek, type DateRange, type ISODate, type WorkCalendar } from '../shared/calendar';
 import { computeWorkload, type CapacityAssignment, type WeekLoad } from '../shared/capacity';
 import type { AssignmentRole, WorkloadData } from '../shared/types';
+import type { Lang } from '../shared/i18n/types';
 import { dayDate as formatDay, dayRange } from './i18n/format';
 
 /** An assignment as a form holds it: the person may not be chosen yet. */
@@ -35,9 +36,9 @@ function weekdaysOf(weekStart: ISODate, cal: WorkCalendar): ISODate[] {
   return days;
 }
 
-/** "Mon 12 Oct". English; the language-aware form is `dayDate` in `i18n/format`. */
-export function dayDate(d: ISODate): string {
-  return formatDay('en', d);
+/** "Mon 12 Oct" (or "الاثنين 12 أكتوبر" with `lang` 'ar'). English by default. */
+export function dayDate(d: ISODate, lang: Lang = 'en'): string {
+  return formatDay(lang, d);
 }
 
 /**
@@ -45,21 +46,21 @@ export function dayDate(d: ISODate): string {
  * "Mon 12 Oct – Fri 16 Oct". Holidays are ignored, so a holiday Monday does not shift the label. Falls back to
  * `dayDate(weekStart)` when every day of the week is a weekend day.
  */
-export function weekLabel(weekStart: ISODate, cal: WorkCalendar): string {
+export function weekLabel(weekStart: ISODate, cal: WorkCalendar, lang: Lang = 'en'): string {
   const workingDays = weekdaysOf(weekStart, cal);
-  if (workingDays.length === 0) return dayDate(weekStart);
-  return `${dayDate(workingDays[0])} – ${dayDate(workingDays[workingDays.length - 1])}`;
+  if (workingDays.length === 0) return dayDate(weekStart, lang);
+  return `${dayDate(workingDays[0], lang)} – ${dayDate(workingDays[workingDays.length - 1], lang)}`;
 }
 
 /** "12–16 Oct" within a month, "28 Sep – 2 Oct" across months, or "12 Oct" for a single day. */
-export function dayRangeLabel(first: ISODate, last: ISODate): string {
-  return dayRange('en', first, last);
+export function dayRangeLabel(first: ISODate, last: ISODate, lang: Lang = 'en'): string {
+  return dayRange(lang, first, last);
 }
 
 /** The short form of `weekLabel`, e.g. "12–16 Oct": the first and last day of the week that are not weekend days. */
-export function shortWeekLabel(weekStart: ISODate, cal: WorkCalendar): string {
+export function shortWeekLabel(weekStart: ISODate, cal: WorkCalendar, lang: Lang = 'en'): string {
   const days = weekdaysOf(weekStart, cal);
-  return days.length === 0 ? dayRangeLabel(weekStart, weekStart) : dayRangeLabel(days[0], days[days.length - 1]);
+  return days.length === 0 ? dayRangeLabel(weekStart, weekStart, lang) : dayRangeLabel(days[0], days[days.length - 1], lang);
 }
 
 /** The person's leave ranges that overlap the Monday-to-Sunday week starting `weekStart`, each clipped to the week. */

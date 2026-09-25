@@ -66,3 +66,13 @@ describe('thinLabels', () => {
     expect(thinLabels(xs, 22)).toEqual([true, true, true, true, true]);
   });
 });
+
+describe('createTimeScale in Arabic', () => {
+  it('labels the month ticks with Arabic month names', () => {
+    const s = createTimeScale('2026-09-01', '2026-11-30', 900, 'ar');
+    expect(s.ticks.map((t) => t.label)).toEqual(['سبتمبر', 'أكتوبر', 'نوفمبر']);
+  });
+  it('stays English by default', () => {
+    expect(createTimeScale('2026-10-01', '2026-10-31', 300).ticks[0].label).toBe('Oct');
+  });
+});

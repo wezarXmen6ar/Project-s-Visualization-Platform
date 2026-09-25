@@ -33,6 +33,9 @@ export const ar: Record<MessageKey, Message> = {
   'notFound.body': 'هذه الصفحة غير متوفرة حالياً.',
   'notFound.back': 'العودة إلى البداية',
 
+  // A column heading in the weekly workload heatmap, e.g. "Week 42".
+  'heatmap.week': 'الأسبوع {number}',
+
   'validation.invalid': 'قيمة غير صالحة',
   'validation.invalidDate': 'أدخل تاريخاً صالحاً',
   'validation.uaeMobile': 'أدخل رقم هاتف إماراتي صالحاً، مثل +971 50 123 4567',

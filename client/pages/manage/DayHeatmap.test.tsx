@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { computeDailyLoad } from '../../../shared/capacity';
 import type { OverloadDecision } from '../../../shared/types';
 import { overbookedWorkload } from '../../testing/mockFetch';
+import { LanguageProvider } from '../../i18n/LanguageProvider';
 import { DayHeatmap } from './DayHeatmap';
 
 /** overbookedWorkload with Fatima on leave Mon 12 – Fri 16 Oct, and Jonas on leave Mon 19 – Wed 21 Oct. */
@@ -98,5 +99,22 @@ describe('DayHeatmap', () => {
     const onSelect = renderDays();
     await userEvent.click(screen.getByRole('button', { name: /^Fatima Noor, Wed 7 Oct:/ }));
     expect(onSelect).toHaveBeenCalledWith(71, '2026-10-05');
+  });
+});
+
+describe('DayHeatmap in Arabic', () => {
+  it('shows Arabic day letters and an Arabic week heading', () => {
+    render(
+      <LanguageProvider lang="ar">
+        <MemoryRouter>
+          <DayHeatmap people={people} decisions={[]} selected={null} onSelect={() => {}} />
+        </MemoryRouter>
+      </LanguageProvider>,
+    );
+    const group = screen.getByRole('columnheader', { name: '12–16 أكتوبر' });
+    expect(group).toHaveAttribute('colspan', '5');
+    const monday = screen.getByRole('columnheader', { name: 'الاثنين 12 أكتوبر' });
+    expect(monday.querySelector('.day-letter')).toHaveTextContent('ن');
+    expect(monday.querySelector('.day-number')).toHaveTextContent('12');
   });
 });

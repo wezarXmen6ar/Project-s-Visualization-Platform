@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { computeWorkload } from '../../../shared/capacity';
 import { overbookedWorkload } from '../../testing/mockFetch';
+import { LanguageProvider } from '../../i18n/LanguageProvider';
 import { WorkloadHeatmap } from './WorkloadHeatmap';
 
 const data = overbookedWorkload();
@@ -126,5 +127,27 @@ describe('WorkloadHeatmap', () => {
     const squares = cell.querySelector('.day-squares')!;
     expect(squares.querySelectorAll('.leave-slice.on-leave')).toHaveLength(3);
     expect(squares.querySelectorAll('.leave-slice:not(.on-leave)')).toHaveLength(2);
+  });
+});
+
+describe('WorkloadHeatmap in Arabic', () => {
+  it('heads each week "الأسبوع 41" over its Arabic dates', () => {
+    render(
+      <LanguageProvider lang="ar">
+        <MemoryRouter>
+          <WorkloadHeatmap
+            loads={loads}
+            decisions={[]}
+            calendar={data.calendar}
+            resources={data.resources}
+            selected={null}
+            onSelect={() => {}}
+          />
+        </MemoryRouter>
+      </LanguageProvider>,
+    );
+    const header = screen.getByRole('columnheader', { name: /5–9 أكتوبر/ });
+    expect(header.querySelector('.week-number')).toHaveTextContent('الأسبوع 41');
+    expect(header.querySelector('.week-dates')).toHaveTextContent('5–9 أكتوبر');
   });
 });

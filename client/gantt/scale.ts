@@ -1,4 +1,5 @@
 import { addDays, daysBetween, dayOfWeek, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
+import type { Lang } from '../../shared/i18n/types';
 import { monthLabel } from '../i18n/format';
 
 export interface TimeScale {
@@ -22,8 +23,11 @@ function nextMonth(firstOfMonthDate: ISODate): ISODate {
   return month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 }
 
-/** Linear day scale; `end` is inclusive, so the last day gets a full day of width. */
-export function createTimeScale(start: ISODate, end: ISODate, width: number): TimeScale {
+/**
+ * Linear day scale; `end` is inclusive, so the last day gets a full day of width. `x` is always measured from the
+ * range's start (left to right); a right-to-left chart mirrors it when drawing. Month ticks are named in `lang`.
+ */
+export function createTimeScale(start: ISODate, end: ISODate, width: number, lang: Lang = 'en'): TimeScale {
   const totalDays = daysBetween(start, end) + 1;
   const dayWidth = width / totalDays;
   const x = (date: ISODate) => daysBetween(start, date) * dayWidth;
@@ -32,7 +36,7 @@ export function createTimeScale(start: ISODate, end: ISODate, width: number): Ti
   let m = firstOfMonth(start);
   if (m < start) m = nextMonth(m);
   while (m <= end) {
-    ticks.push({ date: m, x: x(m), label: monthLabel('en', m) });
+    ticks.push({ date: m, x: x(m), label: monthLabel(lang, m) });
     m = nextMonth(m);
   }
 
