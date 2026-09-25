@@ -4986,6 +4986,47 @@ git commit -m "feat: demo team with leave and assignments that show real overboo
 
 ---
 
+### Task 9: Weekday labels on weeks, leave and phase dates (M4 review feedback, 2026-09-25)
+
+**Why:** in review the user found the week labels confusing. People work Monday to Friday, but each heatmap week showed only its Monday ("12 Oct"). Fatima's leave from Mon 12 to Fri 16 Oct appeared as "week of 12 Oct · 5 days of leave", which reads as five days of leave on the 12th alone. The data was right; the labels were not. Every week and date shown in M4's workload views now carries its weekday, and a week is labelled by its working days.
+
+**Files:**
+- Modify: `client/overloads.ts`, `client/pages/manage/WorkloadHeatmap.tsx`, `client/pages/manage/OverloadPanel.tsx`, `client/pages/manage/PersonPage.tsx`, `client/pages/manage/PeopleFields.tsx`, `client/pages/manage/ProjectPeople.tsx`, `client/pages/manage/labels.ts`, `client/styles.css` (header wraps on two lines)
+- Test: `client/overloads.test.ts`, `client/pages/manage/WorkloadHeatmap.test.tsx`, `client/pages/manage/OverloadPanel.test.tsx`, `client/pages/manage/PersonPage.test.tsx`, plus the existing tests whose expected strings change
+
+**Interfaces:**
+- Consumes: `WorkCalendar`, `dayOfWeek`, `addDays`, `countWorkingDays` (`shared/calendar.ts`); `WeekLoad` (Task 3); `WorkloadData.resources[].leave` (Task 4).
+- Produces, in `client/overloads.ts`:
+  - `dayDate(d)` → `"Mon 12 Oct"` (weekday + day + month). This replaces `shortDate` everywhere it labels a date in the UI.
+  - `weekLabel(weekStart, cal)` → `"Mon 12 Oct – Fri 16 Oct"`: the first and last day of that Monday-to-Sunday week that is not in `cal.weekendDays` (holidays are ignored, so a holiday Monday does not shift the label). With the default calendar this is always Monday to Friday. When all seven days are weekend days, it falls back to `dayDate(weekStart)`.
+  - `leaveInWeek(leave, weekStart)` → the person's leave ranges that overlap the week, each clipped to the week, as `{ start, end, note }[]`.
+  - `phaseWarnings(...)` gains a calendar parameter, and each line starts with the week label: `"Mon 5 Oct – Fri 9 Oct: 150% booked, 100% available"`.
+- In `client/pages/manage/labels.ts`: `formatDate` gains the weekday (`"Mon 12 Oct 2026"`).
+
+**Where each label appears:**
+1. **Heatmap column headers** (`WorkloadHeatmap`): two lines, `Mon 12 Oct` over `– Fri 16 Oct`. Each cell's aria-label says `"<name>, Mon 12 Oct – Fri 16 Oct: …"` instead of `"week of 12 Oct"`. The heatmap receives the calendar as a new `calendar` prop from `ResourcesPage`.
+2. **Decision prompt** (`OverloadPanel`): the heading reads `"Fatima Noor · Mon 12 Oct – Fri 16 Oct"`. Under the summary, each overlapping leave range is its own line, e.g. `"On leave Mon 12 Oct – Fri 16 Oct · Annual leave"`, or `"On leave Mon 19 Oct – Wed 21 Oct · Training"` for Jonas. A single day reads `"On leave Tue 13 Oct"`. The existing "N days of leave" count stays.
+3. **Overbooking warnings** on the project page and wizard Step 4 use the new `phaseWarnings` text. The phase date range above them uses `dayDate`: `"Mon 5 Oct – Fri 23 Oct"`.
+4. **Person page leave list**: `"Mon 12 Oct 2026 → Fri 16 Oct 2026 · Annual leave · 5 working days"` (use `countWorkingDays` with the workload calendar; write "1 working day" in the singular). The remove button's aria-label uses the new `formatDate`.
+
+- [ ] **Step 1: Write the failing tests**
+  - `client/overloads.test.ts`:
+    - `dayDate('2026-10-12')` is `'Mon 12 Oct'`.
+    - `weekLabel('2026-10-12', DEFAULT_CALENDAR)` is `'Mon 12 Oct – Fri 16 Oct'`.
+    - `weekLabel('2026-09-28', DEFAULT_CALENDAR)` is `'Mon 28 Sep – Fri 2 Oct'`, across a month end.
+    - With `{ weekendDays: [5, 6], holidays: [] }` (Friday and Saturday off), `weekLabel('2026-10-12', …)` is `'Mon 12 Oct – Sun 18 Oct'`.
+    - `leaveInWeek` clips a leave range that runs past the week.
+    - Update the existing `phaseWarnings` expectations to the new wording.
+  - `WorkloadHeatmap.test.tsx`: the column header shows `Mon 12 Oct` and `Fri 16 Oct`. A cell's accessible name contains `Mon 12 Oct – Fri 16 Oct`.
+  - `OverloadPanel.test.tsx`: for a week with leave, the heading contains the week label and the text `On leave Mon 12 Oct – Fri 16 Oct · Annual leave` is shown. This fixture needs leave on the person; add it.
+  - `PersonPage.test.tsx`: the leave row shows `Mon 12 Oct 2026 → Fri 16 Oct 2026` and `5 working days`.
+- [ ] **Step 2:** Run `npx vitest run client` and confirm the new tests FAIL.
+- [ ] **Step 3:** Implement the helpers and the four places above. `dayOfWeek` returns 0 for Sunday, so use `const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']`. Remove `shortDate` once nothing uses it. Update any other test that asserted the old `"Week of 5 Oct"`, `"week of 5 Oct"` or `"12 Oct 2026"` text.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
+- [ ] **Step 5:** Commit with `feat: label weeks and dates with their weekdays, and show which days leave falls on`.
+
+---
+
 ### ✅ M4 checkpoint: stop and demo to the user
 
 Start from a fresh demo database. An existing `data/pm.db` upgrades automatically: migration 6 moves the typed PM names into Resources. A fresh one shows the full demo team.
@@ -4999,7 +5040,7 @@ The user should be able to:
 2. **Resources** shows the **Workload** heatmap: people by weeks.
    - Aisha's week of 5 Oct is red (150%).
    - Jonas's week of 19 Oct is red (leave).
-   - Fatima's week of 12 Oct is striped and marked as not working.
+   - Fatima's week of 12 Oct is striped and marked as not working. The column header reads "Mon 12 Oct – Fri 16 Oct", and clicking the cell shows "On leave Mon 12 Oct – Fri 16 Oct · Annual leave".
    - **‹ This week ›** moves 4 weeks at a time.
 3. Click Aisha's red week. The panel lists her Case Management UAT and E-Services work, then:
    - **Split the time** down to 50% for one of them. The cell stops being red, and the decision is recorded.
