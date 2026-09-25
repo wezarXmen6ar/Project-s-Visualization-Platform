@@ -13,13 +13,19 @@ export function setCalendar(db: DatabaseSync, cal: WorkCalendar): void {
   ).run(JSON.stringify(cal));
 }
 
-/** Who "I am" is. Returns { resourceId: null, name: null } when it isn't set, or the stored person no longer exists. */
+/**
+ * Who "I am" is. Returns { resourceId: null, name: null } when it isn't set, when the stored person no longer
+ * exists, or when they are no longer on the tech side (a stale setting from a person who was deleted and whose id
+ * was then reused by a business contact must not silently become "I am").
+ */
 export function getMe(db: DatabaseSync): Me {
   const row = db.prepare("SELECT value FROM settings WHERE key = 'me'").get() as unknown as { value: string } | undefined;
   if (!row) return { resourceId: null, name: null };
   const { resourceId } = JSON.parse(row.value) as { resourceId: number | null };
   if (resourceId === null) return { resourceId: null, name: null };
-  const person = db.prepare('SELECT name FROM resources WHERE id = ?').get(resourceId) as unknown as { name: string } | undefined;
+  const person = db.prepare("SELECT name FROM resources WHERE id = ? AND side = 'tech'").get(resourceId) as unknown as
+    | { name: string }
+    | undefined;
   return person ? { resourceId, name: person.name } : { resourceId: null, name: null };
 }
 

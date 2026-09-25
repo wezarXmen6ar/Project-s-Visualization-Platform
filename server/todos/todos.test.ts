@@ -152,6 +152,19 @@ describe('listToDos order and filters', () => {
     const forProject = listToDos(db, { projectId: project.id });
     expect(forProject.every((t) => t.projectId === project.id)).toBe(true);
   });
+
+  it('orders same-day done to-dos by id descending', () => {
+    const first = createToDo(db, project.id, toDoInputSchema.parse({ title: 'First' }), '2026-09-25');
+    const second = createToDo(db, project.id, toDoInputSchema.parse({ title: 'Second' }), '2026-09-25');
+    const third = createToDo(db, project.id, toDoInputSchema.parse({ title: 'Third' }), '2026-09-25');
+    updateToDo(db, first.id, toDoInputSchema.parse({ title: 'First', done: true }), '2026-10-07');
+    updateToDo(db, second.id, toDoInputSchema.parse({ title: 'Second', done: true }), '2026-10-07');
+    updateToDo(db, third.id, toDoInputSchema.parse({ title: 'Third', done: true }), '2026-10-05');
+
+    const done = listToDos(db, { projectId: project.id, includeDone: true }).filter((t) => t.done);
+    // Newest done_date first; the two done on the same day come id-descending.
+    expect(done.map((t) => t.id)).toEqual([second.id, first.id, third.id]);
+  });
 });
 
 describe('removing a phase through updateSchedule', () => {
@@ -190,6 +203,48 @@ describe('removing a phase through updateSchedule', () => {
     expect(r.ok).toBe(true);
     expect(getToDo(db, openToDo.id)).toBeUndefined();
     expect(getToDo(db, doneToDo.id)).toBeUndefined();
+  });
+
+  it("uses the pre-rename name for a removed sub-phase's formerPhase, even when the parent is renamed in the same call", () => {
+    const dev = project.phases[0];
+    const sub = dev.subPhases[0];
+    const openToDo = createToDo(db, project.id, toDoInputSchema.parse({ title: 'Open', phaseId: sub.id }), '2026-09-25');
+    const qa = project.phases[1];
+
+    const r = updateSchedule(
+      db, DEFAULT_CALENDAR, project.id,
+      scheduleUpdateSchema.parse({
+        startDate: '2026-09-25',
+        phases: [
+          { id: dev.id, name: 'Dev NEW', durationDays: 5 },
+          { id: qa.id, name: 'QA', durationDays: 3 },
+        ],
+      }),
+      '2026-09-25',
+    );
+    expect(r.ok).toBe(true);
+
+    const kept = getToDo(db, openToDo.id)!;
+    expect(kept.phase).toBeNull();
+    expect(kept.formerPhase).toEqual({ name: 'Development › Increment 1', removedOn: '2026-09-25' });
+  });
+
+  it('leaves everything unchanged when updateSchedule fails validation (an unknown id)', () => {
+    const sub = project.phases[0].subPhases[0];
+    createToDo(db, project.id, toDoInputSchema.parse({ title: 'Open', phaseId: sub.id }), '2026-09-25');
+    createToDo(db, project.id, toDoInputSchema.parse({ title: 'Done', phaseId: sub.id, done: true }), '2026-09-25');
+    const qa = project.phases[1];
+    const before = listToDos(db, { includeDone: true });
+
+    const r = updateSchedule(
+      db, DEFAULT_CALENDAR, project.id,
+      scheduleUpdateSchema.parse({ startDate: '2026-09-25', phases: [{ id: 999999, name: 'QA', durationDays: 3 }, { id: qa.id, name: 'QA', durationDays: 3 }] }),
+      '2026-09-25',
+    );
+    expect(r.ok).toBe(false);
+
+    const after = listToDos(db, { includeDone: true });
+    expect(after).toEqual(before);
   });
 
   it('leaves a kept-but-renamed phase\'s to-do untouched', () => {

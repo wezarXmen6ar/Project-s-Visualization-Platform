@@ -2,6 +2,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate } from '../../shared/calendar';
 import type { LeaveData, ResourceData, ValidationIssue } from '../../shared/schemas';
 import type { LeaveRecord, PersonProject, ResourceRecord, Side, Specialisation } from '../../shared/types';
+import { transaction } from '../db';
 import { getListValue } from '../lists/repo';
 import { getMe, setMe } from '../settings';
 
@@ -211,9 +212,13 @@ export function deleteResource(db: DatabaseSync, id: number): ResourceDelete {
   if (reasons.length > 0) {
     return { ok: false, status: 409, error: `${person.name} can't be deleted because ${reasons.join(' and ')}. Make them inactive instead.` };
   }
-  db.prepare('DELETE FROM resources WHERE id = ?').run(id);
-  // In practice a person "in use" can't reach here, but this keeps "I am" correct if that ever changes.
-  if (getMe(db).resourceId === id) setMe(db, null);
+  // Read whether they were "I am" before the delete: resources.id isn't AUTOINCREMENT, so once they're gone, a
+  // reused id could otherwise leave a stale "I am" pointing at whoever gets that id next.
+  transaction(db, () => {
+    const wasMe = getMe(db).resourceId === id;
+    db.prepare('DELETE FROM resources WHERE id = ?').run(id);
+    if (wasMe) setMe(db, null);
+  });
   return { ok: true };
 }
 

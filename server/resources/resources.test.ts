@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../app';
 import { openDb } from '../db';
+import { getMe, setMe } from '../settings';
 import { listResources } from './repo';
 
 let db: DatabaseSync;
@@ -185,6 +186,24 @@ describe('resources API', () => {
     });
     expect(switched.statusCode).toBe(200);
     expect(switched.json().side).toBe('tech');
+  });
+
+  it('clears "I am" when that person is deleted, and a reused id never inherits it', async () => {
+    const me = (await post({ name: 'Sam', side: 'tech' })).json();
+    setMe(db, me.id);
+    expect(getMe(db)).toEqual({ resourceId: me.id, name: 'Sam' });
+
+    const deleted = await app.inject({ method: 'DELETE', url: `/api/resources/${me.id}` });
+    expect(deleted.statusCode).toBe(204);
+    expect(getMe(db)).toEqual({ resourceId: null, name: null });
+
+    // A business contact created afterwards may land on the same (reused) id; "I am" must stay cleared.
+    const contact = (await post({ name: 'A Contact', side: 'business' })).json();
+    expect(getMe(db)).toEqual({ resourceId: null, name: null });
+
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'me'").get() as { value: string };
+    expect(JSON.parse(row.value).resourceId).not.toBe(contact.id);
+    expect(JSON.parse(row.value).resourceId).toBeNull();
   });
 });
 

@@ -188,6 +188,39 @@ describe('to-dos', () => {
     const withDone = await app.inject({ method: 'GET', url: `/api/todos?projectId=${project.id}&done=include` });
     expect(withDone.json().map((t: { id: number }) => t.id)).toContain(doneToDo.id);
   });
+
+  it('returns only to-dos with a former phase for ?removed=1', async () => {
+    const { app, project } = await setup();
+    const untouched = (
+      await app.inject({ method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: 'Untouched' } })
+    ).json();
+    const phaseId = project.phases[0].id;
+    const onPhase = (
+      await app.inject({ method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: 'On phase', phaseId } })
+    ).json();
+
+    await app.inject({
+      method: 'PUT', url: `/api/projects/${project.id}/schedule`,
+      payload: { startDate: '2026-10-05', phases: [{ name: 'B', durationDays: 3 }] },
+    });
+
+    const removed = await app.inject({ method: 'GET', url: '/api/todos?removed=1' });
+    const removedIds = removed.json().map((t: { id: number }) => t.id);
+    expect(removedIds).toContain(onPhase.id);
+    expect(removedIds).not.toContain(untouched.id);
+    expect(removed.json().every((t: { formerPhase: unknown }) => t.formerPhase !== null)).toBe(true);
+  });
+
+  it('ignores a bad projectId and assigneeId and returns everything open', async () => {
+    const { app, project } = await setup();
+    const created = (
+      await app.inject({ method: 'POST', url: `/api/projects/${project.id}/todos`, payload: { title: 'Task' } })
+    ).json();
+
+    const res = await app.inject({ method: 'GET', url: '/api/todos?projectId=abc&assigneeId=-3' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().map((t: { id: number }) => t.id)).toContain(created.id);
+  });
 });
 
 describe('"I am"', () => {

@@ -30,14 +30,18 @@ const SELECT_TODOS = `
   LEFT JOIN phases p ON p.id = t.phase_id
   LEFT JOIN phases parent ON parent.id = p.parent_id`;
 
-/** Open before done; open ones by due date (undated last), ties by id; done ones by done date, newest first. */
+/**
+ * Open before done; open ones by due date (undated last), ties by id; done ones by done date, newest first, with a
+ * same-day tie broken by id descending.
+ */
 const ORDER_TODOS = `
   ORDER BY
     (t.done_date IS NOT NULL) ASC,
     CASE WHEN t.done_date IS NULL THEN (t.due_date IS NULL) END ASC,
     CASE WHEN t.done_date IS NULL THEN t.due_date END ASC,
     CASE WHEN t.done_date IS NULL THEN t.id END ASC,
-    CASE WHEN t.done_date IS NOT NULL THEN t.done_date END DESC`;
+    CASE WHEN t.done_date IS NOT NULL THEN t.done_date END DESC,
+    t.id DESC`;
 
 function toToDo(row: ToDoRow): ToDoRecord {
   return {
@@ -112,7 +116,7 @@ export function projectPeopleIds(db: DatabaseSync, projectId: number): Set<numbe
  */
 export function checkToDo(db: DatabaseSync, projectId: number, data: ToDoData, existing?: ToDoRecord): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  if (data.assigneeId !== null && data.assigneeId !== (existing?.assignee?.id ?? undefined)) {
+  if (data.assigneeId !== null && data.assigneeId !== existing?.assignee?.id) {
     const person = db.prepare('SELECT name FROM resources WHERE id = ?').get(data.assigneeId) as unknown as { name: string } | undefined;
     if (!person) issues.push({ path: 'assigneeId', message: 'Unknown person' });
     else if (!projectPeopleIds(db, projectId).has(data.assigneeId)) {

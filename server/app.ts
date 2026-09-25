@@ -170,7 +170,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.post<{ Params: { id: string } }>('/api/projects/:id/todos', async (req, reply) => {
     const projectId = Number(req.params.id);
-    if (!getProject(db, projectId)) return reply.code(404).send({ error: 'Project not found' });
+    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send({ error: 'Project not found' });
     const parsed = toDoInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid to-do', issues: toIssues(parsed.error) });
     const issues = checkToDo(db, projectId, parsed.data);
