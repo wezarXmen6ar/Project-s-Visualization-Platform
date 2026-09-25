@@ -7,6 +7,9 @@ import { openDb } from './db';
 import { DEMO_PEOPLE, DEMO_PROJECTS, seedDemo, toProjectInput } from './demoData';
 import { getLists } from './lists/repo';
 import { listProjects } from './projects/repo';
+import { getMe } from './settings';
+import { listStarters } from './starters/repo';
+import { listToDos } from './todos/repo';
 
 describe('DEMO_PROJECTS', () => {
   it('are all valid projects with unique names', () => {
@@ -57,7 +60,10 @@ describe('seedDemo', () => {
     const db = openDb(':memory:');
     seedDemo(db, DEFAULT_CALENDAR);
     for (const p of listProjects(db)) {
-      for (const ph of p.phases) expect(p.assignments.some((a) => a.phaseId === ph.id)).toBe(true);
+      for (const ph of p.phases) {
+        expect(p.assignments.some((a) => a.phaseId === ph.id)).toBe(true);
+        for (const sub of ph.subPhases) expect(p.assignments.some((a) => a.phaseId === sub.id)).toBe(true);
+      }
     }
 
     const data = workloadData(db);
@@ -73,5 +79,38 @@ describe('seedDemo', () => {
     expect(week('Jonas Weber', '2026-10-19')).toMatchObject({ leaveDays: 3, load: 100, available: 40, overloaded: true });
     // A full week of annual leave with nothing booked.
     expect(week('Fatima Noor', '2026-10-12')).toMatchObject({ leaveDays: 5, available: 0, overloaded: false });
+  });
+
+  it('splits E-Services development into increments, and gives the PM to-dos and starter checklists', () => {
+    const db = openDb(':memory:');
+    seedDemo(db, DEFAULT_CALENDAR);
+    const app = listProjects(db).find((p) => p.name === 'E-Services Mobile App')!;
+    const dev = app.phases.find((ph) => ph.name === 'Development')!;
+    expect(dev).toMatchObject({ start: '2026-11-30', end: '2027-02-19' });
+    expect(dev.subPhases.map((s) => [s.name, s.start, s.end, s.withPrevious])).toEqual([
+      ['Increment 1 – Sign-in and profile', '2026-11-30', '2026-12-18', false],
+      ['Increment 2 – Service catalogue', '2026-11-30', '2026-12-18', true],
+      ['Increment 3 – Payments', '2026-12-21', '2027-01-22', false],
+      ['Increment 4 – Notifications', '2027-01-25', '2027-02-19', false],
+    ]);
+    const onDev = app.assignments.filter((a) => a.phaseId === dev.id).map((a) => a.resource.name);
+    expect(onDev).toEqual(['Hassan Ali']);
+    for (const s of dev.subPhases) expect(app.assignments.some((a) => a.phaseId === s.id)).toBe(true);
+
+    const me = getMe(db);
+    expect(me.name).toBe('Sara Ahmed');
+    const mine = listToDos(db, { assigneeId: me.resourceId! });
+    expect(mine.map((t) => t.title)).toEqual([
+      'Send the app store account request to IT',
+      'Confirm the requirements workshop dates with Mariam',
+      'Check the go-live checklist with operations',
+      'Share the release plan with the business',
+    ]);
+    const all = listToDos(db, { includeDone: true });
+    expect(all).toHaveLength(10);
+    expect(all.find((t) => t.title.startsWith('Review the payment'))?.phase?.name).toBe('Development › Increment 3 – Payments');
+    expect(all.find((t) => t.title === 'Confirm the security testing slot')).toMatchObject({ done: true, doneDate: '2026-09-24' });
+
+    expect(listStarters(db)).toHaveLength(6);
   });
 });

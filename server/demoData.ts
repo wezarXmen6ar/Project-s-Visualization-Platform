@@ -1,11 +1,17 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { WorkCalendar } from '../shared/calendar';
-import { leaveInputSchema, newProjectSchema, resourceInputSchema, type NewProjectInput } from '../shared/schemas';
+import { todayLocal, type ISODate, type WorkCalendar } from '../shared/calendar';
+import {
+  leaveInputSchema, newProjectSchema, resourceInputSchema, starterToDoInputSchema, toDoInputSchema,
+  type NewProjectInput,
+} from '../shared/schemas';
 import type { AssignmentRole, ListName, Side, Specialisation } from '../shared/types';
 import { transaction } from './db';
 import { addListValue } from './lists/repo';
-import { createProject } from './projects/repo';
+import { createProject, getProject, listProjects } from './projects/repo';
 import { addLeave, createResource } from './resources/repo';
+import { setMe } from './settings';
+import { addStarter } from './starters/repo';
+import { checkToDo, createToDo } from './todos/repo';
 
 /** A person the demo projects name; seedDemo adds them to Resources first. */
 export interface DemoPerson {
@@ -42,8 +48,15 @@ export const DEMO_LEAVE: { person: string; start: string; end: string; note: str
   { person: 'Jonas Weber', start: '2026-10-19', end: '2026-10-21', note: 'Training' },
 ];
 
+/** A person on a demo phase or sub-phase, and how much of their week they give it. */
+export interface TeamEntry {
+  person: string;
+  allocation: number;
+  role: AssignmentRole;
+}
+
 /** Who works on each standard phase in the demo, and how much of their week. */
-export const TEAM_BY_PHASE: Record<string, { person: string; allocation: number; role: AssignmentRole }[]> = {
+export const TEAM_BY_PHASE: Record<string, TeamEntry[]> = {
   'Requirements gathering': [{ person: 'Aisha Khan', allocation: 100, role: 'responsible' }],
   'Business analysis': [{ person: 'Aisha Khan', allocation: 100, role: 'responsible' }],
   'Development plan': [{ person: 'Hassan Ali', allocation: 50, role: 'responsible' }],
@@ -63,10 +76,29 @@ export const TEAM_BY_PHASE: Record<string, { person: string; allocation: number;
   Launch: [{ person: 'Hassan Ali', allocation: 30, role: 'responsible' }],
 };
 
+/** A demo sub-phase names its team by person; seedDemo turns the names into resource ids. */
+export interface DemoSubPhase {
+  name: string;
+  durationDays: number;
+  withPrevious?: boolean;
+  team: TeamEntry[];
+}
+
+/**
+ * A demo phase names its team by person. When `team` is omitted, `toProjectInput` falls back to
+ * `TEAM_BY_PHASE[name]`. `subPhases`, when given, replace the phase's single span with increments.
+ */
+export interface DemoPhase {
+  name: string;
+  durationDays: number;
+  team?: TeamEntry[];
+  subPhases?: DemoSubPhase[];
+}
+
 /** A demo project names its list values and people; seedDemo turns the names into ids. */
 export type DemoProject = Omit<
   NewProjectInput,
-  'mainProjectId' | 'projectTypeId' | 'goalId' | 'departmentId' | 'projectManagerId' | 'businessPmId'
+  'mainProjectId' | 'projectTypeId' | 'goalId' | 'departmentId' | 'projectManagerId' | 'businessPmId' | 'phases'
 > & {
   mainProject?: string;
   projectType?: string;
@@ -74,6 +106,7 @@ export type DemoProject = Omit<
   department?: string;
   projectManager?: string;
   businessPm?: string;
+  phases: DemoPhase[];
 };
 
 const DIGITALISATION = 'Digitalisation of internal operations';
@@ -223,13 +256,61 @@ export const DEMO_PROJECTS: DemoProject[] = [
       { name: 'Business analysis', durationDays: 10 },
       { name: 'Development plan', durationDays: 5 },
       { name: 'Design', durationDays: 15 },
-      { name: 'Development', durationDays: 60 },
+      {
+        name: 'Development', durationDays: 60,
+        team: [{ person: 'Hassan Ali', allocation: 30, role: 'responsible' }],
+        subPhases: [
+          {
+            name: 'Increment 1 – Sign-in and profile', durationDays: 15,
+            team: [{ person: 'Fatima Noor', allocation: 60, role: 'responsible' }],
+          },
+          {
+            name: 'Increment 2 – Service catalogue', durationDays: 15, withPrevious: true,
+            team: [{ person: 'Rami Saleh', allocation: 60, role: 'responsible' }],
+          },
+          {
+            name: 'Increment 3 – Payments', durationDays: 25,
+            team: [
+              { person: 'Rami Saleh', allocation: 60, role: 'responsible' },
+              { person: 'Fatima Noor', allocation: 60, role: 'contributor' },
+            ],
+          },
+          {
+            name: 'Increment 4 – Notifications', durationDays: 20,
+            team: [{ person: 'Fatima Noor', allocation: 60, role: 'responsible' }],
+          },
+        ],
+      },
       { name: 'QA', durationDays: 15 },
       { name: 'UAT', durationDays: 10 },
       { name: 'Security testing', durationDays: 5 },
     ],
   },
 ];
+
+/** The demo's "I am": Sara Ahmed, an active tech-team person. */
+export const DEMO_ME = 'Sara Ahmed';
+
+/** To-dos seeded across the demo, added after the projects. A `doneOn` date creates it already done. */
+export const DEMO_TODOS: { project: string; title: string; assignee: string | null; due: string | null; phase: string | null; doneOn?: string }[] = [
+  { project: 'E-Services Mobile App', title: 'Send the app store account request to IT', assignee: 'Sara Ahmed', due: '2026-09-23', phase: null },
+  { project: 'E-Services Mobile App', title: 'Confirm the requirements workshop dates with Mariam', assignee: 'Sara Ahmed', due: '2026-09-30', phase: 'Requirements gathering' },
+  { project: 'E-Services Mobile App', title: 'Collect the list of services for the catalogue', assignee: 'Mariam Al Suwaidi', due: '2026-10-14', phase: 'Requirements gathering' },
+  { project: 'E-Services Mobile App', title: 'Draft the sign-in and profile screens', assignee: 'Mei Chen', due: '2026-11-20', phase: 'Design' },
+  { project: 'E-Services Mobile App', title: "Review the payment provider's API documentation", assignee: 'Rami Saleh', due: '2026-12-18', phase: 'Development › Increment 3 – Payments' },
+  { project: 'E-Services Mobile App', title: 'Share the release plan with the business', assignee: 'Sara Ahmed', due: null, phase: null },
+  { project: 'Case Management System', title: 'Book UAT sessions with the business', assignee: 'Aisha Khan', due: '2026-09-28', phase: 'UAT' },
+  { project: 'Case Management System', title: 'Confirm the security testing slot', assignee: 'Jonas Weber', due: '2026-10-05', phase: 'Security testing', doneOn: '2026-09-24' },
+  { project: 'Case Management System', title: 'Check the go-live checklist with operations', assignee: 'Sara Ahmed', due: '2026-10-20', phase: 'Deployment' },
+  { project: 'Customer Portal Revamp', title: 'Hand over the runbook to operations', assignee: 'Hassan Ali', due: '2026-06-17', phase: 'Launch', doneOn: '2026-06-18' },
+];
+
+/** Starter to-dos seeded per Phases-list value, so the feature can be seen in the demo. */
+export const DEMO_STARTERS: Record<string, string[]> = {
+  UAT: ['Book UAT sessions with the business', 'Prepare UAT test data', 'Get UAT sign-off'],
+  'Security testing': ['Book the security testing slot'],
+  Deployment: ['Confirm the release window with operations', 'Prepare the rollback plan'],
+};
 
 export function toProjectInput(
   demo: DemoProject,
@@ -238,11 +319,20 @@ export function toProjectInput(
 ): NewProjectInput {
   const { mainProject, projectType, goal, department, projectManager, businessPm, ...rest } = demo;
   const id = (list: ListName, name?: string) => (name ? idFor(list, name) : null);
+  const assignmentsFor = (team: TeamEntry[]) =>
+    team.map((t) => ({ resourceId: personId(t.person), allocation: t.allocation, role: t.role }));
   return {
     ...rest,
     phases: rest.phases.map((ph) => ({
-      ...ph,
-      assignments: (TEAM_BY_PHASE[ph.name] ?? []).map((t) => ({ resourceId: personId(t.person), allocation: t.allocation, role: t.role })),
+      name: ph.name,
+      durationDays: ph.durationDays,
+      assignments: assignmentsFor(ph.team ?? TEAM_BY_PHASE[ph.name] ?? []),
+      subPhases: (ph.subPhases ?? []).map((s) => ({
+        name: s.name,
+        durationDays: s.durationDays,
+        withPrevious: s.withPrevious ?? false,
+        assignments: assignmentsFor(s.team),
+      })),
     })),
     mainProjectId: id('mainProject', mainProject),
     projectTypeId: id('projectType', projectType),
@@ -277,6 +367,45 @@ export function seedDemo(db: DatabaseSync, cal: WorkCalendar): number {
     };
     for (const l of DEMO_LEAVE) addLeave(db, personId(l.person), leaveInputSchema.parse({ start: l.start, end: l.end, note: l.note }));
     for (const demo of DEMO_PROJECTS) createProject(db, cal, newProjectSchema.parse(toProjectInput(demo, idFor, personId)));
+
+    setMe(db, personId(DEMO_ME));
+
+    const projectIds = new Map(listProjects(db).map((p) => [p.name, p.id]));
+    const projectId = (name: string) => {
+      const found = projectIds.get(name);
+      if (found === undefined) throw new Error(`Demo to-do project missing from DEMO_PROJECTS: ${name}`);
+      return found;
+    };
+    const resolvePhaseId = (pid: number, path: string | null): number | null => {
+      if (path === null) return null;
+      const [phaseName, subName] = path.split(' › ');
+      const project = getProject(db, pid)!;
+      const phase = project.phases.find((p) => p.name === phaseName);
+      if (!phase) throw new Error(`Demo to-do phase not found: ${path}`);
+      if (subName === undefined) return phase.id;
+      const sub = phase.subPhases.find((s) => s.name === subName);
+      if (!sub) throw new Error(`Demo to-do phase not found: ${path}`);
+      return sub.id;
+    };
+    for (const t of DEMO_TODOS) {
+      const pid = projectId(t.project);
+      const data = toDoInputSchema.parse({
+        title: t.title,
+        note: null,
+        assigneeId: t.assignee ? personId(t.assignee) : null,
+        dueDate: t.due,
+        phaseId: resolvePhaseId(pid, t.phase),
+        done: t.doneOn !== undefined,
+      });
+      const issues = checkToDo(db, pid, data);
+      if (issues.length > 0) throw new Error(`Demo to-do invalid (${t.title}): ${issues.map((i) => i.message).join('; ')}`);
+      createToDo(db, pid, data, (t.doneOn ?? todayLocal()) as ISODate);
+    }
+
+    for (const [phaseName, titles] of Object.entries(DEMO_STARTERS)) {
+      const phaseListId = idFor('phase', phaseName);
+      for (const title of titles) addStarter(db, starterToDoInputSchema.parse({ phaseListId, title }));
+    }
   });
   return DEMO_PROJECTS.length;
 }
