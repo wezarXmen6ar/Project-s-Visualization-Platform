@@ -507,7 +507,7 @@ export const ar: Record<MessageKey, Message> = {
     many: '{count} يوماً',
     other: '{count} يوم',
   },
-  'overload.dayClashes': 'أيام فوق الطاقة بمفردها',
+  'overload.dayClashes': 'أيام تتجاوز الطاقة',
   'overload.acceptedTitle': 'فوق الطاقة، وتم قبول ذلك',
   'overload.question': 'هذا الأسبوع فوق الطاقة. ما الإجراء الذي تريده؟',
   'overload.split': 'تقسيم الوقت',
