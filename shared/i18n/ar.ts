@@ -34,7 +34,7 @@ export const ar: Record<MessageKey, Message> = {
   'notFound.back': 'العودة إلى البداية',
 
   'validation.invalid': 'قيمة غير صالحة',
-  'validation.invalidDate': 'يجب إدخال تاريخ صالح (YYYY-MM-DD)',
+  'validation.invalidDate': 'أدخل تاريخاً صالحاً',
   'validation.uaeMobile': 'أدخل رقم هاتف إماراتي صالحاً، مثل +971 50 123 4567',
   'validation.email': 'أدخل بريداً إلكترونياً صالحاً',
   'validation.choosePerson': 'اختر شخصاً',
@@ -76,7 +76,7 @@ export const ar: Record<MessageKey, Message> = {
   'error.invalidYear': 'يجب أن تكون السنة رقماً صحيحاً بين 2000 و2100',
   'error.unknownRole': 'الدور غير معروف',
   'error.unknownPerson': 'شخص غير معروف',
-  'error.notTechTeam': '{name} من مالك العملية؛ لا يمكن أن يُكلَّف بذلك إلا أحد أعضاء الفريق التقني',
+  'error.notTechTeam': '{name} من جهة مالك العملية، والتكليف متاح لأعضاء الفريق التقني فقط',
   'error.personInactive': '{name} غير نشط',
   'error.unknownMainProject': 'المشروع الرئيسي غير معروف',
   'error.unknownProjectType': 'نوع المشروع غير معروف',
