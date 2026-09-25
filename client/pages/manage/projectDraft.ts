@@ -1,6 +1,7 @@
 import type { ProjectDetailsInput, ScheduleUpdateInput, ValidationIssue } from '../../../shared/schemas';
 import type { PhaseInput } from '../../../shared/scheduler';
 import { SCOPE_KINDS, type Category, type Priority, type ProjectRecord, type ScopeKind } from '../../../shared/types';
+import { subPhaseSpan } from '../../../shared/scheduler';
 import type { DraftItem } from '../../components/ItemTable';
 import type { DraftAssignment } from '../../overloads';
 
@@ -102,12 +103,24 @@ export interface PhaseDraft extends PhaseInput {
 export function phasesToInput(phases: PhaseDraft[]) {
   const people = (list: DraftAssignment[] = []) =>
     list.map((a) => ({ resourceId: a.resourceId ?? 0, allocation: a.allocation, role: a.role }));
-  return phases.map(({ name, durationDays, assignments, subPhases = [] }) => ({
-    name,
-    durationDays,
-    assignments: people(assignments),
-    subPhases: subPhases.map((s) => ({ name: s.name, durationDays: s.durationDays, withPrevious: s.withPrevious, assignments: people(s.assignments) })),
-  }));
+  return phases.map(({ name, durationDays, assignments, subPhases = [] }) => {
+    let finalDurationDays = durationDays;
+    if (subPhases.length > 0) {
+      // For a phase with sub-phases, calculate the derived span, treating invalid sub-phases as 0 days
+      const validSubPhases = subPhases.map((s) => ({
+        name: s.name,
+        durationDays: Number.isInteger(s.durationDays) && s.durationDays >= 1 ? s.durationDays : 0,
+        withPrevious: s.withPrevious,
+      }));
+      finalDurationDays = Math.max(1, subPhaseSpan(validSubPhases));
+    }
+    return {
+      name,
+      durationDays: finalDurationDays,
+      assignments: people(assignments),
+      subPhases: subPhases.map((s) => ({ name: s.name, durationDays: s.durationDays, withPrevious: s.withPrevious, assignments: people(s.assignments) })),
+    };
+  });
 }
 
 /** Loads a saved project's schedule into the wizard/editor form, keeping every phase's and sub-phase's id. */
@@ -127,17 +140,30 @@ export function scheduleFromProject(p: ProjectRecord): { startDate: string; phas
 export function scheduleToInput(startDate: string, phases: PhaseDraft[]): ScheduleUpdateInput {
   return {
     startDate,
-    phases: phases.map((p) => ({
-      ...(p.id !== undefined ? { id: p.id } : {}),
-      name: p.name,
-      durationDays: p.durationDays,
-      subPhases: (p.subPhases ?? []).map((s) => ({
+    phases: phases.map((p) => {
+      const subPhases = (p.subPhases ?? []).map((s) => ({
         ...(s.id !== undefined ? { id: s.id } : {}),
         name: s.name,
         durationDays: s.durationDays,
         withPrevious: s.withPrevious,
-      })),
-    })),
+      }));
+      let finalDurationDays = p.durationDays;
+      if (subPhases.length > 0) {
+        // For a phase with sub-phases, calculate the derived span, treating invalid sub-phases as 0 days
+        const validSubPhases = subPhases.map((s) => ({
+          name: s.name,
+          durationDays: Number.isInteger(s.durationDays) && s.durationDays >= 1 ? s.durationDays : 0,
+          withPrevious: s.withPrevious,
+        }));
+        finalDurationDays = Math.max(1, subPhaseSpan(validSubPhases));
+      }
+      return {
+        ...(p.id !== undefined ? { id: p.id } : {}),
+        name: p.name,
+        durationDays: finalDurationDays,
+        subPhases,
+      };
+    }),
   };
 }
 

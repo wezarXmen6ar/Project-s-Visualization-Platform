@@ -125,4 +125,36 @@ describe('EditPhasesPage', () => {
     expect(screen.getByLabelText('Phase 2 sub-phase 1 name')).toHaveValue('Increment 2');
     expect(screen.getByLabelText('Phase 2 sub-phase 2 name')).toHaveValue('Increment 1');
   });
+
+  it('saves a phase with a cleared working-days input after adding a sub-phase', async () => {
+    const fetchMock = mockFetch({
+      ...baseRoutes(),
+      'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 1 name');
+
+    // Clear phase 1's working days
+    const phase1Days = screen.getByLabelText('Phase 1 working days');
+    await user.clear(phase1Days);
+
+    // Add sub-phase to phase 1
+    await user.click(screen.getByRole('button', { name: 'Add sub-phase to phase 1' }));
+    await user.type(screen.getByLabelText('Phase 1 sub-phase 1 name'), 'Subtask');
+    const subDays = screen.getByLabelText('Phase 1 sub-phase 1 working days');
+    await user.clear(subDays);
+    await user.type(subDays, '3');
+
+    // Save
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+
+    // Verify PUT was sent successfully (no validation error)
+    expect(await screen.findByText('Project page')).toBeInTheDocument();
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects/1/schedule' && init?.method === 'PUT');
+    expect(put).toBeDefined();
+    const sent = JSON.parse(put![1]!.body as string);
+    const req = sent.phases.find((p: { id?: number }) => p.id === 11);
+    expect(req.durationDays).toBe(3);
+  });
 });

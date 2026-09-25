@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
+import { scheduleUpdateSchema } from '../../../shared/schemas';
 import { sampleProject } from '../../testing/mockFetch';
 import {
   detailsFromProject, detailsToInput, emptyDetails, firstStepWithIssue, phasesToInput, removedWithPeople,
@@ -149,6 +150,59 @@ describe('projectDraft', () => {
         },
       ];
       expect(removedWithPeople(project, phases)).toEqual([]);
+    });
+  });
+
+  describe('phases with sub-phases', () => {
+    it('phasesToInput sends the derived span for a phase with NaN duration and valid sub-phases', () => {
+      const result = phasesToInput([
+        {
+          name: 'Dev',
+          durationDays: NaN,
+          subPhases: [
+            { name: 'A', durationDays: 5, withPrevious: false },
+            { name: 'B', durationDays: 3, withPrevious: false },
+          ],
+        },
+      ]);
+      expect(result[0].durationDays).toBe(8);
+    });
+
+    it('scheduleToInput sends the derived span for a phase with NaN duration and valid sub-phases', () => {
+      const phases: PhaseDraft[] = [
+        {
+          name: 'Dev',
+          durationDays: NaN,
+          subPhases: [
+            { name: 'A', durationDays: 5, withPrevious: false },
+            { name: 'B', durationDays: 3, withPrevious: false },
+          ],
+        },
+      ];
+      const result = scheduleToInput('2026-10-05', phases);
+      expect(result.phases[0].durationDays).toBe(8);
+      expect(scheduleUpdateSchema.safeParse(result).success).toBe(true);
+    });
+
+    it('phasesToInput sends durationDays: 1 for a phase with all invalid sub-phases', () => {
+      const result = phasesToInput([
+        {
+          name: 'Dev',
+          durationDays: NaN,
+          subPhases: [
+            { name: '', durationDays: NaN, withPrevious: false },
+            { name: '', durationDays: 0, withPrevious: false },
+          ],
+        },
+      ]);
+      expect(result[0].durationDays).toBe(1);
+    });
+
+    it('phasesToInput keeps the original durationDays for a phase without sub-phases', () => {
+      const result = phasesToInput([
+        { name: 'QA', durationDays: 7 },
+      ]);
+      expect(result[0].durationDays).toBe(7);
     });
   });
 });
