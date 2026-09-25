@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 import type { ISODate } from '../../shared/calendar';
 import type { ToDoRecord } from '../../shared/types';
 import { dueLabel, formerPhaseLabel } from '../todos';
@@ -20,7 +21,14 @@ export function ToDoMetaLine({ todo, today, showAssignee = true }: ToDoMetaLineP
   const former = formerPhaseLabel(todo);
 
   const parts: { key: string; node: ReactNode }[] = [];
-  if (showAssignee) parts.push({ key: 'assignee', node: todo.assignee?.name ?? 'Unassigned' });
+  if (showAssignee) {
+    const assigneeNode = todo.assignee ? (
+      <Link to={`/manage/resources/${todo.assignee.id}`}>{todo.assignee.name}</Link>
+    ) : (
+      'Unassigned'
+    );
+    parts.push({ key: 'assignee', node: assigneeNode });
+  }
   if (label) parts.push({ key: 'due', node: <span className={overdue ? 'overdue' : undefined}>{label}</span> });
   if (todo.phase) parts.push({ key: 'phase', node: todo.phase.name });
 
