@@ -26,8 +26,11 @@ export function AssignmentsEditor({ phaseName, dates, people, value, onChange, w
       </h3>
       {value.length === 0 ? <p className="muted item-empty">No one assigned.</p> : null}
       {value.map((a, i) => {
+        const chosenElsewhere = new Set(
+          value.filter((_, j) => j !== i).map((other) => other.resourceId).filter((id): id is number => id !== null),
+        );
         const options = people
-          .filter((p) => p.side === 'tech' && (p.active || p.id === a.resourceId))
+          .filter((p) => p.side === 'tech' && (p.active || p.id === a.resourceId) && !chosenElsewhere.has(p.id))
           .sort((x, y) => x.name.localeCompare(y.name));
         const lines = a.resourceId === null ? [] : warnings.get(a.resourceId) ?? [];
         return (

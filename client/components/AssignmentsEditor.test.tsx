@@ -54,6 +54,20 @@ describe('AssignmentsEditor', () => {
     expect(options).toEqual(['Choose a person…', 'Fatima Noor · Developer', 'Rami Saleh · Developer', 'Sara Ahmed · Project manager']);
   });
 
+  it('excludes a person already picked in another row of the same phase', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: 'Add person to Development' }));
+    await user.selectOptions(screen.getByLabelText('Development person 1'), 'Fatima Noor · Developer');
+    await user.click(screen.getByRole('button', { name: 'Add person to Development' }));
+
+    const row1Options = within(screen.getByLabelText('Development person 1')).getAllByRole('option').map((o) => o.textContent);
+    const row2Options = within(screen.getByLabelText('Development person 2')).getAllByRole('option').map((o) => o.textContent);
+    expect(row1Options).toContain('Fatima Noor · Developer');
+    expect(row2Options).not.toContain('Fatima Noor · Developer');
+    expect(row2Options).toContain('Rami Saleh · Developer');
+  });
+
   it("shows a person's overbooking warnings under their row", async () => {
     const user = userEvent.setup();
     render(<Harness warnings={new Map([[71, ['Week of 5 Oct: 150% booked, 100% available']]])} />);

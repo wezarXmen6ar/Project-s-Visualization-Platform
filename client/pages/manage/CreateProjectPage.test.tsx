@@ -259,4 +259,37 @@ describe('CreateProjectPage wizard', () => {
     expect(sent.phases[0].assignments).toEqual([{ resourceId: 71, allocation: 50, role: 'responsible' }]);
     expect(sent.phases[1].assignments).toEqual([]);
   });
+
+  it('sums one person across two draft phases that share a week, even though neither alone is overbooked', async () => {
+    mockFetch(baseRoutes);
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    // A Wednesday start makes Requirements gathering (10 working days) end mid-week (7–20 Oct), so
+    // Business analysis starts in that same week (21 Oct–…). Both phases then touch the week of 19 Oct,
+    // when Rami is already on 2 days of leave (per sampleWorkload), so his available capacity that week
+    // is only 48% (80% capacity × 3 working days ÷ 5). 60% on each phase alone stays under that, but the
+    // two phases together (60%×2 days + 60%×3 days, weighted over the 5-day week) add up to 60% > 48%.
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-10-07' } });
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Add person to Requirements gathering' }));
+    await screen.findByRole('option', { name: 'Rami Saleh · Developer' });
+    await user.selectOptions(screen.getByLabelText('Requirements gathering person 1'), 'Rami Saleh · Developer');
+    await user.clear(screen.getByLabelText('Requirements gathering allocation 1'));
+    await user.type(screen.getByLabelText('Requirements gathering allocation 1'), '60');
+    // On his own, 60% on Requirements gathering does not overbook the week of 19 Oct.
+    expect(screen.queryByText(/Week of 19 Oct/)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Add person to Business analysis' }));
+    await user.selectOptions(screen.getByLabelText('Business analysis person 1'), 'Rami Saleh · Developer');
+    await user.clear(screen.getByLabelText('Business analysis allocation 1'));
+    await user.type(screen.getByLabelText('Business analysis allocation 1'), '60');
+
+    // Together, the two draft phases push the shared week of 19 Oct over his (leave-reduced) availability.
+    const warning = 'Week of 19 Oct: 60% booked, 48% available (2 days of leave)';
+    const matches = await screen.findAllByText(warning);
+    expect(matches).toHaveLength(2); // shown under both phases, since both touch that week
+  });
 });
