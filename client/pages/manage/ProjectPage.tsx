@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { DEFAULT_CALENDAR, countWorkingDays, todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
@@ -8,6 +8,7 @@ import { api } from '../../api';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
+import { dayDate } from '../../overloads';
 import { useAsync } from '../../useAsync';
 import { useResources } from '../../useResources';
 import { useWorkload } from '../../useWorkload';
@@ -139,12 +140,28 @@ export function ProjectPage() {
           </thead>
           <tbody>
             {p.phases.map((ph) => (
-              <tr key={ph.id}>
-                <td>{ph.name}</td>
-                <td>{ph.start}</td>
-                <td>{ph.end}</td>
-                <td>{ph.durationDays}</td>
-              </tr>
+              <Fragment key={ph.id}>
+                <tr>
+                  <td>{ph.name}</td>
+                  <td>{dayDate(ph.start)}</td>
+                  <td>{dayDate(ph.end)}</td>
+                  <td>
+                    {ph.durationDays}
+                    {ph.subPhases.length > 0 ? <span className="muted"> (from sub-phases)</span> : null}
+                  </td>
+                </tr>
+                {ph.subPhases.map((sp) => (
+                  <tr key={sp.id}>
+                    <td className="sub-phase-name">
+                      ↳ {sp.name}
+                      {sp.withPrevious ? <span className="muted"> · starts with the one above</span> : null}
+                    </td>
+                    <td>{dayDate(sp.start)}</td>
+                    <td>{dayDate(sp.end)}</td>
+                    <td>{sp.durationDays}</td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>

@@ -85,6 +85,7 @@ h2 { font-size: var(--fs-md); font-weight: 600; margin: 0 0 var(--sp-3); }
 h3 { font-size: var(--fs-base); font-weight: 600; margin: 0; }
 
 .muted { color: var(--muted); }
+.sub-phase-name { padding-left: var(--sp-4); }
 
 :focus-visible {
   outline: 2px solid var(--primary);

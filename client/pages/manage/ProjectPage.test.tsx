@@ -129,4 +129,29 @@ describe('ProjectPage', () => {
     const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/phases/11/assignments' && init?.method === 'PUT');
     expect(JSON.parse(put![1]!.body as string)).toEqual({ assignments: [{ resourceId: 72, allocation: 20, role: 'responsible' }] });
   });
+
+  it('shows sub-phases in the Phases table and on the Gantt chart', async () => {
+    mockFetch({
+      'GET /api/projects/1': () => ({
+        body: sampleProject({
+          phases: [
+            {
+              id: 12, name: 'Development', order: 0, durationDays: 8, start: '2026-10-05', end: '2026-10-16',
+              subPhases: [
+                { id: 21, name: 'Increment 1', order: 0, durationDays: 5, start: '2026-10-05', end: '2026-10-09', withPrevious: false },
+                { id: 22, name: 'Increment 2', order: 1, durationDays: 3, start: '2026-10-05', end: '2026-10-09', withPrevious: true },
+              ],
+            },
+          ],
+        }),
+      }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+    });
+    renderAt('/manage/projects/1');
+    expect(await screen.findByText(/↳ Increment 1/)).toBeInTheDocument();
+    expect(screen.getByText(/↳ Increment 2/)).toBeInTheDocument();
+    expect(screen.getByText(/starts with the one above/)).toBeInTheDocument();
+    expect(screen.getByText(/\(from sub-phases\)/)).toBeInTheDocument();
+    expect(screen.getByTestId('gantt-row-21')).toBeInTheDocument();
+  });
 });

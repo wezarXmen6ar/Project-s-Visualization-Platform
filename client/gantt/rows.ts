@@ -10,6 +10,7 @@ interface PhaseLike {
   name: string;
   start: ISODate;
   end: ISODate;
+  subPhases?: { id?: number; order: number; name: string; start: ISODate; end: ISODate }[];
 }
 
 /**
@@ -62,13 +63,24 @@ export function phaseColorFor(name: string): string {
 }
 
 export function phaseRows(project: { phases: PhaseLike[] }): GanttRow[] {
-  return project.phases.map((p) => {
+  return project.phases.flatMap((p) => {
     const id = String(p.id ?? p.order);
-    return {
+    const color = phaseColorFor(p.name);
+    const own: GanttRow = {
       id,
       label: p.name,
-      bars: [{ id, start: p.start, end: p.end, color: phaseColorFor(p.name), label: p.name, title: `${p.name}: ${p.start} → ${p.end}` }],
+      bars: [{ id, start: p.start, end: p.end, color, label: p.name, title: `${p.name}: ${p.start} → ${p.end}` }],
     };
+    const subs: GanttRow[] = (p.subPhases ?? []).map((s) => {
+      const subId = s.id !== undefined ? String(s.id) : `${p.order}-${s.order}`;
+      return {
+        id: subId,
+        label: s.name,
+        kind: 'child',
+        bars: [{ id: subId, start: s.start, end: s.end, color, label: s.name, title: `${p.name} › ${s.name}: ${s.start} → ${s.end}` }],
+      };
+    });
+    return [own, ...subs];
   });
 }
 

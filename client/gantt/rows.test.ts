@@ -87,3 +87,43 @@ describe('rows', () => {
     ]);
   });
 });
+
+const subPhaseProject = {
+  phases: [
+    { id: 1, order: 0, name: 'Requirements', start: '2026-10-05', end: '2026-10-09', subPhases: [] },
+    {
+      id: 2, order: 1, name: 'Development', start: '2026-10-12', end: '2026-10-23',
+      subPhases: [
+        { id: 3, order: 0, name: 'Increment 1', start: '2026-10-12', end: '2026-10-16' },
+        { id: 4, order: 1, name: 'Increment 2', start: '2026-10-12', end: '2026-10-23' },
+      ],
+    },
+  ],
+};
+
+describe('phaseRows with sub-phases', () => {
+  it('puts each sub-phase on its own indented row under its phase, in the phase colour', () => {
+    const rows = phaseRows(subPhaseProject);
+    expect(rows.map((r) => [r.id, r.label, r.kind ?? 'row'])).toEqual([
+      ['1', 'Requirements', 'row'],
+      ['2', 'Development', 'row'],
+      ['3', 'Increment 1', 'child'],
+      ['4', 'Increment 2', 'child'],
+    ]);
+    expect(rows[2].bars[0]).toMatchObject({
+      color: phaseColorFor('Development'),
+      label: 'Increment 1',
+      title: 'Development › Increment 1: 2026-10-12 → 2026-10-16',
+    });
+  });
+
+  it('gives draft sub-phases without ids stable row ids', () => {
+    const rows = phaseRows({ phases: [{ order: 0, name: 'Dev', start: '2026-10-05', end: '2026-10-09', subPhases: [{ order: 0, name: 'S', start: '2026-10-05', end: '2026-10-09' }] }] });
+    expect(rows.map((r) => r.id)).toEqual(['0', '0-0']);
+  });
+
+  it('keeps the portfolio to one bar per top-level phase', () => {
+    const [row] = portfolioRows([sampleProject({ phases: subPhaseProject.phases.map((p) => ({ ...p, durationDays: 5, subPhases: p.subPhases.map((sp) => ({ ...sp, durationDays: 5, withPrevious: false })) })) })]);
+    expect(row.bars).toHaveLength(2);
+  });
+});
