@@ -187,6 +187,10 @@ Saving creates Baseline 1.
 - **Linked to-dos appear:**
   - in that phase's side panel;
   - on the assignee's person page, next to the work they belong to.
+- **When a phase is removed (user decision, 2026-09-25),** its to-dos are not lost silently, and they don't pile up either.
+  - **The warning.** The warning shown before saving the phase change also counts the removed phase's open to-dos, and asks what to do with them: **Keep them on the project** (the default) or **Delete them**. Done to-dos go with the phase either way.
+  - **Kept to-dos remember where they came from.** Each shows a muted line: "Was on Development › Increment 2 (removed Fri 25 Sep)". The line goes away once the to-do is linked to another phase.
+  - **Finding them.** The To-dos page has a **From removed phases** filter, so kept ones can be reviewed, relinked, ticked off or deleted in one place.
 - **Starter checklists (optional):** Settings keeps a short list of to-dos per phase name, for example UAT: "Book UAT sessions", "Get UAT sign-off". The lists start empty. When a project is created, or a phase is added, the matching items are offered ticked, and you can untick any or all of them. Nothing is added unless you keep it.
 - **"I am" (Settings):** you pick yourself from Resources, which is what **Mine** and **My next steps** use.
 

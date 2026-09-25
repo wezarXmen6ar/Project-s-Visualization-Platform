@@ -47,7 +47,12 @@
 - **A phase with sub-phases takes its dates from them.** Its working days are shown as "N working days (from sub-phases)" and can't be typed.
 - **Sub-phase names are free text**, e.g. "Increment 7 – Payment gateway". They are not chosen from the Phases list. Sub-phase bars use their parent phase's colour, so Development's increments all look like Development.
 - **People can be assigned to a whole phase and to its sub-phases.** Both count in workload. For example, a tech lead might be on "Development" at 30% while developers are on individual increments.
-- **Removing a phase removes the people assigned to it.** Its to-dos stay on the project, unlinked from the phase. The Edit phases page warns before saving when a removed phase has people on it.
+- **Removing a phase removes the people assigned to it.** The Edit phases page warns before saving when a removed phase has people or open to-dos on it.
+- **A removed phase's to-dos (user decision, 2026-09-25).** The warning asks what to do with the open ones:
+  - **Keep them on the project** (the default). A kept to-do is unlinked, and it remembers the removed phase: "Was on Development › Increment 2 (removed Fri 25 Sep)". Linking it to another phase clears that note.
+  - **Delete them.**
+
+  Done to-dos of a removed phase are deleted either way. The To-dos page has a **From removed phases** filter for cleaning up the kept ones.
 - **Before M7, editing phases simply changes the plan.** Baselines and recorded date changes start in M7. The spec already says this.
 - **"I am" must be an active tech-team person.** It is used for **Mine**, **Next up** and **My next steps**. Until it is set, those places say so and link to Settings. The PM can still add and assign to-dos.
 - **Assignee rule:** a to-do's assignee must be the project's tech PM, its business PM, someone assigned to any of its phases or sub-phases, or "I am". A to-do whose assignee later leaves the project keeps them, the same way inactive people stay on their phases. The rule only applies when the assignee is changed.
@@ -1116,7 +1121,7 @@ git commit -m "feat: assign people to sub-phases, and show what each person is w
 
 **Files:**
 - Create: `server/todos/repo.ts`
-- Modify: `server/db.ts` (append migration 9), `shared/types.ts`, `shared/schemas.ts`, `server/settings.ts`, `server/resources/repo.ts`, `server/app.ts`, `client/api.ts`, `client/testing/mockFetch.ts` (add a `sampleToDos()` fixture)
+- Modify: `server/db.ts` (append migration 9), `shared/types.ts`, `shared/schemas.ts` (to-do schemas, plus `removedToDos` on `scheduleUpdateSchema`), `server/settings.ts`, `server/resources/repo.ts`, `server/projects/repo.ts` (`updateSchedule` handles a removed phase's to-dos), `server/app.ts`, `client/api.ts`, `client/testing/mockFetch.ts` (add a `sampleToDos()` fixture)
 - Test: `server/todos/todos.test.ts` (new), `server/resources/resources.test.ts`, `server/app.test.ts`
 
 **Interfaces:**
@@ -1137,6 +1142,8 @@ git commit -m "feat: assign people to sub-phases, and show what each person is w
       doneDate: ISODate | null;
       /** The phase or sub-phase it belongs to; a sub-phase's name reads "Phase › Sub-phase". */
       phase: Ref | null;
+      /** Set when the phase it was linked to was removed and the to-do was kept; cleared once it is linked again. */
+      formerPhase: { name: string; removedOn: ISODate } | null;
       createdAt: string;
     }
     /** Who "I am" is: the PM using the tool. */
@@ -1193,6 +1200,8 @@ CREATE TABLE todos (
   due_date TEXT,
   phase_id INTEGER REFERENCES phases(id) ON DELETE SET NULL,
   done_date TEXT,
+  former_phase TEXT,
+  former_phase_removed_on TEXT,
   created_at TEXT NOT NULL
 );
 CREATE INDEX todos_project ON todos(project_id);
@@ -1219,6 +1228,18 @@ CREATE INDEX todos_assignee ON todos(assignee_id);
   Filters combine: `projectId`, `assigneeId`, and `includeDone` (false by default).
 - **The phase name** in a record is "Phase › Sub-phase" for a sub-phase. Get it with a `LEFT JOIN` to the parent phase.
 - **The project must exist** for create: 404 `{ error: 'Project not found' }`.
+- **Relinking clears the note.** An update that sets a `phaseId` clears `former_phase` and `former_phase_removed_on`.
+- **Removed phases' to-dos** (this extends Task 2's `updateSchedule`):
+  - `scheduleUpdateSchema` gains `removedToDos: z.enum(['keep', 'delete']).default('keep')`.
+  - `updateSchedule` gains a `today: ISODate` parameter, which the route passes from `today()`.
+  - Before deleting the phase rows that are not kept, handle every to-do linked to one of them (or to a sub-phase that goes with them):
+    - **done** to-dos are deleted;
+    - **open** ones, with `'delete'`, are deleted;
+    - **open** ones, with `'keep'`, get `phase_id = NULL`, `former_phase = '<Phase>'` or `'<Phase> › <Sub-phase>'` (the name **before** this save), and `former_phase_removed_on = today`.
+
+    All of this happens in the same transaction.
+  - A to-do linked to a phase that is **kept** (even one that moves or is renamed) is untouched.
+- **Filter:** `ToDoFilter` gains `fromRemovedPhases?: boolean`. When it is set, only to-dos with a `former_phase` are returned. The route reads it from `?removed=1`.
 - **People in use:** add to `USAGE` in `server/resources/repo.ts`:
 
   ```ts
@@ -1242,7 +1263,13 @@ Tests:
 - **Phases.** A phase from another project is rejected with `phaseId` "Unknown phase". The project's own sub-phase is accepted, and the record's `phase.name` is "Development › Increment 1".
 - **Done date.** Create, then set `done: true` with today `2026-10-07`: `doneDate` is `2026-10-07`. Updating again with `done: true` and today `2026-10-09` keeps `2026-10-07`. `done: false` clears it.
 - **Order.** Open to-dos come in the order: overdue `2026-10-01`, then `2026-10-10`, then undated. Done ones are excluded unless `includeDone`. Filters by `projectId` and `assigneeId` work.
-- **Deleting the phase** sets the to-do's `phase` to `null` and keeps the to-do. **Deleting the project** deletes its to-dos.
+- **Removing a phase through `updateSchedule`,** with one open and one done to-do on sub-phase "Development › Increment 1":
+  - With the default (`keep`, today `2026-09-25`), the open one has `phase: null` and `formerPhase: { name: 'Development › Increment 1', removedOn: '2026-09-25' }`, and the done one is gone.
+  - With `removedToDos: 'delete'`, both are gone.
+  - A to-do on a phase that is kept but renamed keeps its link, and `formerPhase` stays null.
+- **Relinking.** Updating a kept to-do with a `phaseId` clears `formerPhase`.
+- **The filter.** `listToDos(db, { fromRemovedPhases: true })` returns only to-dos with a `formerPhase`.
+- **Deleting the project** deletes its to-dos.
 
 In `server/resources/resources.test.ts`:
 - deleting a person who has a to-do answers 409, with a message containing "they have 1 to-do";
@@ -1419,7 +1446,7 @@ git commit -m "feat: to-dos and a Next up card on the project page, and choosing
 
 **Files:**
 - Create: `client/pages/manage/ToDosPage.tsx`, `client/pages/manage/MyNextSteps.tsx`, `client/components/ToDoRow.tsx` (the shared read-only row, used by the To-dos page, My next steps and the person page)
-- Modify: `client/App.tsx` (the route), `client/pages/manage/ManageDashboardPage.tsx`, `client/pages/manage/PersonPage.tsx`, `client/pages/manage/ProjectToDos.tsx` and `NextUp.tsx` (use `ToDoRow` for the read-only part of a row if that keeps them simpler; otherwise leave them), `client/styles.css`
+- Modify: `client/App.tsx` (the route), `client/pages/manage/ManageDashboardPage.tsx`, `client/pages/manage/PersonPage.tsx`, `client/pages/manage/ProjectToDos.tsx` and `NextUp.tsx` (use `ToDoRow` for the read-only part of a row if that keeps them simpler; otherwise leave them), `client/pages/manage/EditPhasesPage.tsx` and `projectDraft.ts` (to-dos in the removal warning), `client/styles.css`
 - Test: `client/pages/manage/ToDosPage.test.tsx` (new), `client/pages/manage/ManageDashboardPage.test.tsx`, `client/pages/manage/PersonPage.test.tsx`
 
 **Interfaces:**
@@ -1446,7 +1473,8 @@ git commit -m "feat: to-dos and a Next up card on the project page, and choosing
   - A back link to Projects, then the heading "To-dos", then filters:
     - **Project** (a select): "All projects", then each project by name;
     - **Assigned to** (a select): "Anyone", "Mine" (only when "I am" is set), "Unassigned", then every person who appears as an assignee in the loaded to-dos, sorted by name;
-    - **Show done** (a checkbox).
+    - **Show done** (a checkbox);
+    - **From removed phases** (a checkbox). It is shown only when at least one loaded to-do has a `formerPhase`. When it is ticked, only those to-dos are shown. It is kept in the URL as `removed=1`.
   - The filters are kept in the URL query (`?project=3&assignee=me|unassigned|<id>&done=1`), so "All to-dos" links straight to Mine. Read them with `useSearchParams` and write them back with `setSearchParams(…, { replace: true })`.
   - It loads with `api.listToDos({ includeDone: true })` once and filters in the browser.
   - The list is open to-dos in `byUrgency` order, then, if Show done is ticked, a "Done" heading with the done ones, newest first. Each is a `ToDoRow` with `showProject`.
@@ -1455,6 +1483,14 @@ git commit -m "feat: to-dos and a Next up card on the project page, and choosing
   - It lists that person's open to-dos across projects, with `byUrgency`, using `ToDoRow` with `showProject`.
   - If there are none: "No open to-dos."
   - Ticking one works as on the dashboard.
+- **The removed-phase note:** wherever a to-do is shown (`ToDoRow`, the project's To-dos card and Next up), a to-do with a `formerPhase` gets a muted line: "Was on Development › Increment 2 (removed Fri 25 Sep)", using `dayDate` for the date.
+- **The Edit phases warning covers to-dos** (this extends Task 4):
+  - The page also loads the project's to-dos, with `api.listToDos({ projectId, includeDone: true })`.
+  - `removedWithPeople` becomes `removedItems(project, phases, todos): { label: string; people: number; openToDos: number }[]`. It lists every removed phase or sub-phase that has people **or** open to-dos. Rename the function everywhere, and update Task 4's `removedWithPeople` tests to the new name and shape; don't drop them.
+  - The warning reads: "Saving will remove Development › Increment 2 (2 people, 3 open to-dos)." Each part appears only when it isn't zero. The singular forms are "1 person" and "1 open to-do".
+  - The line "The people on them will be unassigned." appears only when some people are affected.
+  - When any open to-dos are affected, a radio group labelled "Their open to-dos" follows, with the options **Keep them on the project** (checked by default) and **Delete them**.
+  - **Save anyway** sends `removedToDos` with the choice.
 - **To-dos next to the work** (spec §3.8): in the person's "Working on" card (Task 5), under each assignment item, list that person's open to-dos linked to the same phase or sub-phase, as small muted lines ("☐ Review the payment provider's API documentation · Due Fri 18 Dec"). `PersonWork` gains an optional `todos: ToDoRecord[]` prop for this, and the page passes the same list it loaded for the To-dos card.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1480,6 +1516,17 @@ In `client/pages/manage/PersonPage.test.tsx`:
 - a business contact's page shows their to-dos too;
 - a person with none shows "No open to-dos."
 - in "Working on", the to-do linked to the "Increment 3 – Payments" sub-phase is shown under that assignment item.
+
+In `client/pages/manage/ToDosPage.test.tsx`:
+- a to-do with `formerPhase` shows "Was on Development › Increment 2 (removed Fri 25 Sep)";
+- **From removed phases** appears only when such a to-do exists, and ticking it shows only those and puts `removed=1` in the URL.
+
+In `client/pages/manage/EditPhasesPage.test.tsx`:
+- Removing a sub-phase that has 1 person and 2 open to-dos shows "Saving will remove Development › Increment 2 (1 person, 2 open to-dos)." and the "Their open to-dos" radio group, with Keep checked.
+- Choosing **Delete them**, then **Save anyway**, sends `removedToDos: 'delete'`.
+- Removing a phase that has to-dos but no people still shows the warning, without the "unassigned" line.
+
+In `client/pages/manage/projectDraft.test.ts`: `removedItems` counts only **open** to-dos, and counts the sub-phases of a removed phase unless they were moved.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
