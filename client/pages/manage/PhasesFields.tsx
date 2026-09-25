@@ -1,5 +1,6 @@
+import { Fragment } from 'react';
 import { DEFAULT_CALENDAR, isISODate, todayLocal } from '../../../shared/calendar';
-import { schedulePhases, type PhaseInput } from '../../../shared/scheduler';
+import { schedulePhases, subPhaseSpan } from '../../../shared/scheduler';
 import type { ListValue } from '../../../shared/types';
 import { OptionPicker } from '../../components/OptionPicker';
 import { GripIcon, PlusIcon, TrashIcon } from '../../icons';
@@ -9,9 +10,11 @@ import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useAsync } from '../../useAsync';
 import { moveItem, useReorder } from '../../useReorder';
+import type { PhaseDraft, SubPhaseDraft } from './projectDraft';
+import { SubPhaseList } from './SubPhaseList';
 
 /** New projects start with these phases; each name is also in the default Phases list (migration 4). */
-export const DEFAULT_PHASES: PhaseInput[] = [
+export const DEFAULT_PHASES: PhaseDraft[] = [
   { name: 'Requirements gathering', durationDays: 10 },
   { name: 'Business analysis', durationDays: 10 },
   { name: 'Development plan', durationDays: 5 },
@@ -26,12 +29,17 @@ export const DEFAULT_PHASES: PhaseInput[] = [
 interface PhasesFieldsProps {
   startDate: string;
   onStartDate: (date: string) => void;
-  phases: PhaseInput[];
-  onPhases: (phases: PhaseInput[]) => void;
+  phases: PhaseDraft[];
+  onPhases: (phases: PhaseDraft[]) => void;
   /** The editable Phases list, for the name dropdowns. */
   phaseOptions: ListValue[];
   /** Called with a phase name created inline with "Other…", so every dropdown shows it straight away. */
   onListAdded: (value: ListValue) => void;
+}
+
+/** A sub-phase with a non-blank name and a whole number of at least 1 working day. */
+function isValidSub(s: SubPhaseDraft): boolean {
+  return s.name.trim() !== '' && Number.isInteger(s.durationDays) && s.durationDays >= 1;
 }
 
 /** Wizard Step 3: start date, ordered phases chosen from the Phases list, working-day durations, and a live Gantt preview. */
@@ -41,12 +49,14 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
   const { handleProps, rowProps } = useReorder(phases.length, (from, to) => onPhases(moveItem(phases, from, to)));
 
   const cal = calendar.data ?? DEFAULT_CALENDAR;
-  const previewPhases = phases.filter((p) => p.name.trim() !== '' && Number.isInteger(p.durationDays) && p.durationDays >= 1);
+  const previewPhases = phases
+    .map((p) => ({ ...p, subPhases: (p.subPhases ?? []).filter(isValidSub) }))
+    .filter((p) => p.name.trim() !== '' && (p.subPhases.length > 0 || (Number.isInteger(p.durationDays) && p.durationDays >= 1)));
   const scheduled = isISODate(startDate) ? schedulePhases(startDate, previewPhases, cal) : [];
   const rows = phaseRows({ phases: scheduled });
   const range = rangeFor(rows, isISODate(startDate) ? startDate : todayLocal());
 
-  function update(index: number, patch: Partial<PhaseInput>) {
+  function update(index: number, patch: Partial<PhaseDraft>) {
     onPhases(phases.map((p, i) => (i === index ? { ...p, ...patch } : p)));
   }
 
@@ -67,50 +77,62 @@ export function PhasesFields({ startDate, onStartDate, phases, onPhases, phaseOp
             <input type="date" value={startDate} onChange={(e) => onStartDate(e.target.value)} />
           </label>
         </div>
-        {phases.map((phase, i) => (
-          <div className="phase-row" key={i} {...rowProps(i)}>
-            <button {...handleProps(i, `Reorder phase ${i + 1}`)}>
-              <GripIcon />
-            </button>
-            <OptionPicker
-              label={`Phase ${i + 1} name`}
-              hideLabel
-              list="phase"
-              options={phaseOptions}
-              value={idForName(phase.name)}
-              onChange={(id) => {
-                if (id === null) {
-                  update(i, { name: '' });
-                  return;
-                }
-                // A name just created with "Other…" is not in phaseOptions yet; onAdded below has already set it.
-                const chosen = phaseOptions.find((o) => o.id === id);
-                if (chosen) update(i, { name: chosen.name });
-              }}
-              onAdded={(value) => {
-                onListAdded(value);
-                update(i, { name: value.name });
-              }}
-              noneLabel="Choose a phase…"
-              addLabel="Other…"
-            />
-            <input
-              aria-label={`Phase ${i + 1} working days`}
-              type="number"
-              min={1}
-              value={Number.isNaN(phase.durationDays) ? '' : phase.durationDays}
-              onChange={(e) => update(i, { durationDays: e.target.valueAsNumber })}
-            />
-            <button
-              type="button"
-              className="button ghost-icon"
-              aria-label={`Remove phase ${i + 1}`}
-              onClick={() => onPhases(phases.filter((_, j) => j !== i))}
-            >
-              <TrashIcon />
-            </button>
-          </div>
-        ))}
+        {phases.map((phase, i) => {
+          const subs = phase.subPhases ?? [];
+          return (
+            <Fragment key={i}>
+              <div className="phase-row" {...rowProps(i)}>
+                <button {...handleProps(i, `Reorder phase ${i + 1}`)}>
+                  <GripIcon />
+                </button>
+                <OptionPicker
+                  label={`Phase ${i + 1} name`}
+                  hideLabel
+                  list="phase"
+                  options={phaseOptions}
+                  value={idForName(phase.name)}
+                  onChange={(id) => {
+                    if (id === null) {
+                      update(i, { name: '' });
+                      return;
+                    }
+                    // A name just created with "Other…" is not in phaseOptions yet; onAdded below has already set it.
+                    const chosen = phaseOptions.find((o) => o.id === id);
+                    if (chosen) update(i, { name: chosen.name });
+                  }}
+                  onAdded={(value) => {
+                    onListAdded(value);
+                    update(i, { name: value.name });
+                  }}
+                  noneLabel="Choose a phase…"
+                  addLabel="Other…"
+                />
+                {subs.length > 0 ? (
+                  <span className="derived-days" aria-label={`Phase ${i + 1} working days`}>
+                    {subPhaseSpan(subs.filter(isValidSub))} working days (from sub-phases)
+                  </span>
+                ) : (
+                  <input
+                    aria-label={`Phase ${i + 1} working days`}
+                    type="number"
+                    min={1}
+                    value={Number.isNaN(phase.durationDays) ? '' : phase.durationDays}
+                    onChange={(e) => update(i, { durationDays: e.target.valueAsNumber })}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="button ghost-icon"
+                  aria-label={`Remove phase ${i + 1}`}
+                  onClick={() => onPhases(phases.filter((_, j) => j !== i))}
+                >
+                  <TrashIcon />
+                </button>
+              </div>
+              <SubPhaseList phaseNumber={i + 1} subs={subs} onChange={(next) => update(i, { subPhases: next })} />
+            </Fragment>
+          );
+        })}
         <button type="button" className="button secondary" onClick={() => onPhases([...phases, { name: '', durationDays: 5 }])}>
           <PlusIcon />Add phase
         </button>

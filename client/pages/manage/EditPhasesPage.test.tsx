@@ -1,0 +1,128 @@
+// @vitest-environment jsdom
+import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { describe, expect, it } from 'vitest';
+import { mockFetch, sampleLists, sampleProject, type MockHandler } from '../../testing/mockFetch';
+import { EditPhasesPage } from './EditPhasesPage';
+
+function ProjectStub() {
+  return <div>Project page</div>;
+}
+
+function renderPage() {
+  return render(
+    <MemoryRouter initialEntries={['/manage/projects/1/phases']}>
+      <Routes>
+        <Route path="/manage/projects/:id/phases" element={<EditPhasesPage />} />
+        <Route path="/manage/projects/:id" element={<ProjectStub />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+function project() {
+  return sampleProject({
+    phases: [
+      { id: 11, name: 'Requirements gathering', order: 0, durationDays: 2, start: '2026-09-24', end: '2026-09-25', subPhases: [] },
+      {
+        id: 12, name: 'Development', order: 1, durationDays: 10, start: '2026-09-28', end: '2026-10-09',
+        subPhases: [
+          { id: 21, name: 'Increment 1', order: 0, durationDays: 5, start: '2026-09-28', end: '2026-10-02', withPrevious: false },
+          { id: 22, name: 'Increment 2', order: 1, durationDays: 5, start: '2026-10-05', end: '2026-10-09', withPrevious: false },
+        ],
+      },
+    ],
+    assignments: [
+      { id: 900, phaseId: 21, resource: { id: 71, name: 'Fatima Noor' }, allocation: 50, role: 'contributor' },
+    ],
+  });
+}
+
+function baseRoutes(): Record<string, MockHandler> {
+  return {
+    'GET /api/projects/1': () => ({ body: project() }),
+    'GET /api/lists': () => ({ body: sampleLists() }),
+    'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+  };
+}
+
+describe('EditPhasesPage', () => {
+  it('shows the saved phases and sub-phases', async () => {
+    mockFetch(baseRoutes());
+    renderPage();
+    expect(await screen.findByLabelText('Phase 1 name')).toHaveDisplayValue('Requirements gathering');
+    expect(screen.getByLabelText('Phase 2 name')).toHaveDisplayValue('Development');
+    expect(screen.getByLabelText('Phase 2 sub-phase 1 name')).toHaveValue('Increment 1');
+    expect(screen.getByLabelText('Phase 2 sub-phase 2 name')).toHaveValue('Increment 2');
+  });
+
+  it('shows phase 2 working days derived from its sub-phases', async () => {
+    mockFetch(baseRoutes());
+    renderPage();
+    expect(await screen.findByLabelText('Phase 2 working days')).toHaveTextContent('10 working days (from sub-phases)');
+  });
+
+  it('adds a sub-phase to phase 2 and saves it with no id', async () => {
+    const fetchMock = mockFetch({
+      ...baseRoutes(),
+      'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 2 sub-phase 1 name');
+
+    await user.click(screen.getByRole('button', { name: 'Add sub-phase to phase 2' }));
+    await user.type(screen.getByLabelText('Phase 2 sub-phase 3 name'), 'Increment 3');
+    const days = screen.getByLabelText('Phase 2 sub-phase 3 working days');
+    await user.clear(days);
+    await user.type(days, '4');
+
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+
+    expect(await screen.findByText('Project page')).toBeInTheDocument();
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects/1/schedule' && init?.method === 'PUT');
+    const sent = JSON.parse(put![1]!.body as string);
+    const dev = sent.phases.find((p: { id?: number }) => p.id === 12);
+    expect(dev.id).toBe(12);
+    expect(dev.subPhases).toEqual([
+      { id: 21, name: 'Increment 1', durationDays: 5, withPrevious: false },
+      { id: 22, name: 'Increment 2', durationDays: 5, withPrevious: false },
+      { name: 'Increment 3', durationDays: 4, withPrevious: false },
+    ]);
+  });
+
+  it('warns before removing a sub-phase that has people, and saves after confirming', async () => {
+    const fetchMock = mockFetch({
+      ...baseRoutes(),
+      'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 2 sub-phase 1 name');
+
+    await user.click(screen.getByRole('button', { name: 'Remove phase 2 sub-phase 1' }));
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+
+    expect(await screen.findByText(/Development › Increment 1 \(1 person\)/)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url, init]) => url === '/api/projects/1/schedule' && init?.method === 'PUT')).toBe(false);
+
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }));
+
+    expect(await screen.findByText('Project page')).toBeInTheDocument();
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects/1/schedule' && init?.method === 'PUT');
+    const sent = JSON.parse(put![1]!.body as string);
+    const dev = sent.phases.find((p: { id?: number }) => p.id === 12);
+    expect(dev.subPhases.map((s: { id?: number }) => s.id)).toEqual([22]);
+  });
+
+  it('moves a sub-phase down within its phase via keyboard', async () => {
+    mockFetch(baseRoutes());
+    renderPage();
+    const handle = await screen.findByLabelText('Reorder phase 2 sub-phase 1');
+    handle.focus();
+    fireEvent.keyDown(handle, { key: 'ArrowDown' });
+    expect(screen.getByLabelText('Phase 2 sub-phase 1 name')).toHaveValue('Increment 2');
+    expect(screen.getByLabelText('Phase 2 sub-phase 2 name')).toHaveValue('Increment 1');
+  });
+});

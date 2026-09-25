@@ -1,4 +1,4 @@
-import type { ProjectDetailsInput, ValidationIssue } from '../../../shared/schemas';
+import type { ProjectDetailsInput, ScheduleUpdateInput, ValidationIssue } from '../../../shared/schemas';
 import type { PhaseInput } from '../../../shared/scheduler';
 import { SCOPE_KINDS, type Category, type Priority, type ProjectRecord, type ScopeKind } from '../../../shared/types';
 import type { DraftItem } from '../../components/ItemTable';
@@ -82,18 +82,90 @@ export function detailsToInput(d: DetailsDraft): ProjectDetailsInput {
   };
 }
 
-/** A wizard phase: its name, working days and, from Step 4, the people on it. */
-export interface PhaseDraft extends PhaseInput {
+/** A wizard sub-phase: its name, working days, whether it starts with the one above and, from Step 4, its people. */
+export interface SubPhaseDraft {
+  id?: number;
+  name: string;
+  durationDays: number;
+  withPrevious: boolean;
   assignments?: DraftAssignment[];
+}
+
+/** A wizard phase: its name, working days, sub-phases and, from Step 4, the people on it. */
+export interface PhaseDraft extends PhaseInput {
+  id?: number;
+  assignments?: DraftAssignment[];
+  subPhases?: SubPhaseDraft[];
 }
 
 /** Phases as the API takes them. A row with no person yet is sent as 0 so the server answers "Choose a person". */
 export function phasesToInput(phases: PhaseDraft[]) {
-  return phases.map(({ name, durationDays, assignments = [] }) => ({
+  const people = (list: DraftAssignment[] = []) =>
+    list.map((a) => ({ resourceId: a.resourceId ?? 0, allocation: a.allocation, role: a.role }));
+  return phases.map(({ name, durationDays, assignments, subPhases = [] }) => ({
     name,
     durationDays,
-    assignments: assignments.map((a) => ({ resourceId: a.resourceId ?? 0, allocation: a.allocation, role: a.role })),
+    assignments: people(assignments),
+    subPhases: subPhases.map((s) => ({ name: s.name, durationDays: s.durationDays, withPrevious: s.withPrevious, assignments: people(s.assignments) })),
   }));
+}
+
+/** Loads a saved project's schedule into the wizard/editor form, keeping every phase's and sub-phase's id. */
+export function scheduleFromProject(p: ProjectRecord): { startDate: string; phases: PhaseDraft[] } {
+  return {
+    startDate: p.startDate,
+    phases: p.phases.map((ph) => ({
+      id: ph.id,
+      name: ph.name,
+      durationDays: ph.durationDays,
+      subPhases: ph.subPhases.map((s) => ({ id: s.id, name: s.name, durationDays: s.durationDays, withPrevious: s.withPrevious })),
+    })),
+  };
+}
+
+/** The schedule as PUT /api/projects/:id/schedule takes it: ids kept where they exist, no assignments. */
+export function scheduleToInput(startDate: string, phases: PhaseDraft[]): ScheduleUpdateInput {
+  return {
+    startDate,
+    phases: phases.map((p) => ({
+      ...(p.id !== undefined ? { id: p.id } : {}),
+      name: p.name,
+      durationDays: p.durationDays,
+      subPhases: (p.subPhases ?? []).map((s) => ({
+        ...(s.id !== undefined ? { id: s.id } : {}),
+        name: s.name,
+        durationDays: s.durationDays,
+        withPrevious: s.withPrevious,
+      })),
+    })),
+  };
+}
+
+/**
+ * Every saved phase and sub-phase whose id is no longer anywhere in `phases` and that has at least one assignment,
+ * in plan order. A removed phase's sub-phases that were not moved elsewhere count as removed too.
+ */
+export function removedWithPeople(p: ProjectRecord, phases: PhaseDraft[]): { label: string; people: number }[] {
+  const keptPhaseIds = new Set(phases.map((ph) => ph.id).filter((id): id is number => id !== undefined));
+  const keptSubIds = new Set(
+    phases.flatMap((ph) => ph.subPhases ?? []).map((s) => s.id).filter((id): id is number => id !== undefined),
+  );
+  const peopleOn = (id: number) => p.assignments.filter((a) => a.phaseId === id).length;
+
+  const result: { label: string; people: number }[] = [];
+  for (const phase of p.phases) {
+    if (!keptPhaseIds.has(phase.id)) {
+      const people = peopleOn(phase.id);
+      if (people > 0) result.push({ label: phase.name, people });
+    }
+    for (const sub of phase.subPhases) {
+      if (!keptSubIds.has(sub.id)) {
+        const people = peopleOn(sub.id);
+        if (people > 0) result.push({ label: `${phase.name} › ${sub.name}`, people });
+      }
+    }
+  }
+  return result;
 }
 
 /** Which wizard step owns each top-level field, so an error can send the user to the right step. */

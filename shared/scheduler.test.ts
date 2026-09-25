@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CALENDAR } from './calendar';
-import { projectSpan, schedulePhases, scheduleSubPhases, type ScheduledSubPhase } from './scheduler';
+import { projectSpan, schedulePhases, scheduleSubPhases, subPhaseSpan, type ScheduledSubPhase } from './scheduler';
 
 describe('schedulePhases', () => {
   it('runs phases back to back over working days', () => {
@@ -67,6 +67,13 @@ describe('sub-phases', () => {
     const [p] = schedulePhases('2026-10-05', input, DEFAULT_CALENDAR);
     expect(p.tag).toBe('x');
     expect((p.subPhases[0] as { tag?: string }).tag).toBe('y');
+  });
+
+  it('counts the working days a phase spans because of its sub-phases', () => {
+    expect(subPhaseSpan([])).toBe(0);
+    expect(subPhaseSpan([{ name: 'A', durationDays: 5 }, { name: 'B', durationDays: 5 }])).toBe(10);
+    expect(subPhaseSpan([{ name: 'A', durationDays: 5 }, { name: 'B', durationDays: 3, withPrevious: true }, { name: 'C', durationDays: 2 }])).toBe(7);
+    expect(subPhaseSpan([{ name: 'A', durationDays: 2 }, { name: 'B', durationDays: 6, withPrevious: true }])).toBe(6);
   });
 });
 

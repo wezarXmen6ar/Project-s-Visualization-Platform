@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router';
 import { Landing } from './pages/Landing';
 import { NotFound } from './pages/NotFound';
 import { CreateProjectPage } from './pages/manage/CreateProjectPage';
+import { EditPhasesPage } from './pages/manage/EditPhasesPage';
 import { EditProjectPage } from './pages/manage/EditProjectPage';
 import { ManageDashboardPage } from './pages/manage/ManageDashboardPage';
 import { PersonPage } from './pages/manage/PersonPage';
@@ -23,6 +24,7 @@ export function App() {
       <Route path="/manage/projects/new" element={<CreateProjectPage />} />
       <Route path="/manage/projects/:id" element={<ProjectPage />} />
       <Route path="/manage/projects/:id/edit" element={<EditProjectPage />} />
+      <Route path="/manage/projects/:id/phases" element={<EditPhasesPage />} />
       <Route path="/present" element={<PortfolioPage />} />
       <Route path="/present/projects/:id" element={<FocusPage />} />
       <Route path="*" element={<NotFound />} />

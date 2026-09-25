@@ -230,6 +230,29 @@ describe('CreateProjectPage wizard', () => {
     expect(screen.getByLabelText('Reorder phase 1')).toHaveFocus();
   });
 
+  it('adds a sub-phase to a phase and sends it with the new project', async () => {
+    const fetchMock = mockFetch({
+      ...baseRoutes,
+      'POST /api/projects': () => ({ status: 201, body: sampleProject({ id: 7 }) }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await openPhasesStep(user);
+    await phasesLoaded();
+
+    await user.click(screen.getByRole('button', { name: 'Add sub-phase to phase 4' }));
+    await user.type(screen.getByLabelText('Phase 4 sub-phase 1 name'), 'Increment 1');
+
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Create project' }));
+
+    expect(await screen.findByText('Project page 7')).toBeInTheDocument();
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
+    const sent = JSON.parse(post![1]!.body as string);
+    const dev = sent.phases.find((p: { name: string }) => p.name === 'Development');
+    expect(dev.subPhases).toEqual([{ name: 'Increment 1', durationDays: 5, withPrevious: false, assignments: [] }]);
+  });
+
   it('assigns people on Step 4, flags overbooking straight away, and sends the assignments', async () => {
     const fetchMock = mockFetch({
       ...baseRoutes,

@@ -63,6 +63,7 @@ describe('ProjectPage', () => {
     expect(screen.getByText('Online payments')).toBeInTheDocument();
     expect(screen.getByText('Faster checkout')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Edit details' })).toHaveAttribute('href', '/manage/projects/1/edit');
+    expect(screen.getByRole('link', { name: 'Edit phases' })).toHaveAttribute('href', '/manage/projects/1/phases');
   });
 
   it("shows both project managers, with the business PM's phone and email as links", async () => {

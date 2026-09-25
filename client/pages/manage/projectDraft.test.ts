@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../../testing/mockFetch';
-import { detailsFromProject, detailsToInput, emptyDetails, firstStepWithIssue, phasesToInput, stepOfIssue } from './projectDraft';
+import {
+  detailsFromProject, detailsToInput, emptyDetails, firstStepWithIssue, phasesToInput, removedWithPeople,
+  scheduleFromProject, scheduleToInput, stepOfIssue, type PhaseDraft,
+} from './projectDraft';
 
 describe('projectDraft', () => {
   it('turns the four tables into one scope item list, in table order', () => {
@@ -44,13 +47,108 @@ describe('projectDraft', () => {
       { name: 'Build', durationDays: 5, assignments: [{ resourceId: 71, allocation: 60, role: 'responsible' }, { resourceId: null, allocation: 100, role: 'contributor' }] },
       { name: 'QA', durationDays: 3 },
     ])).toEqual([
-      { name: 'Build', durationDays: 5, assignments: [{ resourceId: 71, allocation: 60, role: 'responsible' }, { resourceId: 0, allocation: 100, role: 'contributor' }] },
-      { name: 'QA', durationDays: 3, assignments: [] },
+      { name: 'Build', durationDays: 5, assignments: [{ resourceId: 71, allocation: 60, role: 'responsible' }, { resourceId: 0, allocation: 100, role: 'contributor' }], subPhases: [] },
+      { name: 'QA', durationDays: 3, assignments: [], subPhases: [] },
     ]);
   });
 
   it('sends people errors to the People step', () => {
     expect(stepOfIssue({ path: 'phases.2.assignments.0.resourceId', message: '' })).toBe(3);
     expect(stepOfIssue({ path: 'phases.2.name', message: '' })).toBe(2);
+  });
+
+  it('maps a sub-phase draft assignment with no person chosen to resourceId 0', () => {
+    const result = phasesToInput([
+      {
+        name: 'Development', durationDays: 10,
+        subPhases: [
+          {
+            name: 'Increment 1', durationDays: 5, withPrevious: false,
+            assignments: [{ resourceId: null, allocation: 50, role: 'contributor' }],
+          },
+        ],
+      },
+    ]);
+    expect(result[0].subPhases).toEqual([
+      { name: 'Increment 1', durationDays: 5, withPrevious: false, assignments: [{ resourceId: 0, allocation: 50, role: 'contributor' }] },
+    ]);
+  });
+
+  it('round-trips a project with sub-phases through scheduleFromProject and scheduleToInput', () => {
+    const p = sampleProject({
+      startDate: '2026-10-05',
+      phases: [
+        {
+          id: 12, name: 'Development', order: 0, durationDays: 10, start: '2026-10-05', end: '2026-10-16',
+          subPhases: [
+            { id: 21, name: 'Increment 1', order: 0, durationDays: 5, start: '2026-10-05', end: '2026-10-09', withPrevious: false },
+            { id: 22, name: 'Increment 2', order: 1, durationDays: 5, start: '2026-10-12', end: '2026-10-16', withPrevious: false },
+          ],
+        },
+      ],
+    });
+    const draft = scheduleFromProject(p);
+    expect(draft.startDate).toBe('2026-10-05');
+    const input = scheduleToInput(draft.startDate, draft.phases);
+    expect(input).toEqual({
+      startDate: '2026-10-05',
+      phases: [
+        {
+          id: 12, name: 'Development', durationDays: 10,
+          subPhases: [
+            { id: 21, name: 'Increment 1', durationDays: 5, withPrevious: false },
+            { id: 22, name: 'Increment 2', durationDays: 5, withPrevious: false },
+          ],
+        },
+      ],
+    });
+  });
+
+  describe('removedWithPeople', () => {
+    const project = sampleProject({
+      phases: [
+        {
+          id: 12, name: 'Development', order: 0, durationDays: 10, start: '2026-10-05', end: '2026-10-16',
+          subPhases: [
+            { id: 21, name: 'Increment 1', order: 0, durationDays: 5, start: '2026-10-05', end: '2026-10-09', withPrevious: false },
+            { id: 22, name: 'Increment 2', order: 1, durationDays: 5, start: '2026-10-12', end: '2026-10-16', withPrevious: false },
+          ],
+        },
+        { id: 13, name: 'QA', order: 1, durationDays: 5, start: '2026-10-19', end: '2026-10-23', subPhases: [] },
+      ],
+      assignments: [
+        { id: 900, phaseId: 22, resource: { id: 71, name: 'Fatima Noor' }, allocation: 50, role: 'contributor' },
+        { id: 901, phaseId: 22, resource: { id: 72, name: 'Rami Saleh' }, allocation: 50, role: 'contributor' },
+      ],
+    });
+
+    it('lists a removed sub-phase with its people', () => {
+      const phases: PhaseDraft[] = [
+        { id: 12, name: 'Development', durationDays: 5, subPhases: [{ id: 21, name: 'Increment 1', durationDays: 5, withPrevious: false }] },
+        { id: 13, name: 'QA', durationDays: 5 },
+      ];
+      expect(removedWithPeople(project, phases)).toEqual([{ label: 'Development › Increment 2', people: 2 }]);
+    });
+
+    it('does not list a sub-phase moved under another phase', () => {
+      const phases: PhaseDraft[] = [
+        { id: 12, name: 'Development', durationDays: 5, subPhases: [{ id: 21, name: 'Increment 1', durationDays: 5, withPrevious: false }] },
+        { id: 13, name: 'QA', durationDays: 5, subPhases: [{ id: 22, name: 'Increment 2', durationDays: 5, withPrevious: false }] },
+      ];
+      expect(removedWithPeople(project, phases)).toEqual([]);
+    });
+
+    it('does not list a removed phase that has no people', () => {
+      const phases: PhaseDraft[] = [
+        {
+          id: 12, name: 'Development', durationDays: 10,
+          subPhases: [
+            { id: 21, name: 'Increment 1', durationDays: 5, withPrevious: false },
+            { id: 22, name: 'Increment 2', durationDays: 5, withPrevious: false },
+          ],
+        },
+      ];
+      expect(removedWithPeople(project, phases)).toEqual([]);
+    });
   });
 });

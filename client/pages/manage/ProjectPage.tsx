@@ -71,7 +71,10 @@ export function ProjectPage() {
             {span ? `${span.start} → ${span.end} · ${countWorkingDays(span.start, span.end, cal)} working days` : 'No phases'}
           </p>
         </div>
-        <Link to={`/manage/projects/${p.id}/edit`} className="button secondary">Edit details</Link>
+        <div className="header-actions">
+          <Link to={`/manage/projects/${p.id}/phases`} className="button secondary">Edit phases</Link>
+          <Link to={`/manage/projects/${p.id}/edit`} className="button secondary">Edit details</Link>
+        </div>
       </div>
 
       <section className="card">

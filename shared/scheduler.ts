@@ -69,6 +69,18 @@ export function schedulePhases<P extends PhaseInput>(projectStart: ISODate, phas
   return result;
 }
 
+/** Working days a phase spans because of its sub-phases (same rules as scheduleSubPhases, counted in working days). */
+export function subPhaseSpan(subs: SubPhaseInput[]): number {
+  const starts: number[] = [];
+  let latestEnd = -1;
+  subs.forEach((s, i) => {
+    const start = i > 0 && s.withPrevious === true ? starts[i - 1] : latestEnd + 1;
+    starts.push(start);
+    latestEnd = Math.max(latestEnd, start + s.durationDays - 1);
+  });
+  return latestEnd + 1;
+}
+
 export function projectSpan(phases: { start: ISODate; end: ISODate }[]): DateRange | null {
   if (phases.length === 0) return null;
   let start = phases[0].start;

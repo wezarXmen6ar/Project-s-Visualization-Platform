@@ -350,6 +350,11 @@ input[type='number'] { text-align: right; }
   margin-bottom: var(--sp-2);
 }
 
+.sub-phases { margin-left: var(--sp-5); display: grid; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.sub-phase-row { display: grid; grid-template-columns: auto 1fr 6rem 12rem auto; gap: var(--sp-2); align-items: center; }
+.derived-days { color: var(--muted); font-size: 0.875rem; }
+@media (max-width: 640px) { .sub-phase-row { grid-template-columns: auto 1fr 5rem; } }
+
 .drag-handle {
   display: flex;
   align-items: center;

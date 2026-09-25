@@ -103,7 +103,7 @@ export function EditProjectPage() {
         <ScopeFields value={draft} onChange={patch} />
 
         <p className="muted">
-          Phases can't be changed here. Changing a plan after it starts will go through change requests and baselines.
+          Phases are changed on their own page: <Link to={`/manage/projects/${id}/phases`}>Edit phases</Link>
         </p>
         <div className="wizard-actions">
           <Link to={`/manage/projects/${id}`} className="button secondary">Cancel</Link>
