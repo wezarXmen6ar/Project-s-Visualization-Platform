@@ -1,7 +1,6 @@
 import type { ProjectDetailsInput, ScheduleUpdateInput, ValidationIssue } from '../../../shared/schemas';
-import type { PhaseInput } from '../../../shared/scheduler';
+import { subPhaseSpan, type PhaseInput } from '../../../shared/scheduler';
 import { SCOPE_KINDS, type Category, type Priority, type ProjectRecord, type ScopeKind } from '../../../shared/types';
-import { subPhaseSpan } from '../../../shared/scheduler';
 import type { DraftItem } from '../../components/ItemTable';
 import type { DraftAssignment } from '../../overloads';
 
@@ -99,28 +98,30 @@ export interface PhaseDraft extends PhaseInput {
   subPhases?: SubPhaseDraft[];
 }
 
+/**
+ * The working days to send for a phase. With sub-phases it is their span (an invalid sub-phase counts as 0 days, and
+ * the result is at least 1), so a hidden, stale value on the phase itself can never block saving.
+ */
+function phaseDays(own: number, subPhases: { durationDays: number; withPrevious: boolean }[]): number {
+  if (subPhases.length === 0) return own;
+  const valid = subPhases.map((s) => ({
+    name: '',
+    durationDays: Number.isInteger(s.durationDays) && s.durationDays >= 1 ? s.durationDays : 0,
+    withPrevious: s.withPrevious,
+  }));
+  return Math.max(1, subPhaseSpan(valid));
+}
+
 /** Phases as the API takes them. A row with no person yet is sent as 0 so the server answers "Choose a person". */
 export function phasesToInput(phases: PhaseDraft[]) {
   const people = (list: DraftAssignment[] = []) =>
     list.map((a) => ({ resourceId: a.resourceId ?? 0, allocation: a.allocation, role: a.role }));
-  return phases.map(({ name, durationDays, assignments, subPhases = [] }) => {
-    let finalDurationDays = durationDays;
-    if (subPhases.length > 0) {
-      // For a phase with sub-phases, calculate the derived span, treating invalid sub-phases as 0 days
-      const validSubPhases = subPhases.map((s) => ({
-        name: s.name,
-        durationDays: Number.isInteger(s.durationDays) && s.durationDays >= 1 ? s.durationDays : 0,
-        withPrevious: s.withPrevious,
-      }));
-      finalDurationDays = Math.max(1, subPhaseSpan(validSubPhases));
-    }
-    return {
-      name,
-      durationDays: finalDurationDays,
-      assignments: people(assignments),
-      subPhases: subPhases.map((s) => ({ name: s.name, durationDays: s.durationDays, withPrevious: s.withPrevious, assignments: people(s.assignments) })),
-    };
-  });
+  return phases.map(({ name, durationDays, assignments, subPhases = [] }) => ({
+    name,
+    durationDays: phaseDays(durationDays, subPhases),
+    assignments: people(assignments),
+    subPhases: subPhases.map((s) => ({ name: s.name, durationDays: s.durationDays, withPrevious: s.withPrevious, assignments: people(s.assignments) })),
+  }));
 }
 
 /** Loads a saved project's schedule into the wizard/editor form, keeping every phase's and sub-phase's id. */
@@ -147,20 +148,10 @@ export function scheduleToInput(startDate: string, phases: PhaseDraft[]): Schedu
         durationDays: s.durationDays,
         withPrevious: s.withPrevious,
       }));
-      let finalDurationDays = p.durationDays;
-      if (subPhases.length > 0) {
-        // For a phase with sub-phases, calculate the derived span, treating invalid sub-phases as 0 days
-        const validSubPhases = subPhases.map((s) => ({
-          name: s.name,
-          durationDays: Number.isInteger(s.durationDays) && s.durationDays >= 1 ? s.durationDays : 0,
-          withPrevious: s.withPrevious,
-        }));
-        finalDurationDays = Math.max(1, subPhaseSpan(validSubPhases));
-      }
       return {
         ...(p.id !== undefined ? { id: p.id } : {}),
         name: p.name,
-        durationDays: finalDurationDays,
+        durationDays: phaseDays(p.durationDays, subPhases),
         subPhases,
       };
     }),
