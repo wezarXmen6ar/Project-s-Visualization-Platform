@@ -133,6 +133,16 @@ export interface WorkloadData {
   decisions: OverloadDecision[];
 }
 
+export interface SubPhaseRecord {
+  id: number;
+  name: string;
+  order: number;
+  durationDays: number;
+  start: ISODate;
+  end: ISODate;
+  withPrevious: boolean;
+}
+
 export interface PhaseRecord {
   id: number;
   name: string;
@@ -140,6 +150,8 @@ export interface PhaseRecord {
   durationDays: number;
   start: ISODate;
   end: ISODate;
+  /** Ordered by order. A sub-phase's dates sit inside its phase. */
+  subPhases: SubPhaseRecord[];
 }
 
 export interface ProjectRecord {

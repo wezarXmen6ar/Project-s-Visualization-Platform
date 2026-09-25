@@ -179,6 +179,32 @@ describe('assignments', () => {
     expect(issuesOf(withNewInactive.json())).toEqual([['assignments.1.resourceId', 'Old Hand is inactive']]);
   });
 
+  it('shows a sub-phase assignment in the workload as "Phase › Sub-phase" with the sub-phase\'s own dates', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      payload: {
+        name: 'Portal', color: '#3b82f6', startDate: '2026-10-05',
+        phases: [
+          {
+            name: 'Development', durationDays: 5,
+            subPhases: [{ name: 'Increment 1', durationDays: 5, assignments: [{ resourceId: people.fatima, allocation: 60 }] }],
+          },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const project = res.json();
+    const subPhase = project.phases[0].subPhases[0];
+    const data = (await app.inject({ method: 'GET', url: '/api/workload' })).json();
+    expect(data.assignments).toEqual([
+      {
+        id: expect.any(Number), resourceId: people.fatima, phaseId: subPhase.id, projectId: project.id, projectName: 'Portal',
+        phaseName: 'Development › Increment 1', start: subPhase.start, end: subPhase.end, allocation: 60, role: 'contributor',
+      },
+    ]);
+  });
+
   it('will not delete someone who is assigned to a phase', async () => {
     await projectWith([{ resourceId: people.fatima, allocation: 60 }]);
     const res = await app.inject({ method: 'DELETE', url: `/api/resources/${people.fatima}` });

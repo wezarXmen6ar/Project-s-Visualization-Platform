@@ -34,6 +34,14 @@ describe('migrate', () => {
     expect({ ...db.prepare('SELECT COUNT(*) AS n FROM settings').get() }).toEqual({ n: 0 });
   });
 
+  it('adds parent_id and with_previous to phases, from version 8 up', () => {
+    const db = openDb(':memory:');
+    const columns = (db.prepare('PRAGMA table_info(phases)').all() as unknown as { name: string }[]).map((c) => c.name);
+    expect(columns).toEqual(expect.arrayContaining(['parent_id', 'with_previous']));
+    const version = db.prepare('PRAGMA user_version').get() as unknown as { user_version: number };
+    expect(version.user_version).toBeGreaterThanOrEqual(8);
+  });
+
   it('moves project manager names into Resources when upgrading from version 5', () => {
     const db = new DatabaseSync(':memory:');
     db.exec('PRAGMA foreign_keys = ON');

@@ -20,7 +20,7 @@ const USAGE: Record<ListName, { sql: string; one: string; many: string }> = {
   goal: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE goal_id = ?', one: 'project', many: 'projects' },
   department: { sql: 'SELECT COUNT(*) AS n FROM projects WHERE department_id = ?', one: 'project', many: 'projects' },
   phase: {
-    sql: 'SELECT COUNT(DISTINCT project_id) AS n FROM phases WHERE name = ? COLLATE NOCASE',
+    sql: 'SELECT COUNT(DISTINCT project_id) AS n FROM phases WHERE parent_id IS NULL AND name = ? COLLATE NOCASE',
     one: 'project',
     many: 'projects',
   },
@@ -74,7 +74,9 @@ export function renameListValue(db: DatabaseSync, list: ListName, id: number, na
   transaction(db, () => {
     db.prepare('UPDATE list_values SET name = ? WHERE id = ?').run(name, id);
     // Phase names live on each project's phases, so a renamed phase is renamed there too.
-    if (list === 'phase') db.prepare('UPDATE phases SET name = ? WHERE name = ? COLLATE NOCASE').run(name, current.name);
+    if (list === 'phase') {
+      db.prepare('UPDATE phases SET name = ? WHERE parent_id IS NULL AND name = ? COLLATE NOCASE').run(name, current.name);
+    }
   });
   return { ok: true, value: getListValue(db, id) };
 }

@@ -168,6 +168,11 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX events_type ON events(type);
   `,
+  `
+  ALTER TABLE phases ADD COLUMN parent_id INTEGER REFERENCES phases(id) ON DELETE CASCADE;
+  ALTER TABLE phases ADD COLUMN with_previous INTEGER NOT NULL DEFAULT 0;
+  CREATE INDEX phases_parent ON phases(parent_id);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

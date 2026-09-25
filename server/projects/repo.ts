@@ -1,9 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate, type WorkCalendar } from '../../shared/calendar';
 import type { NewProject, ProjectDetails, ValidationIssue } from '../../shared/schemas';
-import { schedulePhases } from '../../shared/scheduler';
+import { schedulePhases, type ScheduledSubPhase } from '../../shared/scheduler';
 import type {
   AssignmentRecord, BusinessContact, Category, ListName, PhaseRecord, Priority, ProjectRecord, Ref, ScopeItem, ScopeKind, Side,
+  SubPhaseRecord,
 } from '../../shared/types';
 import { assignmentsByProject, projectAssignments, saveAssignments } from '../assignments/repo';
 import { transaction } from '../db';
@@ -39,6 +40,8 @@ interface PhaseRow {
   duration_days: number;
   planned_start: string;
   planned_end: string;
+  parent_id: number | null;
+  with_previous: number;
 }
 
 interface ScopeRow {
@@ -94,15 +97,25 @@ export function checkRefs(db: DatabaseSync, details: ProjectDetails): Validation
   return issues;
 }
 
-function toPhase(row: PhaseRow): PhaseRecord {
-  return {
-    id: row.id,
-    name: row.name,
-    order: row.sort_order,
-    durationDays: row.duration_days,
-    start: row.planned_start,
-    end: row.planned_end,
-  };
+/** Top-level phases in order, each with its sub-phases in order. Rows may come in any order. */
+function nestPhases(rows: PhaseRow[]): PhaseRecord[] {
+  const subs = new Map<number, SubPhaseRecord[]>();
+  for (const r of rows) {
+    if (r.parent_id === null) continue;
+    const list = subs.get(r.parent_id) ?? [];
+    list.push({
+      id: r.id, name: r.name, order: r.sort_order, durationDays: r.duration_days,
+      start: r.planned_start, end: r.planned_end, withPrevious: r.with_previous === 1,
+    });
+    subs.set(r.parent_id, list);
+  }
+  return rows
+    .filter((r) => r.parent_id === null)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((r) => ({
+      id: r.id, name: r.name, order: r.sort_order, durationDays: r.duration_days, start: r.planned_start, end: r.planned_end,
+      subPhases: (subs.get(r.id) ?? []).sort((a, b) => a.order - b.order),
+    }));
 }
 
 function toScopeItem(row: ScopeRow): ScopeItem {
@@ -191,11 +204,19 @@ export function createProject(db: DatabaseSync, cal: WorkCalendar, input: NewPro
       .run(...detailValues(input), input.startDate, new Date().toISOString());
     const projectId = Number(res.lastInsertRowid);
     const insertPhase = db.prepare(
-      'INSERT INTO phases (project_id, name, sort_order, duration_days, planned_start, planned_end) VALUES (?, ?, ?, ?, ?, ?)',
+      `INSERT INTO phases (project_id, parent_id, name, sort_order, duration_days, planned_start, planned_end, with_previous)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     scheduled.forEach((p, i) => {
-      const phaseId = Number(insertPhase.run(projectId, p.name, p.order, p.durationDays, p.start, p.end).lastInsertRowid);
+      const phaseId = Number(insertPhase.run(projectId, null, p.name, p.order, p.durationDays, p.start, p.end, 0).lastInsertRowid);
       saveAssignments(db, phaseId, input.phases[i].assignments);
+      // TS can't merge P's own (input) subPhases type with ScheduledPhase's on the intersection; cast to the scheduled shape.
+      (p.subPhases as ScheduledSubPhase[]).forEach((s, j) => {
+        const subId = Number(
+          insertPhase.run(projectId, phaseId, s.name, s.order, s.durationDays, s.start, s.end, s.withPrevious ? 1 : 0).lastInsertRowid,
+        );
+        saveAssignments(db, subId, input.phases[i].subPhases[j].assignments);
+      });
     });
     saveScopeItems(db, projectId, input.scopeItems, today);
     return projectId;
@@ -220,12 +241,12 @@ export function getProject(db: DatabaseSync, id: number): ProjectRecord | undefi
   const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as unknown as ProjectRow | undefined;
   if (!row) return undefined;
   const phases = db
-    .prepare('SELECT * FROM phases WHERE project_id = ? ORDER BY sort_order')
+    .prepare('SELECT * FROM phases WHERE project_id = ?')
     .all(id) as unknown as PhaseRow[];
   const scope = db
     .prepare('SELECT * FROM scope_items WHERE project_id = ? ORDER BY kind, sort_order')
     .all(id) as unknown as ScopeRow[];
-  return toProject(row, phases.map(toPhase), scope.map(toScopeItem), listNames(db), peopleById(db), projectAssignments(db, id));
+  return toProject(row, nestPhases(phases), scope.map(toScopeItem), listNames(db), peopleById(db), projectAssignments(db, id));
 }
 
 function byProject<R extends { project_id: number }, T>(rows: R[], map: (row: R) => T): Map<number, T[]> {
@@ -240,9 +261,9 @@ function byProject<R extends { project_id: number }, T>(rows: R[], map: (row: R)
 
 export function listProjects(db: DatabaseSync): ProjectRecord[] {
   const rows = db.prepare('SELECT * FROM projects ORDER BY start_date, id').all() as unknown as ProjectRow[];
-  const phases = byProject(
-    db.prepare('SELECT * FROM phases ORDER BY project_id, sort_order').all() as unknown as PhaseRow[],
-    toPhase,
+  const phaseRows = byProject(
+    db.prepare('SELECT * FROM phases').all() as unknown as PhaseRow[],
+    (r) => r,
   );
   const scope = byProject(
     db.prepare('SELECT * FROM scope_items ORDER BY project_id, kind, sort_order').all() as unknown as ScopeRow[],
@@ -251,5 +272,6 @@ export function listProjects(db: DatabaseSync): ProjectRecord[] {
   const names = listNames(db);
   const people = peopleById(db);
   const assignments = assignmentsByProject(db);
-  return rows.map((r) => toProject(r, phases.get(r.id) ?? [], scope.get(r.id) ?? [], names, people, assignments.get(r.id) ?? []));
+  return rows.map((r) =>
+    toProject(r, nestPhases(phaseRows.get(r.id) ?? []), scope.get(r.id) ?? [], names, people, assignments.get(r.id) ?? []));
 }

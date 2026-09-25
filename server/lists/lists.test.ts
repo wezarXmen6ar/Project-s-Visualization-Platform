@@ -107,4 +107,26 @@ describe('lists API', () => {
     const project = (await app.inject({ method: 'GET', url: '/api/projects' })).json()[0];
     expect(project.phases[0].name).toBe('Build');
   });
+
+  it('does not count a sub-phase name as a used Phases-list value, and does not rename a sub-phase when renaming it', async () => {
+    const app = buildApp(db);
+    await app.inject({
+      method: 'POST', url: '/api/projects',
+      payload: {
+        name: 'P', color: '#000000', startDate: '2026-01-05',
+        phases: [{ name: 'Development', durationDays: 5, subPhases: [{ name: 'QA', durationDays: 2 }] }],
+      },
+    });
+    const qaValue = (await app.inject({ method: 'GET', url: '/api/lists' })).json()
+      .phase.find((v: { name: string }) => v.name === 'QA');
+
+    const deleted = await app.inject({ method: 'DELETE', url: `/api/lists/phase/${qaValue.id}` });
+    expect(deleted.statusCode).toBe(204);
+
+    const readded = (await app.inject({ method: 'POST', url: '/api/lists/phase', payload: { name: 'QA' } })).json();
+    const renamed = await app.inject({ method: 'PUT', url: `/api/lists/phase/${readded.id}`, payload: { name: 'Quality Assurance' } });
+    expect(renamed.statusCode).toBe(200);
+    const project = (await app.inject({ method: 'GET', url: '/api/projects' })).json()[0];
+    expect(project.phases[0].subPhases[0].name).toBe('QA');
+  });
 });

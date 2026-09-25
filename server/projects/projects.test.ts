@@ -28,8 +28,8 @@ describe('projects API', () => {
     const project = res.json();
     expect(project).toMatchObject({ name: 'Customer Portal', jiraKey: 'PRJ-1', color: '#3b82f6', startDate: '2026-09-24' });
     expect(project.phases).toEqual([
-      { id: expect.any(Number), name: 'Requirements', order: 0, durationDays: 2, start: '2026-09-24', end: '2026-09-25' },
-      { id: expect.any(Number), name: 'Development', order: 1, durationDays: 3, start: '2026-09-28', end: '2026-09-30' },
+      { id: expect.any(Number), name: 'Requirements', order: 0, durationDays: 2, start: '2026-09-24', end: '2026-09-25', subPhases: [] },
+      { id: expect.any(Number), name: 'Development', order: 1, durationDays: 3, start: '2026-09-28', end: '2026-09-30', subPhases: [] },
     ]);
   });
 
@@ -67,5 +67,77 @@ describe('projects API', () => {
 
   it('can run migrations twice safely', () => {
     expect(() => migrate(db)).not.toThrow();
+  });
+
+  it('creates a project with sub-phases, and reads them back nested under their phase', async () => {
+    const app = buildApp(db);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      payload: {
+        ...body,
+        phases: [
+          { name: 'Requirements', durationDays: 2 },
+          {
+            name: 'Development', durationDays: 99,
+            subPhases: [
+              { name: 'Increment 1', durationDays: 5 },
+              { name: 'Increment 2', durationDays: 5, withPrevious: true },
+            ],
+          },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const project = res.json();
+    expect(project.phases).toHaveLength(2);
+    const dev = project.phases[1];
+    expect(dev.name).toBe('Development');
+    expect(dev.subPhases.map((s: { name: string; order: number; withPrevious: boolean }) => [s.name, s.order, s.withPrevious])).toEqual([
+      ['Increment 1', 0, false],
+      ['Increment 2', 1, true],
+    ]);
+    expect(dev.subPhases[0]).toMatchObject({ start: '2026-09-28', end: '2026-10-02' });
+    expect(dev.subPhases[1]).toMatchObject({ start: '2026-09-28', end: '2026-10-02' });
+
+    const list = (await app.inject({ method: 'GET', url: '/api/projects' })).json();
+    expect(list[0].phases[1].subPhases).toHaveLength(2);
+  });
+
+  it('has an assignment on a phase and one on a sub-phase, the sub-phase one keyed to the sub-phase id', async () => {
+    const app = buildApp(db);
+    const pm = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Rami', side: 'tech' } })).json();
+    const dev2 = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Fatima', side: 'tech' } })).json();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/projects',
+      payload: {
+        ...body,
+        phases: [
+          { name: 'Requirements', durationDays: 2 },
+          {
+            name: 'Development', durationDays: 5, assignments: [{ resourceId: pm.id, allocation: 30 }],
+            subPhases: [{ name: 'Increment 1', durationDays: 5, assignments: [{ resourceId: dev2.id, allocation: 60 }] }],
+          },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const project = res.json();
+    const devPhase = project.phases[1];
+    const subPhase = devPhase.subPhases[0];
+    expect(project.assignments).toHaveLength(2);
+    const onPhase = project.assignments.find((a: { resource: { id: number } }) => a.resource.id === pm.id);
+    const onSub = project.assignments.find((a: { resource: { id: number } }) => a.resource.id === dev2.id);
+    expect(onPhase.phaseId).toBe(devPhase.id);
+    expect(onSub.phaseId).toBe(subPhase.id);
+  });
+
+  it('gives every phase an empty subPhases array when a project has none', async () => {
+    const app = buildApp(db);
+    const res = await app.inject({ method: 'POST', url: '/api/projects', payload: body });
+    expect(res.statusCode).toBe(201);
+    const project = res.json();
+    for (const phase of project.phases) expect(phase.subPhases).toEqual([]);
   });
 });

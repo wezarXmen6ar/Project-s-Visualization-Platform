@@ -6,8 +6,8 @@ import { PHASE_PALETTE, groupedPortfolioRows, phaseColorFor, phaseRows, portfoli
 const project = sampleProject({
   id: 1, name: 'Portal', jiraKey: null, startDate: '2026-02-10',
   phases: [
-    { id: 11, name: 'Requirements', order: 0, durationDays: 2, start: '2026-02-10', end: '2026-02-11' },
-    { id: 12, name: 'Development', order: 1, durationDays: 30, start: '2026-02-12', end: '2026-03-25' },
+    { id: 11, name: 'Requirements', order: 0, durationDays: 2, start: '2026-02-10', end: '2026-02-11', subPhases: [] },
+    { id: 12, name: 'Development', order: 1, durationDays: 30, start: '2026-02-12', end: '2026-03-25', subPhases: [] },
   ],
 });
 
@@ -68,7 +68,7 @@ describe('rows', () => {
   });
 
   it('groups projects under their main project with a summary bar, standalone projects last', () => {
-    const phase = (start: string, end: string) => [{ id: 1, name: 'Development', order: 0, durationDays: 5, start, end }];
+    const phase = (start: string, end: string) => [{ id: 1, name: 'Development', order: 0, durationDays: 5, start, end, subPhases: [] }];
     const digital = { id: 20, name: 'Digital' };
     const a = sampleProject({ id: 1, name: 'A', mainProject: digital, phases: phase('2026-02-02', '2026-02-06') });
     const b = sampleProject({ id: 2, name: 'B', mainProject: null, phases: phase('2026-01-05', '2026-01-09') });

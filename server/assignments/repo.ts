@@ -29,7 +29,9 @@ const SELECT_ASSIGNMENTS = `
   SELECT a.*, r.name AS resource_name, p.project_id
   FROM assignments a
   JOIN resources r ON r.id = a.resource_id
-  JOIN phases p ON p.id = a.phase_id`;
+  JOIN phases p ON p.id = a.phase_id
+  LEFT JOIN phases parent ON parent.id = p.parent_id`;
+const PLAN_ORDER = 'COALESCE(parent.sort_order, p.sort_order), p.parent_id IS NOT NULL, p.sort_order, a.id';
 
 function toAssignment(row: AssignmentRow): AssignmentRecord {
   return {
@@ -81,13 +83,13 @@ export function saveAssignments(db: DatabaseSync, phaseId: number, list: Assignm
 
 export function projectAssignments(db: DatabaseSync, projectId: number): AssignmentRecord[] {
   const rows = db
-    .prepare(`${SELECT_ASSIGNMENTS} WHERE p.project_id = ? ORDER BY p.sort_order, a.id`)
+    .prepare(`${SELECT_ASSIGNMENTS} WHERE p.project_id = ? ORDER BY ${PLAN_ORDER}`)
     .all(projectId) as unknown as AssignmentRow[];
   return rows.map(toAssignment);
 }
 
 export function assignmentsByProject(db: DatabaseSync): Map<number, AssignmentRecord[]> {
-  const rows = db.prepare(`${SELECT_ASSIGNMENTS} ORDER BY p.project_id, p.sort_order, a.id`).all() as unknown as AssignmentRow[];
+  const rows = db.prepare(`${SELECT_ASSIGNMENTS} ORDER BY p.project_id, ${PLAN_ORDER}`).all() as unknown as AssignmentRow[];
   const grouped = new Map<number, AssignmentRecord[]>();
   for (const row of rows) grouped.set(row.project_id, [...(grouped.get(row.project_id) ?? []), toAssignment(row)]);
   return grouped;
@@ -141,10 +143,12 @@ export function workloadData(db: DatabaseSync): WorkloadData {
   }[];
   const assignments = db
     .prepare(
-      `SELECT a.id, a.resource_id, a.phase_id, a.allocation, a.role, p.name AS phase_name, p.planned_start, p.planned_end,
-              pr.id AS project_id, pr.name AS project_name
+      `SELECT a.id, a.resource_id, a.phase_id, a.allocation, a.role,
+              CASE WHEN parent.id IS NULL THEN p.name ELSE parent.name || ' › ' || p.name END AS phase_name,
+              p.planned_start, p.planned_end, pr.id AS project_id, pr.name AS project_name
        FROM assignments a
        JOIN phases p ON p.id = a.phase_id
+       LEFT JOIN phases parent ON parent.id = p.parent_id
        JOIN projects pr ON pr.id = p.project_id
        ORDER BY p.planned_start, a.id`,
     )

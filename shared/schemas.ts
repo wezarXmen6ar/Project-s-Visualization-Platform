@@ -83,15 +83,27 @@ export const phaseAssignmentsSchema = z
     });
   });
 
-export const phaseInputSchema = z.object({
-  name: z.string().trim().min(1, 'Phase name is required').max(200),
-  durationDays: z
-    .number({ invalid_type_error: 'Duration must be a number' })
-    .int('Duration must be a whole number of days')
-    .min(1, 'Duration must be at least 1 working day')
-    .max(2000, 'Duration is too long'),
+const workingDays = z
+  .number({ invalid_type_error: 'Duration must be a number' })
+  .int('Duration must be a whole number of days')
+  .min(1, 'Duration must be at least 1 working day')
+  .max(2000, 'Duration is too long');
+
+export const subPhaseInputSchema = z.object({
+  name: z.string().trim().min(1, 'Sub-phase name is required').max(200),
+  durationDays: workingDays,
+  withPrevious: z.boolean().default(false),
   assignments: phaseAssignmentsSchema.default([]),
 });
+
+export const phaseInputSchema = z.object({
+  name: z.string().trim().min(1, 'Phase name is required').max(200),
+  durationDays: workingDays,
+  assignments: phaseAssignmentsSchema.default([]),
+  subPhases: z.array(subPhaseInputSchema).max(100, 'A phase can have at most 100 sub-phases').default([]),
+});
+
+export type SubPhaseInputData = z.output<typeof subPhaseInputSchema>;
 
 export const scopeItemInputSchema = z.object({
   /** Sent when editing an item that is already saved, so it keeps its date added. */

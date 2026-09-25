@@ -104,7 +104,10 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid project', issues: toIssues(parsed.error) });
     const issues = [
       ...checkRefs(db, parsed.data),
-      ...parsed.data.phases.flatMap((p, i) => checkAssignmentPeople(db, p.assignments, `phases.${i}.assignments`)),
+      ...parsed.data.phases.flatMap((p, i) => [
+        ...checkAssignmentPeople(db, p.assignments, `phases.${i}.assignments`),
+        ...p.subPhases.flatMap((s, j) => checkAssignmentPeople(db, s.assignments, `phases.${i}.subPhases.${j}.assignments`)),
+      ]),
     ];
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid project', issues });
     return reply.code(201).send(createProject(db, getCalendar(db), parsed.data, today()));

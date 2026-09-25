@@ -94,7 +94,7 @@ describe('ProjectPage', () => {
 
   it('edits the people on a phase, warning about overbooking before saving', async () => {
     const withTeam = sampleProject({
-      phases: [{ id: 11, name: 'Requirements', order: 0, durationDays: 5, start: '2026-10-05', end: '2026-10-09' }],
+      phases: [{ id: 11, name: 'Requirements', order: 0, durationDays: 5, start: '2026-10-05', end: '2026-10-09', subPhases: [] }],
       assignments: [{ id: 300, phaseId: 11, resource: { id: 72, name: 'Rami Saleh' }, allocation: 50, role: 'responsible' }],
     });
     const workload = sampleWorkload();
