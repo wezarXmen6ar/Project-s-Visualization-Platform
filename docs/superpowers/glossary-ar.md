@@ -167,6 +167,31 @@
 | Rename | إعادة تسمية | |
 | Last backup: … · 3 kept in the backups folder. | آخر نسخة احتياطية: … · 3 نسخ محفوظة في مجلد النسخ الاحتياطية. | |
 
+### Added in M6 Task 7 (for the user's review)
+Terms already in the app's catalogues but missing above, and the Arabic names of the demo's own list values.
+
+| English | Arabic | Note |
+|---|---|---|
+| Language (switch) / العربية / English | اللغة / العربية / English | each option is written in its own language |
+| Details / Description | التفاصيل / الوصف | project page cards |
+| Basics / Description and scope (wizard steps) | المعلومات الأساسية / الوصف والنطاق | |
+| Colour | اللون | |
+| Skip / Keep / Close / Other… | تخطّي / إبقاء / إغلاق / أخرى… | |
+| Saving… / Saved | جارٍ الحفظ… / تم الحفظ | |
+| Keep them in the project / Delete them | إبقاؤها في المشروع / حذفها | to-dos of removed phases |
+| Was in QA (removed 2 Oct) / Done on … | كانت ضمن ضمان الجودة (QA) (حُذفت في …) / أُنجزت في … | to-do lines |
+| Project managers / This project's team (to-do assignee groups) | مديرو المشروع / فريق هذا المشروع | |
+| Earlier / This week / Later (heatmap) | الأسابيع السابقة / هذا الأسبوع / الأسابيع اللاحقة | |
+| Record the decision / Save the new allocations | تسجيل القرار / حفظ نسب التخصيص الجديدة | overbooking panel |
+| Mobile (UAE) / Email | رقم الجوال (إماراتي) / البريد الإلكتروني | |
+| Arabic name (Settings lists) | الاسم العربي | |
+| Main projects / Project types / Roles (Settings) | المشاريع الرئيسية / أنواع المشاريع / الأدوار | |
+| Previous year / Next year (portfolio) | السنة السابقة / السنة التالية | |
+| Page not found | الصفحة غير موجودة | |
+| Demo departments: Records Office, Customer Service, Human Resources, Legal Affairs, Finance | مكتب السجلات، خدمة المتعاملين، الموارد البشرية، الشؤون القانونية، المالية | demo data; "customer" in a department name is المتعاملين (UAE government usage), while the Beneficiary option stays الجمهور |
+| Demo main projects: Records Modernisation, Digital Services | تحديث السجلات، الخدمات الرقمية | demo data |
+| Demo goal: Improve customer experience | تحسين تجربة المتعاملين | demo data |
+
 ## Common actions and states
 | English | Arabic |
 |---|---|

@@ -112,6 +112,24 @@ export type DemoProject = Omit<
 const DIGITALISATION = 'Digitalisation of internal operations';
 const CUSTOMER_EXPERIENCE = 'Improve customer experience';
 
+/**
+ * Arabic names for the list values the demo adds, keyed "list:name". The app's own defaults (phases, roles, project
+ * types, the first goal) already carry their Arabic from the migration, so they are not repeated here.
+ */
+export const DEMO_NAMES_AR: Record<string, string> = {
+  'department:Records Office': 'مكتب السجلات',
+  'department:Customer Service': 'خدمة المتعاملين',
+  'department:Human Resources': 'الموارد البشرية',
+  'department:Legal Affairs': 'الشؤون القانونية',
+  'department:Finance': 'المالية',
+  'mainProject:Records Modernisation': 'تحديث السجلات',
+  'mainProject:Digital Services': 'الخدمات الرقمية',
+  [`goal:${CUSTOMER_EXPERIENCE}`]: 'تحسين تجربة المتعاملين',
+};
+
+/** The demo's one fully Arabic project, so right-to-left and mixed-direction text can be reviewed. */
+export const DEMO_ARABIC_PROJECT = 'بوابة الخدمات الذكية';
+
 export const DEMO_PROJECTS: DemoProject[] = [
   {
     name: 'Legacy Archive Migration', jiraKey: 'PRJ-099', color: '#64748b', startDate: '2025-09-07',
@@ -286,6 +304,58 @@ export const DEMO_PROJECTS: DemoProject[] = [
       { name: 'Security testing', durationDays: 5 },
     ],
   },
+  {
+    // Fully Arabic, in 2027 so it leaves the M4 and M5 demo weeks (all in 2026) untouched. Its phases are stored
+    // under their English names, so they show in Arabic through the Phases list. Teams are light, to add no overbooking.
+    name: DEMO_ARABIC_PROJECT, jiraKey: 'PRJ-106', color: '#0d9488', startDate: '2027-01-10',
+    priority: 'high', projectManager: 'Sara Ahmed',
+    businessPm: 'Mariam Al Suwaidi',
+    mainProject: 'Digital Services', category: 'strategic', projectType: 'Customer',
+    goal: CUSTOMER_EXPERIENCE, department: 'Customer Service',
+    requester: { internal: true, external: true }, beneficiary: { employees: false, customers: true },
+    background:
+      'يتنقّل المتعاملون اليوم بين عدة مواقع وتطبيقات لإنجاز معاملاتهم، ويُطلب منهم تسجيل الدخول وإدخال بياناتهم ' +
+      'نفسها في كل خدمة، مما يطيل زمن إنجاز المعاملة ويزيد الاستفسارات الواردة إلى مركز الاتصال.',
+    summary:
+      'بوابة موحّدة تجمع الخدمات الإلكترونية في مكان واحد، بدخول موحّد عبر الهوية الرقمية، وتتيح للمتعامل تقديم ' +
+      'طلباته ومتابعتها وسداد رسومها بسهولة من أي جهاز.',
+    scopeItems: [
+      { kind: 'scope', text: 'الدخول الموحّد عبر الهوية الرقمية' },
+      { kind: 'scope', text: 'دليل موحّد للخدمات مع خاصية البحث' },
+      { kind: 'scope', text: 'لوحة شخصية للمتعامل لمتابعة طلباته وحالتها' },
+      { kind: 'scope', text: 'سداد الرسوم إلكترونياً' },
+      { kind: 'out-of-scope', text: 'تطبيق الهواتف الذكية (ضمن مشروع مستقل)' },
+      { kind: 'out-of-scope', text: 'رقمنة الخدمات التي ما زالت تُقدَّم ورقياً' },
+      { kind: 'problem', text: 'تعدّد المنصات وتكرار تسجيل الدخول وإدخال البيانات في كل خدمة' },
+      { kind: 'problem', text: 'صعوبة معرفة حالة الطلب دون التواصل مع مركز الاتصال' },
+      { kind: 'objective', text: 'إتاحة جميع الخدمات الإلكترونية من منصة واحدة بنهاية عام 2027' },
+      { kind: 'objective', text: 'رفع نسبة رضا المتعاملين عن الخدمات الرقمية إلى 90%' },
+    ],
+    phases: [
+      { name: 'Requirements gathering', durationDays: 10, team: [{ person: 'Aisha Khan', allocation: 50, role: 'responsible' }] },
+      { name: 'Business analysis', durationDays: 10, team: [{ person: 'Aisha Khan', allocation: 50, role: 'responsible' }] },
+      { name: 'Development plan', durationDays: 5, team: [{ person: 'Hassan Ali', allocation: 30, role: 'responsible' }] },
+      { name: 'Design', durationDays: 10, team: [{ person: 'Mei Chen', allocation: 50, role: 'responsible' }] },
+      {
+        name: 'Development', durationDays: 40,
+        team: [
+          { person: 'Hassan Ali', allocation: 20, role: 'responsible' },
+          { person: 'Fatima Noor', allocation: 40, role: 'contributor' },
+        ],
+      },
+      { name: 'QA', durationDays: 10, team: [{ person: 'Priya Das', allocation: 50, role: 'responsible' }] },
+      {
+        name: 'UAT', durationDays: 5,
+        team: [
+          { person: 'Aisha Khan', allocation: 30, role: 'responsible' },
+          { person: 'Priya Das', allocation: 20, role: 'contributor' },
+        ],
+      },
+      { name: 'Security testing', durationDays: 5, team: [{ person: 'Jonas Weber', allocation: 50, role: 'responsible' }] },
+      { name: 'Deployment', durationDays: 2, team: [{ person: 'Hassan Ali', allocation: 30, role: 'responsible' }] },
+      { name: 'Launch', durationDays: 1, team: [{ person: 'Hassan Ali', allocation: 20, role: 'responsible' }] },
+    ],
+  },
 ];
 
 /** The demo's "I am": Sara Ahmed, an active tech-team person. */
@@ -303,6 +373,8 @@ export const DEMO_TODOS: { project: string; title: string; assignee: string | nu
   { project: 'Case Management System', title: 'Confirm the security testing slot', assignee: 'Jonas Weber', due: '2026-10-05', phase: 'Security testing', doneOn: '2026-09-24' },
   { project: 'Case Management System', title: 'Check the go-live checklist with operations', assignee: 'Sara Ahmed', due: '2026-10-20', phase: 'Deployment' },
   { project: 'Customer Portal Revamp', title: 'Hand over the runbook to operations', assignee: 'Hassan Ali', due: '2026-06-17', phase: 'Launch', doneOn: '2026-06-18' },
+  { project: DEMO_ARABIC_PROJECT, title: 'التنسيق مع إدارة تقنية المعلومات لتفعيل الربط مع الهوية الرقمية', assignee: 'Sara Ahmed', due: '2027-01-21', phase: 'Requirements gathering' },
+  { project: DEMO_ARABIC_PROJECT, title: 'اعتماد قائمة الخدمات المشمولة في الإطلاق الأول مع مالك العملية', assignee: 'Sara Ahmed', due: '2027-02-04', phase: 'Business analysis' },
 ];
 
 /** Starter to-dos seeded per Phases-list value, so the feature can be seen in the demo. */
@@ -346,7 +418,8 @@ export function toProjectInput(
 /** Adds the demo people, then every demo project (and any list values they name), in one transaction. */
 export function seedDemo(db: DatabaseSync, cal: WorkCalendar): number {
   transaction(db, () => {
-    const idFor = (list: ListName, name: string) => addListValue(db, list, name).value.id;
+    const idFor = (list: ListName, name: string) =>
+      addListValue(db, list, name, DEMO_NAMES_AR[`${list}:${name}`] ?? null).value.id;
     const people = new Map<string, number>();
     for (const p of DEMO_PEOPLE) {
       const data = resourceInputSchema.parse({

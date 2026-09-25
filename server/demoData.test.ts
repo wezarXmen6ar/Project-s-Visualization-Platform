@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_CALENDAR } from '../shared/calendar';
 import { newProjectSchema } from '../shared/schemas';
 import { computeWorkload } from '../shared/capacity';
+import { phaseName } from '../client/i18n/listNames';
 import { workloadData } from './assignments/repo';
 import { openDb } from './db';
-import { DEMO_PEOPLE, DEMO_PROJECTS, seedDemo, toProjectInput } from './demoData';
+import { DEMO_ARABIC_PROJECT, DEMO_PEOPLE, DEMO_PROJECTS, seedDemo, toProjectInput } from './demoData';
 import { getLists } from './lists/repo';
 import { listProjects } from './projects/repo';
 import { getMe } from './settings';
@@ -13,7 +14,7 @@ import { listToDos } from './todos/repo';
 
 describe('DEMO_PROJECTS', () => {
   it('are all valid projects with unique names', () => {
-    expect(DEMO_PROJECTS.length).toBeGreaterThanOrEqual(6);
+    expect(DEMO_PROJECTS).toHaveLength(7);
     for (const demo of DEMO_PROJECTS) {
       expect(
         newProjectSchema.safeParse(
@@ -99,18 +100,55 @@ describe('seedDemo', () => {
 
     const me = getMe(db);
     expect(me.name).toBe('Sara Ahmed');
-    const mine = listToDos(db, { assigneeId: me.resourceId! });
+    // The Arabic project's two to-dos (2027) are checked in their own test; this one covers the M5 demo.
+    const english = (t: { projectName: string }) => t.projectName !== DEMO_ARABIC_PROJECT;
+    const mine = listToDos(db, { assigneeId: me.resourceId! }).filter(english);
     expect(mine.map((t) => t.title)).toEqual([
       'Send the app store account request to IT',
       'Confirm the requirements workshop dates with Mariam',
       'Check the go-live checklist with operations',
       'Share the release plan with the business',
     ]);
-    const all = listToDos(db, { includeDone: true });
+    const all = listToDos(db, { includeDone: true }).filter(english);
     expect(all).toHaveLength(10);
     expect(all.find((t) => t.title.startsWith('Review the payment'))?.phase?.name).toBe('Development › Increment 3 – Payments');
     expect(all.find((t) => t.title === 'Confirm the security testing slot')).toMatchObject({ done: true, doneDate: '2026-09-24' });
 
     expect(listStarters(db)).toHaveLength(6);
+  });
+
+  it('adds one fully Arabic project, and Arabic names for the demo list values', () => {
+    const db = openDb(':memory:');
+    expect(seedDemo(db, DEFAULT_CALENDAR)).toBe(7);
+    const arabic = /[؀-ۿ]/;
+    const latinWords = /[A-Za-z]{2,}/;
+
+    const lists = getLists(db);
+    for (const list of ['department', 'mainProject', 'goal', 'projectType', 'phase', 'role'] as const) {
+      for (const v of lists[list]) expect(v.nameAr, `${list}: ${v.name}`).toMatch(arabic);
+    }
+    expect(lists.mainProject.find((v) => v.name === 'Digital Services')?.nameAr).toBe('الخدمات الرقمية');
+    expect(lists.department.find((v) => v.name === 'Customer Service')?.nameAr).toBe('خدمة المتعاملين');
+
+    expect(DEMO_ARABIC_PROJECT).toBe('بوابة الخدمات الذكية');
+    const project = listProjects(db).find((p) => p.name === DEMO_ARABIC_PROJECT)!;
+    expect(project).toMatchObject({ startDate: '2027-01-10', mainProject: { nameAr: 'الخدمات الرقمية' } });
+    expect(project.background).toMatch(arabic);
+    expect(project.summary).toMatch(arabic);
+    for (const kind of ['scope', 'out-of-scope', 'problem', 'objective'] as const) {
+      expect(project.scopeItems.some((i) => i.kind === kind), kind).toBe(true);
+    }
+    for (const item of project.scopeItems) expect(item.text).not.toMatch(latinWords);
+    expect(project.phases[0].start >= '2027-01-10').toBe(true);
+    // Stored under their English names, so they display in Arabic through the Phases list.
+    for (const ph of project.phases) expect(phaseName(ph.name, lists, 'ar'), ph.name).toMatch(arabic);
+
+    const todos = listToDos(db, { includeDone: true }).filter((t) => t.projectName === DEMO_ARABIC_PROJECT);
+    expect(todos).toHaveLength(2);
+    for (const t of todos) {
+      expect(t.title).toMatch(arabic);
+      expect(t.title).not.toMatch(latinWords);
+      expect(t.assignee?.name).toBe('Sara Ahmed');
+    }
   });
 });
