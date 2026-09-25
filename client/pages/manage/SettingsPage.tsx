@@ -7,6 +7,7 @@ import { useAsync } from '../../useAsync';
 import { useResources } from '../../useResources';
 import { ListEditor } from './ListEditor';
 import { MeSetting } from './MeSetting';
+import { StarterEditor } from './StarterEditor';
 
 const EDITORS: { list: ListName; title: string; singular: string }[] = [
   { list: 'mainProject', title: 'Main projects', singular: 'Main project' },
@@ -34,6 +35,8 @@ export function SettingsPage() {
       </div>
 
       <MeSetting people={people} />
+
+      {lists.data ? <StarterEditor phases={lists.data.phase} /> : null}
 
       {lists.error ? (
         <div className="errors" role="alert">

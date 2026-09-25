@@ -68,7 +68,7 @@ export function CreateProjectPage() {
     setSaving(true);
     try {
       const project = await api.createProject(input());
-      navigate(`/manage/projects/${project.id}`);
+      navigate(`/manage/projects/${project.id}?starter=all`);
     } catch (err) {
       if (err instanceof ApiError && err.issues.length > 0) showIssues(err.issues);
       else setIssues([{ path: '', message: err instanceof Error ? err.message : String(err) }]);

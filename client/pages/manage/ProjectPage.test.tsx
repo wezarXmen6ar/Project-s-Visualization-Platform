@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ToDoRecord } from '../../../shared/types';
+import type { StarterSuggestion, ToDoRecord } from '../../../shared/types';
 import { mockFetch, sampleProject, samplePeople, sampleToDos, sampleWorkload } from '../../testing/mockFetch';
 import { ProjectPage } from './ProjectPage';
 
@@ -472,5 +472,80 @@ describe('ProjectPage to-dos', () => {
       return call!;
     });
     expect(JSON.parse(put[1]!.body as string)).toMatchObject({ done: false });
+  });
+});
+
+describe('ProjectPage starter offer', () => {
+  function projectWithUatAndDeployment() {
+    return sampleProject({
+      phases: [
+        { id: 11, name: 'UAT', order: 0, durationDays: 2, start: '2026-09-24', end: '2026-09-25', subPhases: [] },
+        { id: 12, name: 'Deployment', order: 1, durationDays: 3, start: '2026-09-28', end: '2026-09-30', subPhases: [] },
+      ],
+    });
+  }
+
+  function baseRoutes(suggestions: StarterSuggestion[]) {
+    return {
+      'GET /api/projects/1': () => ({ body: projectWithUatAndDeployment() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+      'GET /api/projects/1/starter-suggestions': () => ({ body: suggestions }),
+    };
+  }
+
+  it('shows suggestions grouped by phase, ticked by default, and posts only the ticked ones', async () => {
+    const suggestions: StarterSuggestion[] = [
+      { phaseId: 11, phaseName: 'UAT', title: 'Write test cases' },
+      { phaseId: 11, phaseName: 'UAT', title: 'Get UAT sign-off' },
+      { phaseId: 12, phaseName: 'Deployment', title: 'Prepare release notes' },
+    ];
+    const fetchMock = mockFetch({
+      ...baseRoutes(suggestions),
+      'POST /api/projects/1/todos/from-starters': () => ({ status: 201, body: [] }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1?starter=all');
+
+    const card = (await screen.findByRole('heading', { name: 'Starter to-dos' })).closest('section') as HTMLElement;
+    expect(within(card).getByRole('heading', { name: 'UAT', level: 3 })).toBeInTheDocument();
+    expect(within(card).getByRole('heading', { name: 'Deployment', level: 3 })).toBeInTheDocument();
+    expect(within(card).getByRole('checkbox', { name: 'Write test cases' })).toBeChecked();
+    expect(within(card).getByRole('checkbox', { name: 'Get UAT sign-off' })).toBeChecked();
+    expect(within(card).getByRole('button', { name: 'Add 3 to-dos' })).toBeInTheDocument();
+
+    await user.click(within(card).getByRole('checkbox', { name: 'Get UAT sign-off' }));
+    expect(within(card).getByRole('button', { name: 'Add 2 to-dos' })).toBeInTheDocument();
+
+    await user.click(within(card).getByRole('button', { name: 'Add 2 to-dos' }));
+
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Starter to-dos' })).toBeNull());
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects/1/todos/from-starters' && init?.method === 'POST');
+    expect(JSON.parse(post![1]!.body as string)).toEqual({
+      items: [
+        { phaseId: 11, title: 'Write test cases' },
+        { phaseId: 12, title: 'Prepare release notes' },
+      ],
+    });
+  });
+
+  it('Skip hides the card without posting', async () => {
+    const suggestions: StarterSuggestion[] = [{ phaseId: 11, phaseName: 'UAT', title: 'Write test cases' }];
+    const fetchMock = mockFetch(baseRoutes(suggestions));
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1?starter=all');
+
+    await screen.findByRole('heading', { name: 'Starter to-dos' });
+    await user.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(screen.queryByRole('heading', { name: 'Starter to-dos' })).toBeNull();
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/projects/1/todos/from-starters')).toBe(false);
+  });
+
+  it('renders no card when there are no suggestions', async () => {
+    mockFetch(baseRoutes([]));
+    renderAt('/manage/projects/1?starter=all');
+    await screen.findByRole('heading', { name: 'Portal' });
+    expect(screen.queryByRole('heading', { name: 'Starter to-dos' })).toBeNull();
   });
 });

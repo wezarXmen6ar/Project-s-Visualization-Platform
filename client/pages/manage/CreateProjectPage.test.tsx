@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useParams } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation, useParams } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { mockFetch, sampleLists, samplePeople, sampleProject, sampleWorkload, type MockHandler } from '../../testing/mockFetch';
 import { CreateProjectPage } from './CreateProjectPage';
 
 function ProjectStub() {
   const { id } = useParams();
-  return <div>Project page {id}</div>;
+  const location = useLocation();
+  return <div>Project page {id}{location.search}</div>;
 }
 
 function renderPage() {
@@ -97,7 +98,7 @@ describe('CreateProjectPage wizard', () => {
     expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Create project' }));
 
-    expect(await screen.findByText('Project page 7')).toBeInTheDocument();
+    expect(await screen.findByText(/Project page 7/)).toBeInTheDocument();
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
     const sent = JSON.parse(post![1]!.body as string);
     expect(sent).toMatchObject({
@@ -115,6 +116,18 @@ describe('CreateProjectPage wizard', () => {
       'Requirements gathering', 'Business analysis', 'Development plan', 'Development', 'QA', 'UAT',
       'Security testing', 'Deployment', 'Launch',
     ]);
+  });
+
+  it('navigates to the new project with ?starter=all after creating', async () => {
+    mockFetch({
+      ...baseRoutes,
+      'POST /api/projects': () => ({ status: 201, body: sampleProject({ id: 7 }) }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await openPeopleStep(user);
+    await user.click(screen.getByRole('button', { name: 'Create project' }));
+    expect(await screen.findByText('Project page 7?starter=all')).toBeInTheDocument();
   });
 
   it('adds a new department from the dropdown and selects it', async () => {
@@ -246,7 +259,7 @@ describe('CreateProjectPage wizard', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }));
     await user.click(screen.getByRole('button', { name: 'Create project' }));
 
-    expect(await screen.findByText('Project page 7')).toBeInTheDocument();
+    expect(await screen.findByText(/Project page 7/)).toBeInTheDocument();
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
     const sent = JSON.parse(post![1]!.body as string);
     const dev = sent.phases.find((p: { name: string }) => p.name === 'Development');
@@ -274,7 +287,7 @@ describe('CreateProjectPage wizard', () => {
     await user.selectOptions(screen.getByLabelText('Development › Increment 1 person 1'), 'Fatima Noor · Developer');
 
     await user.click(screen.getByRole('button', { name: 'Create project' }));
-    expect(await screen.findByText('Project page 7')).toBeInTheDocument();
+    expect(await screen.findByText(/Project page 7/)).toBeInTheDocument();
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
     const sent = JSON.parse(post![1]!.body as string);
     const dev = sent.phases.find((p: { name: string }) => p.name === 'Development');
@@ -334,7 +347,7 @@ describe('CreateProjectPage wizard', () => {
     expect(await screen.findByText('Mon 5 Oct – Fri 9 Oct: 150% booked, 100% available')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Create project' }));
-    expect(await screen.findByText('Project page 7')).toBeInTheDocument();
+    expect(await screen.findByText(/Project page 7/)).toBeInTheDocument();
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
     const sent = JSON.parse(post![1]!.body as string);
     expect(sent.phases[0].assignments).toEqual([{ resourceId: 71, allocation: 50, role: 'responsible' }]);

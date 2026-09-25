@@ -223,6 +223,116 @@ describe('to-dos', () => {
   });
 });
 
+describe('starter to-dos', () => {
+  async function uatPhaseId(app: ReturnType<typeof buildApp>) {
+    const lists = (await app.inject({ method: 'GET', url: '/api/lists' })).json();
+    return (lists.phase.find((p: { name: string }) => p.name === 'UAT') as { id: number }).id;
+  }
+
+  it('adds a starter to-do, and rejects a non-phase list value with "Unknown phase"', async () => {
+    const db = openDb(':memory:');
+    const app = buildApp(db);
+    const phaseId = await uatPhaseId(app);
+
+    const created = await app.inject({ method: 'POST', url: '/api/starter-todos', payload: { phaseListId: phaseId, title: 'Write test cases' } });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ phaseListId: phaseId, title: 'Write test cases' });
+
+    const departmentValue = (
+      await app.inject({ method: 'POST', url: '/api/lists/department', payload: { name: 'Finance' } })
+    ).json();
+    const rejected = await app.inject({ method: 'POST', url: '/api/starter-todos', payload: { phaseListId: departmentValue.id, title: 'X' } });
+    expect(rejected.statusCode).toBe(400);
+    expect(rejected.json()).toEqual({ error: 'Unknown phase' });
+  });
+
+  it('lists starter to-dos, renames one, and 404s on a missing id', async () => {
+    const db = openDb(':memory:');
+    const app = buildApp(db);
+    const phaseId = await uatPhaseId(app);
+    const created = (
+      await app.inject({ method: 'POST', url: '/api/starter-todos', payload: { phaseListId: phaseId, title: 'Write test cases' } })
+    ).json();
+
+    const listed = await app.inject({ method: 'GET', url: '/api/starter-todos' });
+    expect(listed.json().map((s: { id: number }) => s.id)).toContain(created.id);
+
+    const renamed = await app.inject({ method: 'PUT', url: `/api/starter-todos/${created.id}`, payload: { title: 'Write full test cases' } });
+    expect(renamed.statusCode).toBe(200);
+    expect(renamed.json().title).toBe('Write full test cases');
+
+    const missing = await app.inject({ method: 'PUT', url: '/api/starter-todos/999999', payload: { title: 'X' } });
+    expect(missing.statusCode).toBe(404);
+  });
+
+  it('deletes a starter to-do, 200/204s and 404s appropriately', async () => {
+    const db = openDb(':memory:');
+    const app = buildApp(db);
+    const phaseId = await uatPhaseId(app);
+    const created = (
+      await app.inject({ method: 'POST', url: '/api/starter-todos', payload: { phaseListId: phaseId, title: 'Write test cases' } })
+    ).json();
+
+    const deleted = await app.inject({ method: 'DELETE', url: `/api/starter-todos/${created.id}` });
+    expect(deleted.statusCode).toBe(204);
+    const again = await app.inject({ method: 'DELETE', url: `/api/starter-todos/${created.id}` });
+    expect(again.statusCode).toBe(404);
+  });
+
+  it('gives suggestions for a project\'s phases, filterable by phaseIds, and 404s for a missing project', async () => {
+    const db = openDb(':memory:');
+    const app = buildApp(db);
+    const uatId = await uatPhaseId(app);
+    await app.inject({ method: 'POST', url: '/api/starter-todos', payload: { phaseListId: uatId, title: 'Write test cases' } });
+    const project = (
+      await app.inject({
+        method: 'POST', url: '/api/projects',
+        payload: { name: 'Portal', color: '#3b82f6', startDate: '2026-09-25', phases: [{ name: 'UAT', durationDays: 5 }] },
+      })
+    ).json();
+
+    const all = await app.inject({ method: 'GET', url: `/api/projects/${project.id}/starter-suggestions` });
+    expect(all.statusCode).toBe(200);
+    expect(all.json()).toEqual([{ phaseId: project.phases[0].id, phaseName: 'UAT', title: 'Write test cases' }]);
+
+    const filtered = await app.inject({ method: 'GET', url: `/api/projects/${project.id}/starter-suggestions?phaseIds=${project.phases[0].id}` });
+    expect(filtered.json()).toEqual(all.json());
+
+    const missing = await app.inject({ method: 'GET', url: '/api/projects/999999/starter-suggestions' });
+    expect(missing.statusCode).toBe(404);
+  });
+
+  it('accepts starter items into to-dos, and rejects a phaseId not among the project\'s top-level phases', async () => {
+    const db = openDb(':memory:');
+    const app = buildApp(db, { today: () => '2026-09-25' });
+    const project = (
+      await app.inject({
+        method: 'POST', url: '/api/projects',
+        payload: { name: 'Portal', color: '#3b82f6', startDate: '2026-09-25', phases: [{ name: 'UAT', durationDays: 5 }] },
+      })
+    ).json();
+
+    const accepted = await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/todos/from-starters`,
+      payload: { items: [{ phaseId: project.phases[0].id, title: 'Write test cases' }] },
+    });
+    expect(accepted.statusCode).toBe(201);
+    expect(accepted.json()).toMatchObject([{ title: 'Write test cases', phase: { id: project.phases[0].id, name: 'UAT' } }]);
+
+    const bad = await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/todos/from-starters`,
+      payload: { items: [{ phaseId: 999999, title: 'X' }] },
+    });
+    expect(bad.statusCode).toBe(400);
+
+    const missing = await app.inject({
+      method: 'POST', url: '/api/projects/999999/todos/from-starters',
+      payload: { items: [{ phaseId: project.phases[0].id, title: 'X' }] },
+    });
+    expect(missing.statusCode).toBe(404);
+  });
+});
+
 describe('"I am"', () => {
   it('rejects a business contact, accepts a tech person, and null clears it', async () => {
     const db = openDb(':memory:');

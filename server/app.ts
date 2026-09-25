@@ -5,7 +5,8 @@ import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
   assignmentsUpdateSchema, leaveInputSchema, listValueInputSchema, meInputSchema, newProjectSchema, overloadDecisionSchema,
-  projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, toDoInputSchema, toIssues,
+  projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, starterAcceptSchema, starterTitleSchema, starterToDoInputSchema,
+  toDoInputSchema, toIssues,
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import {
@@ -18,6 +19,7 @@ import {
   addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, listResources, updateResourceChecked,
 } from './resources/repo';
 import { getCalendar, getMe, setMe } from './settings';
+import { acceptStarters, addStarter, deleteStarter, listStarters, renameStarter, starterSuggestions } from './starters/repo';
 import { checkToDo, createToDo, deleteToDo, getToDo, listToDos, updateToDo } from './todos/repo';
 
 export interface AppOptions {
@@ -191,6 +193,51 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.delete<{ Params: { id: string } }>('/api/todos/:id', async (req, reply) =>
     deleteToDo(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send({ error: 'To-do not found' }));
+
+  app.get('/api/starter-todos', async () => listStarters(db));
+
+  app.post('/api/starter-todos', async (req, reply) => {
+    const parsed = starterToDoInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid starter to-do', issues: toIssues(parsed.error) });
+    const result = addStarter(db, parsed.data);
+    if ('error' in result) return reply.code(400).send({ error: result.error });
+    return reply.code(201).send(result);
+  });
+
+  app.put<{ Params: { id: string } }>('/api/starter-todos/:id', async (req, reply) => {
+    const parsed = starterTitleSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid starter to-do', issues: toIssues(parsed.error) });
+    const result = renameStarter(db, Number(req.params.id), parsed.data.title);
+    return result ?? reply.code(404).send({ error: 'Starter to-do not found' });
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/starter-todos/:id', async (req, reply) =>
+    deleteStarter(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send({ error: 'Starter to-do not found' }));
+
+  app.get<{ Params: { id: string }; Querystring: { phaseIds?: string } }>(
+    '/api/projects/:id/starter-suggestions',
+    async (req, reply) => {
+      const projectId = Number(req.params.id);
+      if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send({ error: 'Project not found' });
+      const phaseIds = req.query.phaseIds
+        ? req.query.phaseIds
+            .split(',')
+            .map(Number)
+            .filter((n) => Number.isInteger(n) && n > 0)
+        : undefined;
+      return starterSuggestions(db, projectId, phaseIds);
+    },
+  );
+
+  app.post<{ Params: { id: string } }>('/api/projects/:id/todos/from-starters', async (req, reply) => {
+    const projectId = Number(req.params.id);
+    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send({ error: 'Project not found' });
+    const parsed = starterAcceptSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid items', issues: toIssues(parsed.error) });
+    const result = acceptStarters(db, projectId, parsed.data.items, today());
+    if ('issues' in result) return reply.code(400).send({ error: 'Invalid items', issues: result.issues });
+    return reply.code(201).send(result);
+  });
 
   app.get('/api/settings/me', async () => getMe(db));
 

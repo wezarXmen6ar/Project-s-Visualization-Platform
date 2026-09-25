@@ -241,3 +241,20 @@ export const toDoInputSchema = z.object({
 export const meInputSchema = z.object({ resourceId: z.number().int().positive().nullable() });
 export type ToDoInput = z.input<typeof toDoInputSchema>;
 export type ToDoData = z.output<typeof toDoInputSchema>;
+
+export const starterToDoInputSchema = z.object({
+  phaseListId: z.number().int().positive(),
+  title: z.string().trim().min(1, 'Write what needs doing').max(200),
+});
+export const starterTitleSchema = z.object({ title: z.string().trim().min(1, 'Write what needs doing').max(200) });
+export const starterAcceptSchema = z.object({
+  items: z
+    .array(z.object({ phaseId: z.number().int().positive(), title: z.string().trim().min(1).max(200) }))
+    .min(1)
+    .max(200),
+});
+export type StarterToDoInput = z.input<typeof starterToDoInputSchema>;
+export type StarterToDoData = z.output<typeof starterToDoInputSchema>;
+export type StarterTitleInput = z.input<typeof starterTitleSchema>;
+export type StarterAcceptInput = z.input<typeof starterAcceptSchema>;
+export type StarterAcceptData = z.output<typeof starterAcceptSchema>;

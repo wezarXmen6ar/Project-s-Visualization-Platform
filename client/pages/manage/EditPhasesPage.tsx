@@ -99,8 +99,8 @@ export function EditPhasesPage() {
     setConfirming(null);
     setSaving(true);
     try {
-      await api.updateSchedule(id, input);
-      navigate(`/manage/projects/${id}`);
+      const saved = await api.updateSchedule(id, input);
+      navigate(saved.addedPhaseIds.length > 0 ? `/manage/projects/${id}?starter=${saved.addedPhaseIds.join(',')}` : `/manage/projects/${id}`);
     } catch (err) {
       setIssues(
         err instanceof ApiError && err.issues.length > 0

@@ -190,6 +190,15 @@ export const MIGRATIONS: string[] = [
   CREATE INDEX todos_project ON todos(project_id);
   CREATE INDEX todos_assignee ON todos(assignee_id);
   `,
+  `
+  CREATE TABLE starter_todos (
+    id INTEGER PRIMARY KEY,
+    phase_list_id INTEGER NOT NULL REFERENCES list_values(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    sort_order INTEGER NOT NULL
+  );
+  CREATE INDEX starter_todos_phase ON starter_todos(phase_list_id);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

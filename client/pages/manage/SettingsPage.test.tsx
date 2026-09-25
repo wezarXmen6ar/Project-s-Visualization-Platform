@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import type { ListValue, Me } from '../../../shared/types';
+import type { ListValue, Me, StarterToDo } from '../../../shared/types';
 import { mockFetch, sampleLists, samplePeople, type MockHandler } from '../../testing/mockFetch';
 import { SettingsPage } from './SettingsPage';
 
@@ -11,7 +11,27 @@ import { SettingsPage } from './SettingsPage';
 function fakeServer(): Record<string, MockHandler> {
   const lists = sampleLists();
   let me: Me = { resourceId: null, name: null };
+  let starters: StarterToDo[] = [
+    { id: 1, phaseListId: 55, title: 'Write test cases', order: 0 },
+    { id: 2, phaseListId: 55, title: 'Confirm test data', order: 1 },
+  ];
   return {
+    'GET /api/starter-todos': () => ({ body: starters }),
+    'POST /api/starter-todos': (init) => {
+      const body = JSON.parse(init!.body as string) as { phaseListId: number; title: string };
+      const value: StarterToDo = { id: 3, phaseListId: body.phaseListId, title: body.title, order: starters.length };
+      starters = [...starters, value];
+      return { status: 201, body: value };
+    },
+    'PUT /api/starter-todos/1': (init) => {
+      const body = JSON.parse(init!.body as string) as { title: string };
+      starters = starters.map((s) => (s.id === 1 ? { ...s, title: body.title } : s));
+      return { body: starters.find((s) => s.id === 1) };
+    },
+    'DELETE /api/starter-todos/1': () => {
+      starters = starters.filter((s) => s.id !== 1);
+      return { status: 204, body: null };
+    },
     'GET /api/lists': () => ({ body: structuredClone(lists) }),
     'POST /api/lists/goal': (init) => {
       const value: ListValue = { id: 40, list: 'goal', name: JSON.parse(init!.body as string).name, order: lists.goal.length };
@@ -103,5 +123,55 @@ describe('SettingsPage', () => {
     expect(select).toHaveValue('70');
     const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/settings/me' && init?.method === 'PUT');
     expect(JSON.parse(put![1]!.body as string)).toEqual({ resourceId: 70 });
+  });
+
+  it('choosing a phase shows its starter to-dos', async () => {
+    mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('option', { name: 'UAT (2)' });
+    await user.selectOptions(screen.getByLabelText('Phase'), 'UAT (2)');
+    expect(await screen.findByText('Write test cases')).toBeInTheDocument();
+    expect(screen.getByText('Confirm test data')).toBeInTheDocument();
+  });
+
+  it('adds a starter to-do to the selected phase', async () => {
+    const fetchMock = mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('option', { name: 'UAT (2)' });
+    await user.selectOptions(screen.getByLabelText('Phase'), 'UAT (2)');
+    await user.type(screen.getByLabelText('New starter to-do'), 'Get UAT sign-off');
+    await user.click(screen.getByRole('button', { name: 'Add' }));
+    expect(await screen.findByText('Get UAT sign-off')).toBeInTheDocument();
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/starter-todos' && init?.method === 'POST');
+    expect(JSON.parse(post![1]!.body as string)).toEqual({ phaseListId: 55, title: 'Get UAT sign-off' });
+  });
+
+  it('deletes a starter to-do', async () => {
+    const fetchMock = mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('option', { name: 'UAT (2)' });
+    await user.selectOptions(screen.getByLabelText('Phase'), 'UAT (2)');
+    await user.click(await screen.findByRole('button', { name: 'Delete starter Write test cases' }));
+    expect(screen.queryByText('Write test cases')).toBeNull();
+    expect(fetchMock.mock.calls.some(([url, init]) => url === '/api/starter-todos/1' && init?.method === 'DELETE')).toBe(true);
+  });
+
+  it('renames a starter to-do', async () => {
+    const fetchMock = mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole('option', { name: 'UAT (2)' });
+    await user.selectOptions(screen.getByLabelText('Phase'), 'UAT (2)');
+    await user.click(await screen.findByRole('button', { name: 'Rename Write test cases' }));
+    const input = screen.getByLabelText('New title for Write test cases');
+    await user.clear(input);
+    await user.type(input, 'Write full test cases');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Write full test cases')).toBeInTheDocument();
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/starter-todos/1' && init?.method === 'PUT');
+    expect(JSON.parse(put![1]!.body as string)).toEqual({ title: 'Write full test cases' });
   });
 });

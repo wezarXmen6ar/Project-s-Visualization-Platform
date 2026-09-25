@@ -1,5 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { DEFAULT_CALENDAR, countWorkingDays, todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
 import type { ProjectRecord } from '../../../shared/types';
@@ -17,6 +17,7 @@ import { CATEGORY_LABEL, PRIORITY_LABEL, SCOPE_TABLES, beneficiaryLabel, request
 import { NextUp } from './NextUp';
 import { ProjectPeople } from './ProjectPeople';
 import { ProjectToDos, useProjectToDos } from './ProjectToDos';
+import { StarterOffer } from './StarterOffer';
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -29,6 +30,8 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 
 export function ProjectPage() {
   const id = Number(useParams().id);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const starterParam = searchParams.get('starter');
   const project = useAsync(() => api.getProject(id), [id]);
   const calendar = useAsync(() => api.getCalendar(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
@@ -65,6 +68,17 @@ export function ProjectPage() {
   const rows = phaseRows(p);
   const cal = calendar.data ?? DEFAULT_CALENDAR;
 
+  function clearStarterParam() {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('starter');
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
   return (
     <main className="page">
       <div className="page-header">
@@ -83,6 +97,18 @@ export function ProjectPage() {
       </div>
 
       <NextUp todos={todos} me={me} onToggleDone={(t) => void toggleDone(t)} />
+
+      {starterParam ? (
+        <StarterOffer
+          projectId={p.id}
+          starterParam={starterParam}
+          onAdded={() => {
+            reloadToDos();
+            clearStarterParam();
+          }}
+          onSkip={clearStarterParam}
+        />
+      ) : null}
 
       <section className="card">
         <h2>Timeline</h2>

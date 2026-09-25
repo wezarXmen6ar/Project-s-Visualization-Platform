@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import type { ToDoRecord } from '../../../shared/types';
 import { mockFetch, sampleLists, sampleProject, type MockHandler } from '../../testing/mockFetch';
 import { EditPhasesPage } from './EditPhasesPage';
 
 function ProjectStub() {
-  return <div>Project page</div>;
+  const location = useLocation();
+  return <div>Project page{location.search}</div>;
 }
 
 function renderPage() {
@@ -248,5 +249,31 @@ describe('EditPhasesPage', () => {
     const sent = JSON.parse(put![1]!.body as string);
     const req = sent.phases.find((p: { id?: number }) => p.id === 11);
     expect(req.durationDays).toBe(3);
+  });
+
+  it('navigates to the project with ?starter=<addedPhaseIds> when phases were added', async () => {
+    mockFetch({
+      ...baseRoutes(),
+      'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [55] } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 1 name');
+
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+    expect(await screen.findByText('Project page?starter=55')).toBeInTheDocument();
+  });
+
+  it('navigates to the plain project URL when no phases were added', async () => {
+    mockFetch({
+      ...baseRoutes(),
+      'PUT /api/projects/1/schedule': () => ({ body: { project: project(), addedPhaseIds: [] } }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByLabelText('Phase 1 name');
+
+    await user.click(screen.getByRole('button', { name: 'Save phases' }));
+    expect(await screen.findByText('Project page')).toBeInTheDocument();
   });
 });

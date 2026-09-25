@@ -208,6 +208,12 @@ export interface ToDoRecord {
 /** Who "I am" is: the PM using the tool. */
 export interface Me { resourceId: number | null; name: string | null }
 
+/** A starter to-do kept against a Phases-list value, so a rename in Settings keeps its checklist. */
+export interface StarterToDo { id: number; phaseListId: number; title: string; order: number }
+
+/** A starter item offered for one of a project's top-level phases. */
+export interface StarterSuggestion { phaseId: number; phaseName: string; title: string }
+
 export interface PortfolioResponse {
   year: number;
   today: ISODate;

@@ -1,11 +1,11 @@
 import type { WorkCalendar } from '../shared/calendar';
 import type {
   AssignmentInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput,
-  ToDoInput, ValidationIssue,
+  StarterToDoInput, ToDoInput, ValidationIssue,
 } from '../shared/schemas';
 import type {
   LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision, PortfolioResponse, ProjectRecord, ResourceRecord, ScheduleSaved,
-  ToDoRecord, WorkloadData,
+  StarterSuggestion, StarterToDo, ToDoRecord, WorkloadData,
 } from '../shared/types';
 
 export class ApiError extends Error {
@@ -79,4 +79,14 @@ export const api = {
   deleteToDo: (id: number) => request<void>(`/api/todos/${id}`, { method: 'DELETE' }),
   getMe: () => request<Me>('/api/settings/me'),
   setMe: (resourceId: number | null) => request<Me>('/api/settings/me', withBody('PUT', { resourceId })),
+  listStarters: () => request<StarterToDo[]>('/api/starter-todos'),
+  addStarter: (input: StarterToDoInput) => request<StarterToDo>('/api/starter-todos', withBody('POST', input)),
+  renameStarter: (id: number, title: string) => request<StarterToDo>(`/api/starter-todos/${id}`, withBody('PUT', { title })),
+  deleteStarter: (id: number) => request<void>(`/api/starter-todos/${id}`, { method: 'DELETE' }),
+  starterSuggestions: (projectId: number, phaseIds?: number[]) =>
+    request<StarterSuggestion[]>(
+      `/api/projects/${projectId}/starter-suggestions${phaseIds ? `?phaseIds=${phaseIds.join(',')}` : ''}`,
+    ),
+  acceptStarters: (projectId: number, items: { phaseId: number; title: string }[]) =>
+    request<ToDoRecord[]>(`/api/projects/${projectId}/todos/from-starters`, withBody('POST', { items })),
 };
