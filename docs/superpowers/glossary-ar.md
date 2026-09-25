@@ -105,6 +105,18 @@
 | Working on | يعمل حالياً على | |
 | I am (Settings) | المستخدم الحالي | "set who you are" becomes "حدِّد المستخدم الحالي" |
 
+### Default roles (proposed in M6 Task 3, waiting for the user's approval)
+| English | Arabic |
+|---|---|
+| Project manager | مدير المشروع |
+| Tech lead | قائد الفريق التقني |
+| Business analyst | محلل الأعمال |
+| Developer | مطوّر |
+| Designer | مصمم |
+| QA | مختبِر جودة (QA) |
+| DB engineer | مهندس قواعد البيانات |
+| InfoSec | أمن المعلومات |
+
 ## To-dos
 | English | Arabic | Note |
 |---|---|---|
