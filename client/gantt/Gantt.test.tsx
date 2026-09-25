@@ -1,12 +1,25 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CALENDAR } from '../../shared/calendar';
 import { Gantt, type GanttRow } from './Gantt';
 import { workWeekEnds } from './scale';
 
 const octoberRange = { start: '2026-10-01', end: '2026-10-31' };
+
+/** Stubs `window.matchMedia('(hover: none)')` so the click/tap-toggle behaviour is deterministic in tests. */
+function stubHover(canHover: boolean) {
+  vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+    matches: query === '(hover: none)' ? !canHover : false,
+    media: query,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })));
+}
 
 const rows: GanttRow[] = [
   { id: 'a', label: 'Requirements', bars: [{ id: 'a1', start: '2026-01-01', end: '2026-01-05', color: '#3b82f6' }] },
@@ -15,6 +28,10 @@ const rows: GanttRow[] = [
 const range = { start: '2026-01-01', end: '2026-01-10' };
 
 describe('Gantt', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('draws bars sized by working span, offset by the label column', () => {
     render(<Gantt rows={rows} range={range} width={300} />);
     // Scoped to `.gantt-label`: the label <text> also contains a nested <title> tooltip
@@ -154,7 +171,8 @@ describe('Gantt', () => {
       expect(screen.queryByRole('tooltip')).toBeNull();
     });
 
-    it('toggles the details on click or tap, and closes them on Escape', async () => {
+    it('toggles the details on click or tap on a no-hover (touch) device, and closes them on Escape', async () => {
+      stubHover(false);
       const user = userEvent.setup();
       render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
       const lane = screen.getByTestId('gantt-bar-s2').querySelector('rect')!;
@@ -168,11 +186,26 @@ describe('Gantt', () => {
       expect(screen.queryByRole('tooltip')).toBeNull();
     });
 
+    it('on a device that can hover, a click does not hide a hovered card, and hover alone shows and hides it', async () => {
+      stubHover(true);
+      const user = userEvent.setup();
+      render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
+      const lane = screen.getByTestId('gantt-bar-s2').querySelector('rect')!;
+      await user.hover(lane);
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Development › Inc 2');
+      await user.click(lane);
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Development › Inc 2');
+      await user.unhover(lane);
+      expect(screen.queryByRole('tooltip')).toBeNull();
+    });
+
     it('shows the details on focus and hides them on blur', async () => {
       const user = userEvent.setup();
       render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
       await user.tab();
-      expect(screen.getByRole('tooltip')).toHaveTextContent('Development');
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Development'); // the row's name label
+      await user.tab();
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Development'); // the bar itself
       await user.tab();
       expect(screen.getByRole('tooltip')).toHaveTextContent('Development › Inc 1');
       await user.tab();
@@ -185,6 +218,90 @@ describe('Gantt', () => {
       render(<Gantt rows={detailRows} range={{ start: '2026-01-01', end: '2026-12-31' }} width={500} />);
       expect(screen.getByTestId('gantt-segment-s1')).toBeInTheDocument();
       expect(screen.queryByText('Inc 1', { selector: '.gantt-bar-label' })).toBeNull();
+    });
+
+    it("shows the phase's own card from its name label, since segments can cover the whole bar", async () => {
+      const user = userEvent.setup();
+      render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
+      const label = screen.getByText('Development', { selector: '.gantt-label' });
+      expect(label).toHaveAttribute('tabindex', '0');
+      await user.hover(label);
+      const card = screen.getByRole('tooltip');
+      expect(card).toHaveTextContent('Development');
+      expect(card).toHaveTextContent('15 working days');
+      await user.unhover(label);
+      expect(screen.queryByRole('tooltip')).toBeNull();
+
+      // A segment's own card is still reachable directly.
+      await user.hover(screen.getByTestId('gantt-segment-s1'));
+      expect(screen.getByRole('tooltip')).toHaveTextContent('Development › Inc 1');
+    });
+
+    it("gives a lane row's label (there is none) no piece interaction", () => {
+      render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
+      const laneRow = screen.getByTestId('gantt-row-dev-lane-1');
+      expect(laneRow.querySelector('.gantt-label')).toBeNull();
+    });
+  });
+
+  describe('weekend-only gaps', () => {
+    const gapRow = (s2Start: string): GanttRow[] => [{
+      id: 'dev', label: 'Development',
+      bars: [{
+        id: 'dev', start: '2026-10-05', end: '2026-10-23', color: '#3b82f6',
+        segments: [
+          { id: 's1', start: '2026-10-05', end: '2026-10-16', label: 'Inc 1' }, // Mon 5 – Fri 16 Oct 2026
+          { id: 's2', start: s2Start, end: '2026-10-23', label: 'Inc 2' },
+        ],
+      }],
+    }];
+
+    it('draws no lighter gap element when the gap between segments is only a weekend', () => {
+      render(<Gantt rows={gapRow('2026-10-19')} range={octoberRange} width={1200} />); // gap: Sat 17 – Sun 18 Oct
+      expect(screen.queryAllByTestId(/^gantt-gap-/)).toHaveLength(0);
+    });
+
+    it('draws a lighter gap element when the gap between segments contains a working day', () => {
+      render(<Gantt rows={gapRow('2026-10-21')} range={octoberRange} width={1200} />); // gap: Sat 17 – Tue 20 Oct
+      expect(screen.queryAllByTestId(/^gantt-gap-/)).toHaveLength(1);
+    });
+  });
+
+  describe('truncated segment labels', () => {
+    it('truncates a segment label with an ellipsis when only part of it fits', () => {
+      const narrowRows: GanttRow[] = [{
+        id: 'dev', label: 'Development',
+        bars: [{
+          id: 'dev', start: '2026-01-01', end: '2026-01-02', color: '#3b82f6',
+          segments: [
+            { id: 's1', start: '2026-01-01', end: '2026-01-01', label: 'Increment 1 – Sign-in and profile' },
+            { id: 's2', start: '2026-01-02', end: '2026-01-02', label: 'Increment 2' },
+          ],
+        }],
+      }];
+      // 2-day range over a 200px chart: each segment is ~100px wide.
+      render(<Gantt rows={narrowRows} range={{ start: '2026-01-01', end: '2026-01-02' }} width={400} />);
+      const label = screen.getByText((content) => content.startsWith('Increment 1') && content.endsWith('…'), {
+        selector: '.gantt-bar-label',
+      });
+      expect(label).toBeInTheDocument();
+    });
+
+    it('draws no label at all when even a truncated one would not fit', () => {
+      const tinyRows: GanttRow[] = [{
+        id: 'dev', label: 'Development',
+        bars: [{
+          id: 'dev', start: '2026-01-01', end: '2026-01-02', color: '#3b82f6',
+          segments: [
+            { id: 's1', start: '2026-01-01', end: '2026-01-01', label: 'Increment 1 – Sign-in and profile' },
+            { id: 's2', start: '2026-01-02', end: '2026-01-02', label: 'Increment 2' },
+          ],
+        }],
+      }];
+      // 2-day range over a 40px chart: each segment is ~20px wide, too narrow for even 6 characters.
+      render(<Gantt rows={tinyRows} range={{ start: '2026-01-01', end: '2026-01-02' }} width={240} />);
+      expect(screen.getByTestId('gantt-segment-s1')).toBeInTheDocument();
+      expect(screen.queryByText(/Increment/, { selector: '.gantt-bar-label' })).toBeNull();
     });
   });
 });

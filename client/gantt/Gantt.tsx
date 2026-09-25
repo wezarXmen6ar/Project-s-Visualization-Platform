@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
-import { DEFAULT_CALENDAR, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
+import { addDays, DEFAULT_CALENDAR, isWorkingDay, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
 import { formatBarDates } from './barDates';
 import { createTimeScale, thinLabels, workWeekEnds } from './scale';
 
@@ -70,6 +70,7 @@ const BAR_H = 20;
 const SUMMARY_H = 8;
 const APPROX_CHAR_W = 6.5;
 const DATE_LABEL_GAP = 6;
+const MIN_TRUNCATED_LABEL_CHARS = 6;
 const MIN_WEEK_LABEL_GAP = 22;
 const MIN_MONTH_LABEL_GAP = 30;
 
@@ -134,12 +135,40 @@ interface PieceBox {
   bottom: number;
 }
 
-function segmentBox(seg: GanttSegment, range: DateRange, scale: ReturnType<typeof createTimeScale>) {
-  if (seg.end < range.start || seg.start > range.end) return null;
-  const s = seg.start < range.start ? range.start : seg.start;
-  const e = seg.end > range.end ? range.end : seg.end;
+function dateBox(start: ISODate, end: ISODate, range: DateRange, scale: ReturnType<typeof createTimeScale>) {
+  if (end < range.start || start > range.end) return null;
+  const s = start < range.start ? range.start : start;
+  const e = end > range.end ? range.end : end;
   const x = LABEL_W + scale.x(s);
   return { x, w: Math.max(scale.x(e) + scale.dayWidth - scale.x(s), 2) };
+}
+
+function segmentBox(seg: GanttSegment, range: DateRange, scale: ReturnType<typeof createTimeScale>) {
+  return dateBox(seg.start, seg.end, range, scale);
+}
+
+function hasWorkingDay(start: ISODate, end: ISODate, cal: WorkCalendar): boolean {
+  for (let d = start; d <= end; d = addDays(d, 1)) {
+    if (isWorkingDay(d, cal)) return true;
+  }
+  return false;
+}
+
+/**
+ * The parts of a segmented bar's span that no lane-0 segment covers, restricted to the ones containing at least
+ * one working day — a gap made up entirely of non-working days (usually just a weekend) isn't drawn lighter.
+ */
+function workingDayGaps(bar: GanttBar, segments: GanttSegment[], cal: WorkCalendar): { start: ISODate; end: ISODate }[] {
+  const sorted = [...segments].sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
+  const spans: { start: ISODate; end: ISODate }[] = [];
+  let cursor = bar.start;
+  for (const seg of sorted) {
+    const gapEnd = addDays(seg.start, -1);
+    if (cursor <= gapEnd) spans.push({ start: cursor, end: gapEnd });
+    cursor = addDays(seg.end, 1);
+  }
+  if (cursor <= bar.end) spans.push({ start: cursor, end: bar.end });
+  return spans.filter((g) => hasWorkingDay(g.start, g.end, cal));
 }
 
 export function Gantt({ rows, range, width, today, onRowClick, calendar, detail = 'months', showDates = false }: GanttProps) {
@@ -148,6 +177,15 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
   const wrapRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState<ActiveDetail | null>(null);
+  // Checked once: on a device that can hover, hover alone shows/hides the card, so a click does nothing extra.
+  // Only on a no-hover (touch) device does a click/tap pin the card open. Guarded because jsdom has no matchMedia.
+  const [noHoverDevice] = useState(() => {
+    try {
+      return window.matchMedia?.('(hover: none)').matches ?? false;
+    } catch {
+      return false;
+    }
+  });
 
   const chartW = Math.max(width - LABEL_W, 100);
   const scale = createTimeScale(range.start, range.end, chartW);
@@ -196,7 +234,8 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
     const left = Math.max(minX, Math.min(active.x - cardW / 2, maxX));
     const below = active.bottom + CARD_GAP;
     const above = active.top - CARD_GAP - cardH;
-    const top = below + cardH <= height || above < 0 ? below : above;
+    const rawTop = below + cardH <= height || above < 0 ? below : above;
+    const top = Math.max(0, Math.min(rawTop, height - cardH));
     card.style.left = `${Math.round(left)}px`;
     card.style.top = `${Math.round(top)}px`;
   }, [active, height, totalW]);
@@ -210,7 +249,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
       const rect = wrapRef.current?.getBoundingClientRect();
       return rect && e.clientX ? e.clientX - rect.left : box.x + box.w / 2;
     };
-    return {
+    const props: Record<string, unknown> = {
       tabIndex: 0,
       'aria-label': [pieceDetail.title, pieceDetail.lines[0]].filter(Boolean).join(', '),
       onMouseEnter: (e: MouseEvent) => {
@@ -220,11 +259,16 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
       onMouseLeave: () => setActive((a) => (a?.key === key && !a.pinned ? null : a)),
       onFocus: () => setActive((a) => (a?.key === key ? a : make(box.x + box.w / 2, false))),
       onBlur: () => setActive((a) => (a?.key === key ? null : a)),
-      onClick: (e: MouseEvent) => {
+    };
+    // On a device that can hover, hover already shows the card, so a click would only "pin" it with no visible
+    // change on the first click and close it unexpectedly on the second. Toggling by click/tap is for touch devices.
+    if (noHoverDevice) {
+      props.onClick = (e: MouseEvent) => {
         const x = pointerX(e);
         setActive((a) => (a?.key === key && a.pinned ? null : make(a?.key === key ? a.x : x, true)));
-      },
-    };
+      };
+    }
+    return props;
   }
 
   return (
@@ -289,12 +333,23 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
               onClick={clickable ? () => onRowClick?.(row.id) : undefined}
             >
               <rect x={0} y={y} width={totalW} height={rowH} className="gantt-row-bg" />
-              {row.label ? (
-                <text x={row.kind === 'child' ? 22 : 8} y={textY} className="gantt-label">
-                  <title>{row.label}</title>
-                  {truncate(row.label, row.kind === 'child' ? 26 : 28)}
-                </text>
-              ) : null}
+              {row.label ? (() => {
+                // Lane-0 segments can cover the whole phase bar, leaving only the 2px dividers reachable for the
+                // phase's own card. The row's name label gets the same piece interaction so it's always reachable.
+                const labelBar = !isGroup && row.bars.length === 1 ? row.bars[0] : undefined;
+                const labelDetail = labelBar?.detail;
+                return (
+                  <text
+                    x={row.kind === 'child' ? 22 : 8}
+                    y={textY}
+                    className={['gantt-label', labelDetail ? 'gantt-piece' : ''].filter(Boolean).join(' ')}
+                    {...pieceProps(`label-${row.id}`, labelDetail, { x: 0, w: LABEL_W, top: y, bottom: y + rowH })}
+                  >
+                    <title>{row.label}</title>
+                    {truncate(row.label, row.kind === 'child' ? 26 : 28)}
+                  </text>
+                );
+              })() : null}
               {placements.map((placement) => {
                 const { bar, x, w } = placement;
                 const segments = !isGroup && bar.segments && bar.segments.length > 0 ? bar.segments : null;
@@ -309,6 +364,14 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                   ? segments.flatMap((seg) => {
                       const b = segmentBox(seg, range, scale);
                       return b ? [{ seg, ...b }] : [];
+                    })
+                  : [];
+                // The parts of the bar no lane-0 segment covers, shown in a lighter shade — but only where the gap
+                // has a working day, so a gap made up entirely of weekend (e.g. Fri to Mon) stays a plain bar.
+                const gapBoxes = segments
+                  ? workingDayGaps(bar, segments, cal).flatMap((g) => {
+                      const b = dateBox(g.start, g.end, range, scale);
+                      return b ? [b] : [];
                     })
                   : [];
                 const dividers = new Set<number>();
@@ -335,13 +398,25 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                       className={[
                         'gantt-bar',
                         isGroup ? 'gantt-summary' : '',
-                        segments ? 'has-segments' : '',
                         barDetail ? 'gantt-piece' : '',
                       ].filter(Boolean).join(' ')}
                       {...pieceProps(`bar-${row.id}-${bar.id}`, barDetail, { x, w, top: barY, bottom: barY + barH })}
                     >
                       <title>{bar.title ?? bar.label ?? ''}</title>
                     </rect>
+                    {gapBoxes.map((g, gi) => (
+                      <rect
+                        key={`gap-${gi}`}
+                        data-testid={`gantt-gap-${bar.id}-${gi}`}
+                        x={g.x}
+                        y={barY}
+                        width={g.w}
+                        height={barH}
+                        fill={bar.color}
+                        clipPath={`url(#${clipId})`}
+                        className="gantt-gap"
+                      />
+                    ))}
                     {segmentBoxes.map(({ seg, x: sx, w: sw }) => (
                       <rect
                         key={seg.id}
@@ -361,11 +436,13 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                     {[...dividers].map((dx) => (
                       <line key={dx} x1={dx} x2={dx} y1={barY} y2={barY + barH} strokeWidth={DIVIDER_W} className="gantt-divider" />
                     ))}
-                    {segmentBoxes.map(({ seg, x: sx, w: sw }) =>
-                      seg.label.length * APPROX_CHAR_W + 12 < sw ? (
-                        <text key={seg.id} x={sx + 6} y={textY} className="gantt-bar-label">{seg.label}</text>
-                      ) : null,
-                    )}
+                    {segmentBoxes.map(({ seg, x: sx, w: sw }) => {
+                      const maxChars = Math.floor((sw - 12) / APPROX_CHAR_W);
+                      if (maxChars < MIN_TRUNCATED_LABEL_CHARS) return null;
+                      return (
+                        <text key={seg.id} x={sx + 6} y={textY} className="gantt-bar-label">{truncate(seg.label, maxChars)}</text>
+                      );
+                    })}
                     {showLabel ? (
                       <text x={x + 6} y={textY} className="gantt-bar-label">{bar.label}</text>
                     ) : null}
