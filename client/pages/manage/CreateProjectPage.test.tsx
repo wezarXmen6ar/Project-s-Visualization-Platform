@@ -98,7 +98,7 @@ describe('CreateProjectPage wizard', () => {
     expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Create project' }));
 
-    expect(await screen.findByText(/Project page 7/)).toBeInTheDocument();
+    expect(await screen.findByText('Project page 7?starter=all')).toBeInTheDocument();
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
     const sent = JSON.parse(post![1]!.body as string);
     expect(sent).toMatchObject({
@@ -259,7 +259,7 @@ describe('CreateProjectPage wizard', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }));
     await user.click(screen.getByRole('button', { name: 'Create project' }));
 
-    expect(await screen.findByText(/Project page 7/)).toBeInTheDocument();
+    expect(await screen.findByText('Project page 7?starter=all')).toBeInTheDocument();
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
     const sent = JSON.parse(post![1]!.body as string);
     const dev = sent.phases.find((p: { name: string }) => p.name === 'Development');
@@ -287,7 +287,7 @@ describe('CreateProjectPage wizard', () => {
     await user.selectOptions(screen.getByLabelText('Development › Increment 1 person 1'), 'Fatima Noor · Developer');
 
     await user.click(screen.getByRole('button', { name: 'Create project' }));
-    expect(await screen.findByText(/Project page 7/)).toBeInTheDocument();
+    expect(await screen.findByText('Project page 7?starter=all')).toBeInTheDocument();
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
     const sent = JSON.parse(post![1]!.body as string);
     const dev = sent.phases.find((p: { name: string }) => p.name === 'Development');
@@ -347,7 +347,7 @@ describe('CreateProjectPage wizard', () => {
     expect(await screen.findByText('Mon 5 Oct – Fri 9 Oct: 150% booked, 100% available')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Create project' }));
-    expect(await screen.findByText(/Project page 7/)).toBeInTheDocument();
+    expect(await screen.findByText('Project page 7?starter=all')).toBeInTheDocument();
     const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/projects' && init?.method === 'POST');
     const sent = JSON.parse(post![1]!.body as string);
     expect(sent.phases[0].assignments).toEqual([{ resourceId: 71, allocation: 50, role: 'responsible' }]);
