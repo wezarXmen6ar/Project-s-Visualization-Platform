@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router';
-import { todayLocal } from '../../../shared/calendar';
+import { addDays, todayLocal } from '../../../shared/calendar';
+import { computeWorkload, weekStartOf } from '../../../shared/capacity';
 import { projectSpan } from '../../../shared/scheduler';
 import { AlertIcon, ArrowLeftIcon, FolderOpenIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
@@ -7,12 +8,20 @@ import { Gantt } from '../../gantt/Gantt';
 import { portfolioRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useAsync } from '../../useAsync';
+import { useWorkload } from '../../useWorkload';
+import { isAccepted } from './heatmap';
 
 export function ManageDashboardPage() {
   const navigate = useNavigate();
   const projects = useAsync(() => api.listProjects(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
   const today = todayLocal();
+  const { workload } = useWorkload();
+  const thisWeek = weekStartOf(today);
+  const overbooked = workload
+    ? computeWorkload(workload.resources, workload.assignments, { start: thisWeek, end: addDays(thisWeek, 27) }, workload.calendar)
+        .filter((p) => p.weeks.some((w) => w.overloaded && !isAccepted(workload.decisions, p.resourceId, w.weekStart)))
+    : [];
   const list = projects.data ?? [];
   const rows = portfolioRows(list);
 
@@ -34,6 +43,16 @@ export function ManageDashboardPage() {
         <div className="errors" role="alert">
           <AlertIcon />
           <span>{projects.error.message}</span>
+        </div>
+      ) : null}
+
+      {overbooked.length > 0 ? (
+        <div className="notice" role="status">
+          <AlertIcon />
+          <span>
+            {overbooked.length === 1 ? `${overbooked[0].name} is` : `${overbooked.length} people are`} overbooked in the next 4 weeks.
+          </span>
+          <Link to="/manage/resources">See the workload</Link>
         </div>
       ) : null}
 

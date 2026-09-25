@@ -2,8 +2,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { describe, expect, it } from 'vitest';
-import { mockFetch, sampleProject } from '../../testing/mockFetch';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mockFetch, overbookedWorkload, sampleProject, sampleWorkload } from '../../testing/mockFetch';
 import { ManageDashboardPage } from './ManageDashboardPage';
 
 function renderPage() {
@@ -17,9 +17,13 @@ function renderPage() {
   );
 }
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('ManageDashboardPage', () => {
   it('lists projects with links and dates', async () => {
-    mockFetch({ 'GET /api/projects': () => ({ body: [sampleProject()] }) });
+    mockFetch({ 'GET /api/projects': () => ({ body: [sampleProject()] }), 'GET /api/workload': () => ({ body: sampleWorkload() }) });
     renderPage();
     expect(await screen.findByRole('link', { name: 'Portal' })).toHaveAttribute('href', '/manage/projects/1');
     expect(screen.getByText('PRJ-1')).toBeInTheDocument();
@@ -30,15 +34,41 @@ describe('ManageDashboardPage', () => {
   });
 
   it('opens a project from the chart', async () => {
-    mockFetch({ 'GET /api/projects': () => ({ body: [sampleProject()] }) });
+    mockFetch({ 'GET /api/projects': () => ({ body: [sampleProject()] }), 'GET /api/workload': () => ({ body: sampleWorkload() }) });
     renderPage();
     await userEvent.click(await screen.findByTestId('gantt-row-1'));
     expect(await screen.findByText('Project opened')).toBeInTheDocument();
   });
 
   it('shows an empty state', async () => {
-    mockFetch({ 'GET /api/projects': () => ({ body: [] }) });
+    mockFetch({ 'GET /api/projects': () => ({ body: [] }), 'GET /api/workload': () => ({ body: sampleWorkload() }) });
     renderPage();
     expect(await screen.findByText(/No projects yet/)).toBeInTheDocument();
+  });
+
+  it('warns when someone is overbooked in the next four weeks', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T09:00:00'));
+    mockFetch({
+      'GET /api/projects': () => ({ body: [sampleProject()] }),
+      'GET /api/workload': () => ({ body: overbookedWorkload() }),
+    });
+    renderPage();
+    expect(await screen.findByRole('status')).toHaveTextContent('Fatima Noor is overbooked in the next 4 weeks.');
+    expect(screen.getByRole('link', { name: 'See the workload' })).toHaveAttribute('href', '/manage/resources');
+  });
+
+  it('stays quiet when the only overbooking has been accepted', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-01T09:00:00'));
+    const accepted = overbookedWorkload();
+    accepted.decisions.push({ id: 1, resourceId: 71, weekStart: '2026-10-05', decision: 'accept', note: null, date: '2026-10-01' });
+    mockFetch({
+      'GET /api/projects': () => ({ body: [sampleProject()] }),
+      'GET /api/workload': () => ({ body: accepted }),
+    });
+    renderPage();
+    expect(await screen.findByRole('link', { name: 'Portal' })).toBeInTheDocument();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

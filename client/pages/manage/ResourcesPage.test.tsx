@@ -2,19 +2,24 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
-import { mockFetch, sampleLists, samplePeople } from '../../testing/mockFetch';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mockFetch, overbookedWorkload, sampleLists, samplePeople } from '../../testing/mockFetch';
 import { ResourcesPage } from './ResourcesPage';
 
 const routes = {
   'GET /api/resources': () => ({ body: samplePeople() }),
   'GET /api/lists': () => ({ body: sampleLists() }),
+  'GET /api/workload': () => ({ body: overbookedWorkload() }),
 };
 
 const renderPage = () => render(<MemoryRouter><ResourcesPage /></MemoryRouter>);
 /** The people table (Task 7 adds a second table, the workload heatmap, to this page). */
 const peopleTable = () => screen.findByRole('table', { name: 'People' });
 const names = async () => within(await peopleTable()).getAllByRole('link').map((a) => a.textContent);
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('ResourcesPage', () => {
   it('lists everyone with their side, role, capacity and contact', async () => {
@@ -49,5 +54,21 @@ describe('ResourcesPage', () => {
     mockFetch({ ...routes, 'GET /api/resources': () => ({ body: [] }) });
     renderPage();
     expect(await screen.findByText('No one yet. Add your team and your business-side contacts.')).toBeInTheDocument();
+  });
+
+  it('shows the workload heatmap from two weeks back, and opens a week', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T09:00:00'));
+    mockFetch(routes);
+    const user = userEvent.setup();
+    renderPage();
+    // This week starts 12 Oct, so the heatmap starts 28 Sep.
+    expect(await screen.findByRole('columnheader', { name: '28 Sep' })).toBeInTheDocument();
+    const cell = screen.getByRole('button', { name: 'Fatima Noor, week of 5 Oct: 160% booked of 100% available, overbooked' });
+    await user.click(cell);
+    expect(screen.getByRole('heading', { name: 'Fatima Noor · week of 5 Oct' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Later weeks' }));
+    expect(screen.getByRole('columnheader', { name: '26 Oct' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: '28 Sep' })).toBeNull();
   });
 });

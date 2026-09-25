@@ -1,6 +1,10 @@
 import type { WorkCalendar } from '../shared/calendar';
-import type { AssignmentInput, LeaveInput, NewProjectInput, ProjectDetailsInput, ResourceInput, ValidationIssue } from '../shared/schemas';
-import type { LeaveRecord, ListName, ListValue, Lists, PortfolioResponse, ProjectRecord, ResourceRecord, WorkloadData } from '../shared/types';
+import type {
+  AssignmentInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput, ResourceInput, ValidationIssue,
+} from '../shared/schemas';
+import type {
+  LeaveRecord, ListName, ListValue, Lists, OverloadDecision, PortfolioResponse, ProjectRecord, ResourceRecord, WorkloadData,
+} from '../shared/types';
 
 export class ApiError extends Error {
   status: number;
@@ -46,4 +50,6 @@ export const api = {
   setPhaseAssignments: (phaseId: number, assignments: AssignmentInput[]) =>
     request<ProjectRecord>(`/api/phases/${phaseId}/assignments`, withBody('PUT', { assignments })),
   getWorkload: () => request<WorkloadData>('/api/workload'),
+  recordOverloadDecision: (input: OverloadDecisionInput) =>
+    request<OverloadDecision>('/api/overloads/decisions', withBody('POST', input)),
 };

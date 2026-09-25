@@ -103,3 +103,13 @@ export function sampleWorkload(): WorkloadData {
     decisions: [],
   };
 }
+
+/** sampleWorkload plus 60% more for Fatima in the week of 5 Oct 2026 (160% booked). */
+export function overbookedWorkload(): WorkloadData {
+  const data = sampleWorkload();
+  data.assignments.push({
+    id: 502, resourceId: 71, phaseId: 902, projectId: 92, projectName: 'Portal', phaseName: 'Development',
+    start: '2026-10-05', end: '2026-10-09', allocation: 60, role: 'contributor',
+  });
+  return data;
+}
