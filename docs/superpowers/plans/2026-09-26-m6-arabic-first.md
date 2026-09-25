@@ -47,7 +47,7 @@
   - **Western digits in both languages:** format Arabic with the locale `ar-AE-u-nu-latn`.
 - **Text:**
   - After this milestone, **no user-visible English string may be hard-coded** in a component. It comes from the catalogues through `t(...)`. This includes `aria-label`s, `title`s, placeholders and `alt` text.
-  - **Brand names and codes stay as they are:** "Jira", "CR", "QA", "UAT", project Jira keys, and UAE phone and email formats.
+  - **Brand names and codes stay as they are:** "Jira", "Jira key", "Gantt chart", "Milestone", "CR", "QA", "UAT", project Jira keys, and UAE phone and email formats.
   - Every new English key must have its Arabic in the same commit. The typed catalogue enforces this.
 - **Right to left:**
   - Use CSS logical properties (`margin-inline-start/end`, `padding-inline-*`, `inset-inline-*`, `text-align: start/end`, `border-inline-*`). There must be no physical left or right properties in `client/styles.css`, except where the direction really is physical, such as Gantt geometry calculated in JavaScript.
@@ -221,7 +221,7 @@ docs/superpowers/glossary-ar.md                                                 
   END WHERE name_ar IS NULL;
   ```
 
-  - It fills Arabic names from the glossary for every value the app ships with: the 10 phase names (including Design), the 8 roles, project types Criminal (جنائي), Customer (المتعاملون) and Management (إداري), and the goal "Digitalisation of internal operations" (رقمنة العمليات الداخلية).
+  - It fills Arabic names from the glossary for every value the app ships with: the 10 phase names (including Design), the 8 roles, project types Criminal (جنائي), Customer (الجمهور) and Management (إداري), and the goal "Digitalisation of internal operations" (رقمنة العمليات الداخلية).
   - Matching ignores case (`COLLATE NOCASE`), and names already renamed by the user are left alone.
   - Write the full `CASE` list in the migration.
 - **Display:**
@@ -292,7 +292,7 @@ docs/superpowers/glossary-ar.md                                                 
 - **User content:** add `dir="auto"` to every element or input that shows it (project name, scope item text, to-do title and note, sub-phase names, people's names in lists).
 
 - [ ] **Step 1: Write the failing tests.** For each converted page, add one Arabic render test with `<LanguageProvider lang="ar">`, asserting 3–5 key Arabic strings, for example:
-  - the dashboard heading "المشاريع", "خطواتي التالية" and "إضافة مشروع جديد" (or the glossary's wording);
+  - the dashboard heading "المشاريع", "خطواتي القادمة" and "إضافة مشروع جديد" (or the glossary's wording);
   - the project page's "الجدول الزمني", "التفاصيل", "تعديل المراحل" and "المهام";
   - the wizard steps "المعلومات الأساسية", "الوصف والنطاق", "المراحل" and "الأشخاص";
   - an Arabic plural in the Edit phases warning.
@@ -347,7 +347,7 @@ docs/superpowers/glossary-ar.md                                                 
   - Resources, the person page, To-dos, Settings;
   - the portfolio and focus view.
 - Walk every text node, and every `aria-label`, `placeholder` and `title` attribute.
-- **Fail** on any run of two or more consecutive Latin-letter words, except an allowlist: `Jira`, `CR`, `QA`, `UAT`, `PRJ-` keys, email addresses, and anything inside an element marked `data-user-content`.
+- **Fail** on any run of two or more consecutive Latin-letter words, except an allowlist: `Jira`, `Jira key`, `Gantt chart`, `Milestone`, `CR`, `QA`, `UAT`, `PRJ-` keys, email addresses, and anything inside an element marked `data-user-content`.
 - The failure message lists each English string and where it was found, so a missing translation is easy to fix.
 
 **Mixed direction:**

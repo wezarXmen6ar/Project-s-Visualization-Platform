@@ -1,9 +1,9 @@
 # Arabic glossary (المسرد)
 
-**Status:** first draft for the user's approval (2026-09-26). The app uses these terms, and only these, everywhere. Change a term here first, then in the app.
+**Status:** draft, first review by the user applied (2026-09-26); only "follow-on project" is still open. The app uses these terms, and only these, everywhere. Change a term here first, then in the app.
 
 ## Style guide
-- **Modern Standard Arabic, the way UAE government and business digital services write it:** short, clear, formal but friendly. Prefer "المتعاملون" for customers, as UAE services do.
+- **Modern Standard Arabic, the way UAE government and business digital services write it:** short, clear, formal but friendly. **Anything meaning "the business" (business side, business user, business contact) is مالك العملية** (user, 2026-09-26).
 - **Write, don't translate.** Rebuild each sentence so it reads naturally in Arabic; don't follow the English word order. "Nothing on your list for this project." becomes "لا توجد مهام عليك في هذا المشروع", not "لا شيء في قائمتك لهذا المشروع".
 - **Buttons use a verbal noun** (the form Arabic interfaces use): حفظ، إلغاء، تعديل، حذف، إضافة مرحلة.
 - **Avoid English.** Keep a term in English only when that's how the team actually says it at work (marked **EN** below). Where it helps, write the Arabic first with the English acronym in brackets, e.g. "اختبار قبول المستخدم (UAT)".
@@ -22,7 +22,7 @@
 | Resources | الموارد | a PMO term; the page lists people |
 | Settings | الإعدادات | |
 | To-dos | المهام | a to-do is a مهمة; no clash, because sub-phases are "مراحل فرعية" |
-| My next steps | خطواتي التالية | on the dashboard and the project page |
+| My next steps | خطواتي القادمة | on the dashboard and the project page (user, 2026-09-26) |
 | Start (landing) | البداية | |
 
 ## Projects
@@ -31,25 +31,25 @@
 | Project | مشروع | |
 | Main project | المشروع الرئيسي | |
 | Standalone | مشروع مستقل | |
-| Follow-on project | مشروع لاحق | M9 |
-| Jira key | مفتاح Jira | **EN** brand name |
+| Follow-on project | *open: مشروع تكميلي or المرحلة التالية من المشروع* | M9; waiting for the user's choice |
+| Jira key | Jira key | **EN**, the whole term (user) |
 | Priority: High, Medium, Low | الأولوية: عالية، متوسطة، منخفضة | |
 | Categorisation: Strategic, Operational | التصنيف: استراتيجي، تشغيلي | |
 | Project type | نوع المشروع | |
 | Goal | الهدف | |
 | Requester: Internal, External | الجهة الطالبة: داخلية، خارجية | |
-| Business user (department) | الإدارة المعنية | the department that owns the business side |
-| Beneficiary: Employees, Customers | المستفيدون: الموظفون، المتعاملون | |
-| Background / Summary | الخلفية / الملخص | |
+| Business user (department) | مالك العملية | the department that owns the business side (user) |
+| Beneficiary: Employees, Customers | المستفيدون: الموظفين، الجمهور | user's wording |
+| Background / Summary | خلفية عن المشروع / الملخص | user |
 | Scope / Out of scope | النطاق / خارج النطاق | |
 | Problem statements | المشكلات | |
 | Objectives | الأهداف | |
 | Project manager (tech) | مدير المشروع (التقني) | |
-| Business project manager | مدير المشروع من جهة العمل | |
+| Business project manager | مدير مشروع مالك العملية | user |
 | Change Request | Change Request (CR) | **EN** by the user's choice: the team says it in English |
 | Baseline | خط الأساس | an established PMO term in Arabic |
 | Hold | إيقاف مؤقت | M9 |
-| Milestone | معلَم رئيسي | M13 |
+| Milestone | Milestone | **EN** (user); M13 |
 
 ## Phases and schedule
 | English | Arabic | Note |
@@ -62,7 +62,7 @@
 | Working days | أيام العمل | "15 working days" becomes "15 يوم عمل", with the correct plural |
 | Start date / End date | تاريخ البدء / تاريخ الانتهاء | |
 | Timeline | الجدول الزمني | |
-| Gantt chart | مخطط جانت | |
+| Gantt chart | Gantt chart | **EN** (user) |
 | Edit phases | تعديل المراحل | |
 | Edit details | تعديل التفاصيل | |
 | Week (in charts) | الأسبوع | "Week 42" becomes "الأسبوع 42" |
@@ -72,13 +72,13 @@
 | English | Arabic | Note |
 |---|---|---|
 | Requirements gathering | جمع المتطلبات | |
-| Business analysis | تحليل الأعمال | |
+| Business analysis | التحليل | user |
 | Development plan | خطة التطوير | |
 | Design | التصميم | |
 | Development | التطوير | |
 | QA | ضمان الجودة (QA) | Arabic first, with the known acronym |
 | UAT | اختبار قبول المستخدم (UAT) | Arabic first, with the known acronym |
-| Security testing | الاختبار الأمني | |
+| Security testing | اختبار أمن المعلومات | user |
 | Deployment | النشر | |
 | Launch | الإطلاق | |
 
@@ -87,20 +87,20 @@
 |---|---|---|
 | Person / People | شخص / الأشخاص | |
 | Tech team | الفريق التقني | |
-| Business side / business contact | جهة العمل / جهة اتصال من جهة العمل | |
+| Business side / business contact | مالك العملية / جهة اتصال لدى مالك العملية | user: any "business" term is مالك العملية |
 | Role | الدور | |
 | Specialisation: Front end, Back end, Full stack | التخصص: الواجهة الأمامية، الواجهة الخلفية، متكامل | |
 | Capacity (% of a week) | نسبة التفرغ | |
 | Active / Inactive | نشط / غير نشط | |
 | Leave | إجازة | |
 | Public holiday | عطلة رسمية | M8 |
-| Assigned to (a phase) | مُسند إلى | |
+| Assigned to (a phase) / assignment | مكلَّف / تكليف | user |
 | Allocation | نسبة التخصيص | |
 | Responsible / Contributor | مسؤول / مساهم | |
 | Workload | عبء العمل | |
 | Booked / Available | محجوز / متاح | "60% booked, 100% available" becomes "محجوز 60% من أصل 100% متاح" |
 | Overbooked | فوق الطاقة | e.g. "Aisha Khan is overbooked" becomes "عائشة خان فوق طاقتها" |
-| Split the time / Reassign / Accept the risk | تقسيم الوقت / إعادة الإسناد / قبول المخاطرة | |
+| Split the time / Reassign / Accept the risk | تقسيم الوقت / إعادة التكليف / قبول المخاطرة | follows "تكليف" |
 | Days / Weeks (heatmap switch) | أيام / أسابيع | |
 | Working on | يعمل حالياً على | |
 | I am (Settings) | المستخدم الحالي | "set who you are" becomes "حدِّد المستخدم الحالي" |
@@ -110,12 +110,12 @@
 |---|---|---|
 | To-do / To-dos | مهمة / المهام | |
 | Add to-do | إضافة مهمة | |
-| Assigned to | مُسندة إلى | |
-| Unassigned | غير مُسندة | |
+| Assigned to | المكلَّف | user |
+| Unassigned | بدون تكليف | |
 | Me — Sara Ahmed | أنا — سارة أحمد | |
-| Due Wed 30 Sep | الاستحقاق: الأربعاء 30 سبتمبر | |
+| Due date / Due Wed 30 Sep | تاريخ التسليم / التسليم: الأربعاء 30 سبتمبر | user |
 | Overdue | متأخرة | |
-| Due today | مستحقة اليوم | |
+| Due today | التسليم اليوم | |
 | Done | منجزة | |
 | Whole project | المشروع كاملاً | |
 | Starter to-dos | مهام جاهزة | per-phase checklists |
