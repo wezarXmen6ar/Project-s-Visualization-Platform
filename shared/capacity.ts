@@ -1,4 +1,4 @@
-import { addDays, countWorkingDays, dayOfWeek, type DateRange, type ISODate, type WorkCalendar } from './calendar';
+import { addDays, countWorkingDays, dayOfWeek, isWorkingDay, type DateRange, type ISODate, type WorkCalendar } from './calendar';
 
 export interface CapacityResource {
   id: number;
@@ -116,6 +116,65 @@ export function computeWorkload(
           overloaded: load > available + OVERLOAD_TOLERANCE,
           items,
         };
+      }),
+    };
+  });
+}
+
+export interface DayItem {
+  assignmentId: number;
+  projectName: string;
+  phaseName: string;
+  allocation: number;
+}
+
+export interface DayLoad {
+  date: ISODate;
+  /** False on a weekend day or a holiday; such days are not shown. */
+  working: boolean;
+  onLeave: boolean;
+  /** Σ allocation of the person's assignments that cover this day, as % of a full day. */
+  load: number;
+  /** The person's capacity, or 0 on a leave day (or a day that is not worked). */
+  available: number;
+  overloaded: boolean;
+  items: DayItem[];
+}
+
+export interface PersonDays {
+  resourceId: number;
+  name: string;
+  days: DayLoad[];
+}
+
+/**
+ * Day-by-day load for each person over every date in the range. Unlike the weekly average in `computeWorkload`, a
+ * single day booked above what the person can give shows up as overloaded on that day.
+ */
+export function computeDailyLoad(
+  resources: CapacityResource[],
+  assignments: CapacityAssignment[],
+  range: DateRange,
+  cal: WorkCalendar,
+): PersonDays[] {
+  const dates: ISODate[] = [];
+  for (let d = range.start; d <= range.end; d = addDays(d, 1)) dates.push(d);
+  return resources.map((person) => {
+    const own = assignments.filter((a) => a.resourceId === person.id);
+    return {
+      resourceId: person.id,
+      name: person.name,
+      days: dates.map((date): DayLoad => {
+        const working = isWorkingDay(date, cal);
+        const onLeave = person.leave.some((l) => date >= l.start && date <= l.end);
+        const items: DayItem[] = working
+          ? own
+            .filter((a) => a.start <= date && date <= a.end)
+            .map((a) => ({ assignmentId: a.id, projectName: a.projectName, phaseName: a.phaseName, allocation: a.allocation }))
+          : [];
+        const load = items.reduce((sum, i) => sum + i.allocation, 0);
+        const available = working && !onLeave ? person.capacity : 0;
+        return { date, working, onLeave, load, available, overloaded: working && load > available + OVERLOAD_TOLERANCE, items };
       }),
     };
   });

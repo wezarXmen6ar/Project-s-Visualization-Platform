@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { computeWorkload } from '../../../shared/capacity';
@@ -34,6 +34,26 @@ const bodyOf = (fetchMock: ReturnType<typeof mockFetch>, method: string, url: st
   JSON.parse(fetchMock.mock.calls.find(([u, init]) => u === url && init?.method === method)![1]!.body as string);
 
 describe('OverloadPanel', () => {
+  it('lists the days that are overbooked on their own, even when the week as a whole is not', () => {
+    const clash = overbookedWorkload();
+    clash.assignments.push({
+      id: 503, resourceId: 72, phaseId: 903, projectId: 93, projectName: 'Portal', phaseName: 'UAT',
+      start: '2026-10-13', end: '2026-10-13', allocation: 40, role: 'contributor',
+    });
+    const rami = computeWorkload(clash.resources, clash.assignments, { start: '2026-10-12', end: '2026-10-18' }, clash.calendar)[1];
+    render(<OverloadPanel data={clash} person={rami} week={rami.weeks[0]} onClose={() => {}} onChanged={() => {}} />);
+    expect(screen.getByText('68% booked of 80% available')).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Days overbooked on their own' });
+    expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Tue 13 Oct: 100% booked, 80% available']);
+    expect(screen.queryByRole('button', { name: 'Accept the risk' })).toBeNull();
+  });
+
+  it('lists no single-day clashes when every day fits', () => {
+    const rami = computeWorkload(data.resources, data.assignments, { start: '2026-10-12', end: '2026-10-18' }, data.calendar)[1];
+    render(<OverloadPanel data={data} person={rami} week={rami.weeks[0]} onClose={() => {}} onChanged={() => {}} />);
+    expect(screen.queryByRole('list', { name: 'Days overbooked on their own' })).toBeNull();
+  });
+
   it("lists the week's work and offers split, reassign and accept, with pause and delay not yet available", () => {
     renderPanel();
     expect(screen.getByRole('heading', { name: 'Fatima Noor · Mon 5 Oct – Fri 9 Oct' })).toBeInTheDocument();

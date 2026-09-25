@@ -1,13 +1,23 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CALENDAR } from '../shared/calendar';
-import { dayDate, leaveDaysInWeek, leaveInWeek, overloadsWith, phaseWarnings, weekLabel } from './overloads';
+import {
+  dayDate, dayRangeLabel, leaveDaysInWeek, leaveInWeek, overloadsWith, phaseWarnings, shortWeekLabel, weekLabel,
+} from './overloads';
 import { sampleWorkload } from './testing/mockFetch';
 
 const fatimaAt = (allocation: number, start = '2026-10-05', end = '2026-10-16') =>
   ({ resourceId: 71, start, end, allocation, projectName: 'Portal', phaseName: 'Requirements' });
 
 describe('overloads', () => {
+  it('writes short date ranges, naming the month once when it does not change', () => {
+    expect(dayRangeLabel('2026-10-12', '2026-10-16')).toBe('12–16 Oct');
+    expect(dayRangeLabel('2026-09-28', '2026-10-02')).toBe('28 Sep – 2 Oct');
+    expect(dayRangeLabel('2026-10-12', '2026-10-12')).toBe('12 Oct');
+    expect(shortWeekLabel('2026-10-12', DEFAULT_CALENDAR)).toBe('12–16 Oct');
+    expect(shortWeekLabel('2026-09-28', DEFAULT_CALENDAR)).toBe('28 Sep – 2 Oct');
+  });
+
   it('writes weekday dates', () => {
     expect(dayDate('2026-10-05')).toBe('Mon 5 Oct');
     expect(dayDate('2026-12-31')).toBe('Thu 31 Dec');

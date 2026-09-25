@@ -34,9 +34,9 @@ describe('WorkloadHeatmap', () => {
         />
       </MemoryRouter>,
     );
-    const header = screen.getByRole('columnheader', { name: /Mon 5 Oct/ });
-    expect(header).toHaveTextContent('Mon 5 Oct');
-    expect(header).toHaveTextContent('– Fri 9 Oct');
+    const header = screen.getByRole('columnheader', { name: /5–9 Oct/ });
+    expect(header).toHaveTextContent('Week 41');
+    expect(header).toHaveTextContent('5–9 Oct');
     const over = screen.getByRole('button', { name: 'Fatima Noor, Mon 5 Oct – Fri 9 Oct: 160% booked of 100% available, overbooked' });
     expect(over).toHaveTextContent('160%');
     expect(over).toHaveClass('heat-over');
@@ -102,5 +102,29 @@ describe('WorkloadHeatmap', () => {
     expect(cell).toBeInTheDocument();
     expect(cell.querySelectorAll('.leave-slice')).toHaveLength(5);
     expect(cell.querySelectorAll('.leave-slice.on-leave')).toHaveLength(3);
+  });
+
+  it('heads each week with its ISO week number over its dates, and shows five visible day squares', () => {
+    const { data: jonasData, loads: jonasLoads } = withJonas();
+    render(
+      <MemoryRouter>
+        <WorkloadHeatmap
+          loads={jonasLoads}
+          decisions={[]}
+          calendar={jonasData.calendar}
+          resources={jonasData.resources}
+          selected={null}
+          onSelect={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    const header = screen.getByRole('columnheader', { name: /12–16 Oct/ });
+    expect(header).toHaveTextContent('Week 42');
+    expect(header.querySelector('.week-number')).toHaveTextContent('Week 42');
+    expect(header.querySelector('.week-dates')).toHaveTextContent('12–16 Oct');
+    const cell = screen.getByRole('button', { name: /^Jonas Berg, Mon 19 Oct – Fri 23 Oct:/ });
+    const squares = cell.querySelector('.day-squares')!;
+    expect(squares.querySelectorAll('.leave-slice.on-leave')).toHaveLength(3);
+    expect(squares.querySelectorAll('.leave-slice:not(.on-leave)')).toHaveLength(2);
   });
 });

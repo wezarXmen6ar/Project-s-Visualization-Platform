@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { addDays, todayLocal } from '../../../shared/calendar';
-import { computeWorkload, weekStartOf } from '../../../shared/capacity';
+import { computeDailyLoad, computeWorkload, weekStartOf } from '../../../shared/capacity';
 import type { ResourceRecord, Side } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
@@ -10,10 +10,35 @@ import { useWorkload } from '../../useWorkload';
 import { SIDE_LABEL, SPECIALISATION_LABEL } from './labels';
 import { OverloadPanel } from './OverloadPanel';
 import { sortPeople, workingOn, type SortDir, type SortKey } from './peopleTable';
+import { DayHeatmap } from './DayHeatmap';
 import { WorkloadHeatmap } from './WorkloadHeatmap';
 
-const WEEKS_SHOWN = 13;
-const defaultStart = () => addDays(weekStartOf(todayLocal()), -14);
+type WorkloadView = 'days' | 'weeks';
+
+/** How each view pages through time: the Days view shows 4 weeks from last week, the Weeks view 13 from two weeks back. */
+const VIEW_RANGE: Record<WorkloadView, { weeks: number; back: number; step: number }> = {
+  days: { weeks: 4, back: 1, step: 1 },
+  weeks: { weeks: 13, back: 2, step: 4 },
+};
+const defaultStart = (view: WorkloadView) => addDays(weekStartOf(todayLocal()), -7 * VIEW_RANGE[view].back);
+
+const VIEW_KEY = 'pvp.workloadView';
+
+function savedView(): WorkloadView {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'weeks' ? 'weeks' : 'days';
+  } catch {
+    return 'days';
+  }
+}
+
+function saveView(view: WorkloadView) {
+  try {
+    localStorage.setItem(VIEW_KEY, view);
+  } catch {
+    // Storage is blocked: the choice lasts until the page is left.
+  }
+}
 
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'name', label: 'Name' },
@@ -41,13 +66,32 @@ export function ResourcesPage() {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
 
   const { workload, error: workloadError, reload } = useWorkload();
-  const [from, setFrom] = useState(defaultStart);
+  const [view, setView] = useState<WorkloadView>(savedView);
+  const [from, setFrom] = useState<Record<WorkloadView, string>>(() => ({ days: defaultStart('days'), weeks: defaultStart('weeks') }));
   const [selected, setSelected] = useState<{ resourceId: number; weekStart: string } | null>(null);
 
-  const range = { start: from, end: addDays(from, WEEKS_SHOWN * 7 - 1) };
-  const loads = workload ? computeWorkload(workload.resources, workload.assignments, range, workload.calendar) : [];
-  const selectedPerson = selected ? loads.find((l) => l.resourceId === selected.resourceId) : undefined;
-  const selectedWeek = selected ? selectedPerson?.weeks.find((w) => w.weekStart === selected.weekStart) : undefined;
+  const chooseView = (next: WorkloadView) => {
+    setView(next);
+    saveView(next);
+  };
+  const shift = (weeks: number) => setFrom((f) => ({ ...f, [view]: addDays(f[view], weeks * 7) }));
+  const { weeks: weeksShown, step } = VIEW_RANGE[view];
+  const range = { start: from[view], end: addDays(from[view], weeksShown * 7 - 1) };
+  const loads = workload && view === 'weeks' ? computeWorkload(workload.resources, workload.assignments, range, workload.calendar) : [];
+  const days = workload && view === 'days' ? computeDailyLoad(workload.resources, workload.assignments, range, workload.calendar) : [];
+  // The selected week is worked out on its own, so it stays open whichever view is showing and wherever it has scrolled.
+  const selectedResource = selected ? workload?.resources.find((r) => r.id === selected.resourceId) : undefined;
+  const selectedPerson =
+    selected && workload && selectedResource
+      ? computeWorkload(
+        [selectedResource],
+        workload.assignments,
+        { start: selected.weekStart, end: addDays(selected.weekStart, 6) },
+        workload.calendar,
+      )[0]
+      : undefined;
+  const selectedWeek = selectedPerson?.weeks[0];
+  const select = (resourceId: number, weekStart: string) => setSelected({ resourceId, weekStart });
 
   const all = people.data ?? [];
   const filtered = all.filter(
@@ -81,22 +125,42 @@ export function ResourcesPage() {
         <div className="card-head">
           <h2>Workload</h2>
           <div className="year-nav">
-            <button type="button" className="button secondary" aria-label="Earlier weeks" onClick={() => setFrom((f) => addDays(f, -28))}>‹</button>
-            <button type="button" className="button secondary" onClick={() => setFrom(defaultStart())}>This week</button>
-            <button type="button" className="button secondary" aria-label="Later weeks" onClick={() => setFrom((f) => addDays(f, 28))}>›</button>
+            <div className="view-switch" role="group" aria-label="Show the workload by">
+              {(['days', 'weeks'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className="button secondary"
+                  aria-pressed={view === v}
+                  onClick={() => chooseView(v)}
+                >
+                  {v === 'days' ? 'Days' : 'Weeks'}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="button secondary" aria-label="Earlier weeks" onClick={() => shift(-step)}>‹</button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => setFrom((f) => ({ ...f, [view]: defaultStart(view) }))}
+            >
+              This week
+            </button>
+            <button type="button" className="button secondary" aria-label="Later weeks" onClick={() => shift(step)}>›</button>
           </div>
         </div>
-        <p className="muted">How much of each week is booked. Click a week to see what is in it and to sort out an overbooking.</p>
+        <p className="muted">
+          {view === 'days'
+            ? 'How much of each working day is booked. Click a day to see its week and to sort out an overbooking.'
+            : 'How much of each week is booked. Click a week to see what is in it and to sort out an overbooking.'}
+        </p>
         <div className="heat-legend" aria-hidden="true">
           <span className="heat heat-low">Light</span>
           <span className="heat heat-mid">Booked</span>
           <span className="heat heat-full">Full</span>
           <span className="heat heat-over">Overbooked</span>
           <span className="heat heat-accepted">Accepted</span>
-          <span className="heat leave-sample">
-            Leave
-            <span className="leave-strip" aria-hidden="true"><span className="leave-slice on-leave" /></span>
-          </span>
+          <span className="heat heat-off leave">Leave</span>
         </div>
         {workloadError ? (
           <div className="errors" role="alert">
@@ -105,14 +169,17 @@ export function ResourcesPage() {
           </div>
         ) : null}
         {!workload && !workloadError ? <p className="muted">Loading…</p> : null}
-        {workload ? (
+        {workload && view === 'days' ? (
+          <DayHeatmap people={days} decisions={workload.decisions} selected={selected} onSelect={select} />
+        ) : null}
+        {workload && view === 'weeks' ? (
           <WorkloadHeatmap
             loads={loads}
             decisions={workload.decisions}
             calendar={workload.calendar}
             resources={workload.resources}
             selected={selected}
-            onSelect={(resourceId, weekStart) => setSelected({ resourceId, weekStart })}
+            onSelect={select}
           />
         ) : null}
       </section>

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { addDays } from '../../../shared/calendar';
-import { computeWorkload, type PersonLoad, type WeekLoad } from '../../../shared/capacity';
+import { computeDailyLoad, computeWorkload, type PersonLoad, type WeekLoad } from '../../../shared/capacity';
 import type { AssignmentInput } from '../../../shared/schemas';
 import type { OverloadDecisionKind, WorkloadAssignment, WorkloadData } from '../../../shared/types';
 import { AlertIcon } from '../../icons';
@@ -36,6 +36,12 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
   const accepted = isAccepted(data.decisions, person.resourceId, week.weekStart);
   const personResource = data.resources.find((r) => r.id === person.resourceId);
   const leaveThisWeek = personResource ? leaveInWeek(personResource.leave, week.weekStart) : [];
+  const weekRange = { start: week.weekStart, end: addDays(week.weekStart, 6) };
+  // Days booked above what the person can give that day, which the weekly average can hide.
+  const dayClashes = personResource
+    ? computeDailyLoad([personResource], data.assignments, weekRange, data.calendar)[0].days.filter((d) => d.overloaded)
+    : [];
+  const clashesId = useId();
   // Who is already on the phase the moving work belongs to - the server would reject reassigning to them anyway.
   const movingItem = week.items.find((i) => i.assignmentId === moving);
   const alreadyOnPhase = new Set(
@@ -45,7 +51,7 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
   const others = computeWorkload(
     data.resources.filter((r) => r.id !== person.resourceId && !alreadyOnPhase.has(r.id)),
     data.assignments,
-    { start: week.weekStart, end: addDays(week.weekStart, 6) },
+    weekRange,
     data.calendar,
   );
 
@@ -121,6 +127,17 @@ export function OverloadPanel({ data, person, week, onClose, onChanged }: Overlo
           ))}
         </ul>
       )}
+
+      {dayClashes.length > 0 ? (
+        <>
+          <h3 id={clashesId}>Days overbooked on their own</h3>
+          <ul className="people-list" aria-labelledby={clashesId}>
+            {dayClashes.map((d) => (
+              <li key={d.date}>{`${dayDate(d.date)}: ${Math.round(d.load)}% booked, ${Math.round(d.available)}% available`}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       {errors.length > 0 ? (
         <div className="errors" role="alert">

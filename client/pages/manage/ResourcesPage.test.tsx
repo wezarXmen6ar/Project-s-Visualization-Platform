@@ -2,7 +2,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockFetch, overbookedWorkload, sampleLists, samplePeople } from '../../testing/mockFetch';
 import { ResourcesPage } from './ResourcesPage';
 
@@ -21,8 +21,13 @@ const names = async () =>
     .filter((a) => a.getAttribute('href')?.startsWith('/manage/resources/'))
     .map((a) => a.textContent);
 
+beforeEach(() => {
+  localStorage.clear();
+});
+
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('ResourcesPage', () => {
@@ -93,13 +98,83 @@ describe('ResourcesPage', () => {
     mockFetch(routes);
     const user = userEvent.setup();
     renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Weeks' }));
     // This week starts 12 Oct, so the heatmap starts 28 Sep.
-    expect(await screen.findByRole('columnheader', { name: /Mon 28 Sep/ })).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: /28 Sep – 2 Oct/ })).toBeInTheDocument();
     const cell = screen.getByRole('button', { name: 'Fatima Noor, Mon 5 Oct – Fri 9 Oct: 160% booked of 100% available, overbooked' });
     await user.click(cell);
     expect(screen.getByRole('heading', { name: 'Fatima Noor · Mon 5 Oct – Fri 9 Oct' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Later weeks' }));
-    expect(screen.getByRole('columnheader', { name: /Mon 26 Oct/ })).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader', { name: /Mon 28 Sep/ })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: /26–30 Oct/ })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /28 Sep – 2 Oct/ })).toBeNull();
+  });
+
+  it('shows the Days view by default, from last week, four weeks at a time, moving a week at a time', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T09:00:00'));
+    mockFetch(routes);
+    const user = userEvent.setup();
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Days' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Weeks' })).toHaveAttribute('aria-pressed', 'false');
+    const workload = await screen.findByRole('table', { name: 'Workload' });
+    // This week starts 12 Oct, so the Days view starts 5 Oct and runs to 30 Oct.
+    expect(within(workload).getByRole('columnheader', { name: '5–9 Oct' })).toHaveAttribute('colspan', '5');
+    expect(within(workload).getByRole('columnheader', { name: '26–30 Oct' })).toBeInTheDocument();
+    expect(within(workload).queryByRole('columnheader', { name: '2–6 Nov' })).toBeNull();
+    expect(within(workload).getByRole('columnheader', { name: 'Wed 14 Oct' })).toHaveClass('today');
+
+    await user.click(screen.getByRole('button', { name: 'Later weeks' }));
+    expect(screen.queryByRole('columnheader', { name: '5–9 Oct' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: '2–6 Nov' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'This week' }));
+    expect(screen.getByRole('columnheader', { name: '5–9 Oct' })).toBeInTheDocument();
+  });
+
+  it("opens a day's week, listing the days that are overbooked on their own", async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T09:00:00'));
+    mockFetch(routes);
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Fatima Noor, Tue 6 Oct: 160% booked of 100% available, overbooked' }));
+    expect(screen.getByRole('heading', { name: 'Fatima Noor · Mon 5 Oct – Fri 9 Oct' })).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Days overbooked on their own' });
+    expect(within(list).getByText('Tue 6 Oct: 160% booked, 100% available')).toBeInTheDocument();
+  });
+
+  it('switches to the Weeks view and remembers the choice', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-14T09:00:00'));
+    mockFetch(routes);
+    const user = userEvent.setup();
+    const { unmount } = renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Weeks' }));
+    expect(screen.getByRole('button', { name: 'Weeks' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Days' })).toHaveAttribute('aria-pressed', 'false');
+    expect(await screen.findByRole('columnheader', { name: /Week 42/ })).toBeInTheDocument();
+    expect(localStorage.getItem('pvp.workloadView')).toBe('weeks');
+
+    unmount();
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Weeks' })).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByRole('columnheader', { name: /Week 42/ })).toBeInTheDocument();
+    // The people table is still there, under its own name.
+    expect(within(await peopleTable()).getByRole('link', { name: 'Rami Saleh' })).toBeInTheDocument();
+  });
+
+  it('falls back to Days when the saved choice cannot be read', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    mockFetch(routes);
+    const user = userEvent.setup();
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Days' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Weeks' }));
+    expect(screen.getByRole('button', { name: 'Weeks' })).toHaveAttribute('aria-pressed', 'true');
   });
 });

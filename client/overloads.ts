@@ -27,6 +27,16 @@ export interface LeaveRange extends DateRange {
   note?: string | null;
 }
 
+/** The days of the Monday-to-Sunday week starting `weekStart` that are not weekend days (holidays included). */
+function weekdaysOf(weekStart: ISODate, cal: WorkCalendar): ISODate[] {
+  const days: ISODate[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(weekStart, i);
+    if (!cal.weekendDays.includes(dayOfWeek(d))) days.push(d);
+  }
+  return days;
+}
+
 /** "Mon 12 Oct". */
 export function dayDate(d: ISODate): string {
   return `${DAYS[dayOfWeek(d)]} ${Number(d.slice(8, 10))} ${MONTHS[Number(d.slice(5, 7)) - 1]}`;
@@ -38,13 +48,24 @@ export function dayDate(d: ISODate): string {
  * `dayDate(weekStart)` when every day of the week is a weekend day.
  */
 export function weekLabel(weekStart: ISODate, cal: WorkCalendar): string {
-  const workingDays: ISODate[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = addDays(weekStart, i);
-    if (!cal.weekendDays.includes(dayOfWeek(d))) workingDays.push(d);
-  }
+  const workingDays = weekdaysOf(weekStart, cal);
   if (workingDays.length === 0) return dayDate(weekStart);
   return `${dayDate(workingDays[0])} – ${dayDate(workingDays[workingDays.length - 1])}`;
+}
+
+/** "12–16 Oct" within a month, "28 Sep – 2 Oct" across months, or "12 Oct" for a single day. */
+export function dayRangeLabel(first: ISODate, last: ISODate): string {
+  const day = (d: ISODate) => Number(d.slice(8, 10));
+  const month = (d: ISODate) => MONTHS[Number(d.slice(5, 7)) - 1];
+  if (first === last) return `${day(first)} ${month(first)}`;
+  if (first.slice(0, 7) === last.slice(0, 7)) return `${day(first)}–${day(last)} ${month(last)}`;
+  return `${day(first)} ${month(first)} – ${day(last)} ${month(last)}`;
+}
+
+/** The short form of `weekLabel`, e.g. "12–16 Oct": the first and last day of the week that are not weekend days. */
+export function shortWeekLabel(weekStart: ISODate, cal: WorkCalendar): string {
+  const days = weekdaysOf(weekStart, cal);
+  return days.length === 0 ? dayRangeLabel(weekStart, weekStart) : dayRangeLabel(days[0], days[days.length - 1]);
 }
 
 /** The person's leave ranges that overlap the Monday-to-Sunday week starting `weekStart`, each clipped to the week. */
@@ -61,13 +82,7 @@ export function leaveInWeek(leave: LeaveRange[], weekStart: ISODate): LeaveRange
 
 /** Each working weekday of the Monday-to-Sunday week starting `weekStart`, with whether the person is on leave that day. */
 export function leaveDaysInWeek(leave: LeaveRange[], weekStart: ISODate, cal: WorkCalendar): { date: ISODate; onLeave: boolean }[] {
-  const days: { date: ISODate; onLeave: boolean }[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = addDays(weekStart, i);
-    if (cal.weekendDays.includes(dayOfWeek(d))) continue;
-    days.push({ date: d, onLeave: leave.some((l) => d >= l.start && d <= l.end) });
-  }
-  return days;
+  return weekdaysOf(weekStart, cal).map((d) => ({ date: d, onLeave: leave.some((l) => d >= l.start && d <= l.end) }));
 }
 
 /**
