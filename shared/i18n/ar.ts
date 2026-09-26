@@ -914,6 +914,6 @@ export const ar: Record<MessageKey, Message> = {
     other: '{count} وثيقة وأحقية تحتاج إلى متابعة',
   },
   'dashboard.seeDocuments': 'عرض الوثائق',
-  'dashboard.genericDocument': 'وثيقة',
-  'dashboard.genericAccount': 'أحقية',
+  'dashboard.genericDocument': 'الوثيقة',
+  'dashboard.genericAccount': 'الأحقية',
 };
