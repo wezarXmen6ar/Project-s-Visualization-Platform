@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DEFAULT_CALENDAR, countWorkingDays, todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
@@ -44,6 +44,20 @@ export function ProjectPage() {
   const starterParam = searchParams.get('starter');
   const tabParam = searchParams.get('tab');
   const activeTab: TabKey = isTabKey(tabParam) ? tabParam : DEFAULT_TAB;
+  const entryParam = searchParams.get('entry');
+  const highlightEntryId = entryParam !== null && !Number.isNaN(Number(entryParam)) ? Number(entryParam) : null;
+  // Stable across renders, so the History tab's highlight effect (which calls this once it has landed on the entry)
+  // doesn't re-run just because ProjectPage re-rendered.
+  const clearHighlightParam = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('entry');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
   const project = useAsync(() => api.getProject(id), [id]);
   const calendar = useAsync(() => api.getCalendar(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
@@ -92,12 +106,13 @@ export function ProjectPage() {
     );
   }
 
-  function setActiveTab(key: string) {
+  function setActiveTab(key: string, entryId?: number) {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
         if (key === DEFAULT_TAB) next.delete('tab');
         else next.set('tab', key);
+        if (entryId !== undefined) next.set('entry', String(entryId));
         return next;
       },
       { replace: true },
@@ -118,6 +133,8 @@ export function ProjectPage() {
           toggleDone={(x) => void toggleDone(x)}
           nameFor={nameFor}
           attachmentTypes={lists.attachmentType}
+          highlightEntryId={highlightEntryId}
+          onHighlighted={clearHighlightParam}
         />
       ),
     },
@@ -159,7 +176,7 @@ export function ProjectPage() {
           project={p}
           attachmentTypes={lists.attachmentType}
           nameFor={nameFor}
-          onOpenHistory={() => setActiveTab('history')}
+          onOpenHistory={(entryId) => setActiveTab('history', entryId)}
         />
       ),
     },

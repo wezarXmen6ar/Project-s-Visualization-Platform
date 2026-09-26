@@ -446,6 +446,7 @@ export const en = {
   'attachments.editAria': 'Edit {name}',
   'attachments.deleteAria': 'Delete {name}',
   'attachments.cancelUpload': 'Cancel',
+  'attachments.dropHint': 'Drop files here to upload',
   'uploader.uploading': 'Uploading…',
   'filePreview.closeAria': 'Close preview',
   'settings.attachmentTypes': 'Attachment types',

@@ -774,6 +774,13 @@ button.heat:hover { border-color: var(--border-strong); }
 .entry-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-4); }
 .entry-item { border-block-end: 1px solid var(--border); padding-block-end: var(--sp-3); }
 .entry-item:last-child { border-block-end: none; }
+/* Briefly marks the entry the "From" column's link landed on. `prefers-reduced-motion` is handled globally, which
+ * cuts every animation's duration to near zero. */
+.entry-item.entry-highlight { animation: entry-highlight-fade 2s ease-out; border-radius: var(--radius-sm); }
+@keyframes entry-highlight-fade {
+  from { background: var(--primary-wash); }
+  to { background: transparent; }
+}
 .entry-item-head { display: flex; align-items: flex-start; gap: var(--sp-3); }
 .entry-item-head > svg { width: 1.5rem; height: 1.5rem; flex: none; margin-top: 0.15rem; color: var(--muted); }
 .entry-item-title-block { flex: 1; min-width: 0; }
@@ -864,6 +871,59 @@ button.heat:hover { border-color: var(--border-strong); }
 .attachment-table td { vertical-align: middle; }
 .attachment-table td:first-child { display: flex; align-items: center; gap: var(--sp-2); }
 .attachment-table td:first-child svg { width: 1.1rem; height: 1.1rem; flex: none; color: var(--muted); }
+
+.attachments-filters { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-block-end: var(--sp-3); }
+.attachments-drop-hint {
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-3);
+  border: 2px dashed var(--primary);
+  border-radius: var(--radius-md);
+  color: var(--primary);
+  text-align: center;
+  font-size: var(--fs-sm);
+}
+
+/* Phone: each filter takes the full width instead of squeezing two selects onto one line, and the attachment table
+ * becomes a stack of compact cards, since its many columns can never fit a 390px screen. */
+@media (max-width: 640px) {
+  .attachments-filters { flex-direction: column; align-items: stretch; }
+  .attachments-filters .entry-phase-filter { width: 100%; }
+  .attachments-filters .entry-phase-filter select { flex: 1 1 auto; width: 100%; }
+
+  .attachment-table thead { display: none; }
+  .attachment-table, .attachment-table tbody { display: block; width: 100%; }
+  .attachment-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--sp-2);
+    padding-block: var(--sp-2);
+    border-block-end: 1px solid var(--border);
+  }
+  .attachment-table td { display: block; padding: 0; border: 0; }
+  .attachment-table td[data-col='name'] { flex: 1 1 100%; order: 1; font-weight: 600; margin-block-end: 0.15rem; }
+  .attachment-table td[data-col='type'],
+  .attachment-table td[data-col='phase'],
+  .attachment-table td[data-col='date'],
+  .attachment-table td[data-col='size'] { order: 2; color: var(--muted); font-size: var(--fs-sm); }
+  /* A leading " · " separator, but only when an earlier muted-line column is actually present (some usages, e.g.
+   * EntryItem's read-only list, hide most of these columns). */
+  .attachment-table td[data-col='type'] ~ td[data-col='phase']::before,
+  .attachment-table td[data-col='type'] ~ td[data-col='date']::before,
+  .attachment-table td[data-col='type'] ~ td[data-col='size']::before,
+  .attachment-table td[data-col='phase'] ~ td[data-col='date']::before,
+  .attachment-table td[data-col='phase'] ~ td[data-col='size']::before,
+  .attachment-table td[data-col='date'] ~ td[data-col='size']::before { content: ' · '; }
+  .attachment-table td[data-col='uploaded'] { display: none; }
+  .attachment-table td[data-col='from'] { order: 3; flex: 1 1 100%; margin-block-start: 0.2rem; }
+  .attachment-table td[data-col='actions'] {
+    order: 4;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin-block-start: var(--sp-2);
+  }
+}
 
 .upload-row {
   display: flex;

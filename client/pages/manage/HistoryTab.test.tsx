@@ -203,6 +203,58 @@ describe('HistoryTab', () => {
     });
   });
 
+  it('scrolls to and highlights the entry given by highlightEntryId, then reports it', async () => {
+    const onHighlighted = vi.fn();
+    mockFetch({
+      'GET /api/projects/1/entries': () => ({ body: sampleEntries() }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
+    });
+    render(
+      <MemoryRouter>
+        <HistoryTab
+          project={project()}
+          me={me}
+          people={samplePeople()}
+          todos={sampleToDos()}
+          toggleDone={vi.fn()}
+          attachmentTypes={attachmentTypes}
+          highlightEntryId={300}
+          onHighlighted={onHighlighted}
+        />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Kickoff');
+    await waitFor(() => expect(onHighlighted).toHaveBeenCalled());
+    expect(document.getElementById('entry-300')).toHaveClass('entry-highlight');
+  });
+
+  it('falls back to plain History (no crash, still reports back) when the highlighted entry cannot be found', async () => {
+    const onHighlighted = vi.fn();
+    mockFetch({
+      'GET /api/projects/1/entries': () => ({ body: sampleEntries() }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
+    });
+    render(
+      <MemoryRouter>
+        <HistoryTab
+          project={project()}
+          me={me}
+          people={samplePeople()}
+          todos={sampleToDos()}
+          toggleDone={vi.fn()}
+          attachmentTypes={attachmentTypes}
+          highlightEntryId={999}
+          onHighlighted={onHighlighted}
+        />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Kickoff');
+    await waitFor(() => expect(onHighlighted).toHaveBeenCalled());
+    expect(document.getElementById('entry-999')).toBeNull();
+  });
+
   it('renders in Arabic', async () => {
     mockFetch({
       'GET /api/projects/1/entries': () => ({ body: sampleEntries() }),

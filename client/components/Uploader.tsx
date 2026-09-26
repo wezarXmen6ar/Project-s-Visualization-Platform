@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { AttachmentRecord } from '../../shared/types';
 import { api } from '../api';
 import { messagesOf } from '../errors';
@@ -28,6 +28,12 @@ export interface UploaderProps {
   /** Reports whether any file is still uploading or has failed, so a parent form can hold off saving. */
   onBusyChange?: (busy: boolean) => void;
   disabled?: boolean;
+  /**
+   * Files to start uploading as soon as they arrive, e.g. dropped on the Attachments tab before this Uploader was
+   * mounted. Consumed once (`onInitialFilesConsumed` fires right after), so a later drop can hand over a fresh array.
+   */
+  initialFiles?: File[] | null;
+  onInitialFilesConsumed?: () => void;
 }
 
 /**
@@ -36,6 +42,7 @@ export interface UploaderProps {
  */
 export function Uploader({
   projectId, typeId, phaseId, documentDate, entryId, buttonLabel, onUploaded, onBusyChange, disabled,
+  initialFiles, onInitialFilesConsumed,
 }: UploaderProps) {
   const t = useT();
   const { fileSize } = useFormat();
@@ -82,7 +89,7 @@ export function Uploader({
       );
   }
 
-  function addFiles(list: FileList | null) {
+  function addFiles(list: FileList | File[] | null) {
     if (!list || list.length === 0) return;
     const added: PendingFile[] = Array.from(list).map((file, i) => ({
       key: `${Date.now()}-${i}-${file.name}`, file, status: 'uploading', progress: 0,
@@ -96,12 +103,25 @@ export function Uploader({
     if (target) startUpload(key, target.file);
   }
 
+  // Files dropped on the Attachments tab before this Uploader was even mounted: start uploading them right away.
+  useEffect(() => {
+    if (initialFiles && initialFiles.length > 0) {
+      addFiles(initialFiles);
+      onInitialFilesConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFiles]);
+
   return (
     <div
       className="uploader"
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
       onDrop={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         addFiles(e.dataTransfer.files);
       }}
     >

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { AttachmentRecord } from '../../shared/types';
+import type { AttachmentRecord, EntryRecord } from '../../shared/types';
 import { api } from '../api';
 import { useFormat } from '../i18n/format';
 import { useLang, useT } from '../i18n/LanguageProvider';
@@ -26,6 +26,8 @@ export interface AttachmentListProps {
   columns?: AttachmentListColumns;
   /** Called for the "From" column's link, when the attachment belongs to a meeting or update. Omit to hide the link. */
   onOpenEntry?: (entryId: number) => void;
+  /** Looks up the entry an attachment belongs to, so the "From" link can show its title and date. */
+  entryFor?: (entryId: number) => EntryRecord | undefined;
   /**
    * Edit and delete row actions; left out for a read-only list (EntryItem, the phase side panel, presentation).
    * `Preview` and `Download` are always shown (Preview only for a previewable file).
@@ -40,11 +42,11 @@ export interface AttachmentListProps {
 
 /** A table of attachments, reused (read-only or with Edit/Delete) by the Attachments tab, EntryItem and the phase side panel. */
 export function AttachmentList({
-  attachments, nameFor, columns, onOpenEntry, actions, emptyMessage, ariaLabel,
+  attachments, nameFor, columns, onOpenEntry, entryFor, actions, emptyMessage, ariaLabel,
 }: AttachmentListProps) {
   const t = useT();
   const { lang } = useLang();
-  const { formatDate, fileSize } = useFormat();
+  const { formatDate, shortDate, fileSize } = useFormat();
   const cols = { ...DEFAULT_COLUMNS, ...columns };
   const [previewing, setPreviewing] = useState<AttachmentRecord | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -72,27 +74,42 @@ export function AttachmentList({
         <tbody>
           {attachments.map((a) => (
             <tr key={a.id}>
-              <td>
+              <td data-col="name">
                 <FileIcon />
                 <span dir="auto" data-user-content="">{a.name}</span>
               </td>
-              {cols.type ? <td>{a.type ? (lang === 'ar' ? a.type.nameAr ?? a.type.name : a.type.name) : t('attachments.noType')}</td> : null}
-              {cols.phase ? <td>{a.phase ? phaseRefLabel(a.phase, nameFor) : t('attachments.wholeProject')}</td> : null}
-              {cols.documentDate ? <td>{a.documentDate ? formatDate(a.documentDate) : t('common.notSet')}</td> : null}
-              {cols.uploaded ? <td>{formatDate(a.uploadedAt.slice(0, 10))}</td> : null}
-              {cols.size ? <td>{fileSize(a.size)}</td> : null}
+              {cols.type ? (
+                <td data-col="type">{a.type ? (lang === 'ar' ? a.type.nameAr ?? a.type.name : a.type.name) : t('attachments.noType')}</td>
+              ) : null}
+              {cols.phase ? <td data-col="phase">{a.phase ? phaseRefLabel(a.phase, nameFor) : t('attachments.wholeProject')}</td> : null}
+              {cols.documentDate ? (
+                <td data-col="date">{a.documentDate ? formatDate(a.documentDate) : t('common.notSet')}</td>
+              ) : null}
+              {cols.uploaded ? <td data-col="uploaded">{formatDate(a.uploadedAt.slice(0, 10))}</td> : null}
+              {cols.size ? <td data-col="size">{fileSize(a.size)}</td> : null}
               {cols.from ? (
-                <td>
+                <td data-col="from">
                   {a.entryId !== null && onOpenEntry ? (
-                    <button type="button" className="button-link" onClick={() => onOpenEntry(a.entryId!)}>
-                      {t('attachments.viewInHistory')}
-                    </button>
+                    (() => {
+                      const entry = entryFor?.(a.entryId);
+                      return entry ? (
+                        <button type="button" className="button-link" onClick={() => onOpenEntry(a.entryId!)}>
+                          <span dir="auto" data-user-content="">{entry.title}</span>
+                          {' · '}
+                          {shortDate(entry.effectiveDate)}
+                        </button>
+                      ) : (
+                        <button type="button" className="button-link" onClick={() => onOpenEntry(a.entryId!)}>
+                          {t('attachments.viewInHistory')}
+                        </button>
+                      );
+                    })()
                   ) : (
                     t('common.none')
                   )}
                 </td>
               ) : null}
-              <td className="option-add-actions">
+              <td data-col="actions" className="option-add-actions">
                 {a.previewable ? (
                   <button
                     type="button"

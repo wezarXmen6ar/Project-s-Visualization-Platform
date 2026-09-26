@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import type { AttachmentRecord, ListValue, ProjectRecord } from '../../../shared/types';
+import { useCallback, useState, type DragEvent } from 'react';
+import type { AttachmentRecord, EntryRecord, ListValue, ProjectRecord } from '../../../shared/types';
 import { api } from '../../api';
 import { AttachmentList } from '../../components/AttachmentList';
 import { Uploader } from '../../components/Uploader';
@@ -14,8 +14,8 @@ interface AttachmentsTabProps {
   project: ProjectRecord;
   attachmentTypes: ListValue[];
   nameFor?: PhaseNameFor;
-  /** Opens the History tab, for the "From" column's link. */
-  onOpenHistory: () => void;
+  /** Opens the History tab, for the "From" column's link. Passed the entry id so History can land on it and highlight it. */
+  onOpenHistory: (entryId?: number) => void;
 }
 
 /** The Attachments tab: upload, filter, preview, download, edit and delete a project's files. */
@@ -33,10 +33,17 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
   const attachments = loaded.data ?? [];
   const phases = phaseChoices(project, nameFor);
 
+  // Loaded so the "From" column can show the meeting/update's own title and date, not just a generic link.
+  const entriesLoaded = useAsync(() => api.listEntries(project.id), [project.id, version]);
+  const entryById = new Map<number, EntryRecord>((entriesLoaded.data ?? []).map((e) => [e.id, e]));
+  const entryFor = (entryId: number) => entryById.get(entryId);
+
   const [uploading, setUploading] = useState(false);
   const [uploadTypeId, setUploadTypeId] = useState<number | null>(null);
   const [uploadPhaseId, setUploadPhaseId] = useState<number | null>(null);
   const [uploadDocumentDate, setUploadDocumentDate] = useState('');
+  const [droppedFiles, setDroppedFiles] = useState<File[] | null>(null);
+  const [dragActive, setDragActive] = useState(false);
 
   const [editing, setEditing] = useState<AttachmentRecord | null>(null);
   const [editTypeId, setEditTypeId] = useState<number | null>(null);
@@ -78,8 +85,26 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
     }
   }
 
+  // Dragging files onto the tab opens the upload row (if it isn't already) and starts uploading them with its
+  // current Type/Phase/Document date defaults, the same as choosing them through the Uploader's own button.
+  function onDragOver(e: DragEvent<HTMLElement>) {
+    e.preventDefault();
+    setDragActive(true);
+  }
+  function onDragLeave() {
+    setDragActive(false);
+  }
+  function onDrop(e: DragEvent<HTMLElement>) {
+    e.preventDefault();
+    setDragActive(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+    setUploading(true);
+    setDroppedFiles(files);
+  }
+
   return (
-    <section className="card">
+    <section className="card" onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
       <div className="phase-people-head">
         <h2>{t('tabs.attachments')}</h2>
         {!uploading ? (
@@ -89,15 +114,17 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
         ) : null}
       </div>
 
-      <div className="entry-phase-filter">
-        <label>
+      {dragActive ? <p className="attachments-drop-hint" role="status">{t('attachments.dropHint')}</p> : null}
+
+      <div className="attachments-filters">
+        <label className="entry-phase-filter">
           {t('attachments.typeFilterLabel')}
           <select value={typeFilter === null ? '' : String(typeFilter)} onChange={(e) => setTypeFilter(e.target.value === '' ? null : Number(e.target.value))}>
             <option value="">{t('attachments.allTypes')}</option>
             {attachmentTypes.map((v) => <option key={v.id} value={String(v.id)}>{listName(v, lang)}</option>)}
           </select>
         </label>
-        <label>
+        <label className="entry-phase-filter">
           {t('attachments.phaseFilterLabel')}
           <select value={phaseFilter === null ? '' : String(phaseFilter)} onChange={(e) => setPhaseFilter(e.target.value === '' ? null : Number(e.target.value))}>
             <option value="">{t('attachments.allPhases')}</option>
@@ -140,6 +167,8 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
             documentDate={uploadDocumentDate === '' ? null : uploadDocumentDate}
             buttonLabel={t('attachments.uploadFile')}
             onUploaded={reload}
+            initialFiles={droppedFiles}
+            onInitialFilesConsumed={() => setDroppedFiles(null)}
           />
           <button type="button" className="button secondary" onClick={() => setUploading(false)}>{t('attachments.cancelUpload')}</button>
         </div>
@@ -176,6 +205,7 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
         attachments={attachments}
         nameFor={nameFor}
         onOpenEntry={onOpenHistory}
+        entryFor={entryFor}
         actions={{ onEdit: startEditing, onDelete: (a) => void deleteAttachment(a) }}
         ariaLabel={t('tabs.attachments')}
       />

@@ -492,6 +492,7 @@ export const ar: Record<MessageKey, Message> = {
   'attachments.editAria': 'تعديل {name}',
   'attachments.deleteAria': 'حذف {name}',
   'attachments.cancelUpload': 'إلغاء',
+  'attachments.dropHint': 'أسقط الملفات هنا للرفع',
   'uploader.uploading': 'جارٍ الرفع…',
   'filePreview.closeAria': 'إغلاق المعاينة',
   'settings.attachmentTypes': 'أنواع المرفقات',

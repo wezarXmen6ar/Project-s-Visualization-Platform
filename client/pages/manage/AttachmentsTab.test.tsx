@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { sampleAttachments, sampleProject } from '../../testing/mockFetch';
+import { mockFetch, sampleAttachments, sampleEntries, sampleProject } from '../../testing/mockFetch';
 import { LanguageProvider } from '../../i18n/LanguageProvider';
 import { installMockXhr } from '../../testing/mockXhr';
 import { AttachmentsTab } from './AttachmentsTab';
@@ -112,6 +112,56 @@ describe('AttachmentsTab', () => {
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('dragging a file onto the tab shows a drop hint, and dropping opens the upload row and uploads it', async () => {
+    const { requests } = installMockXhr();
+    let attachments = [] as ReturnType<typeof sampleAttachments>;
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(attachments), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    renderTab();
+
+    await screen.findByText('No files yet.');
+    const card = document.querySelector('.card') as HTMLElement;
+    const file = new File(['x'], 'dropped.pdf', { type: 'application/pdf' });
+    const dataTransfer = { files: [file] };
+
+    fireEvent.dragOver(card, { dataTransfer });
+    expect(screen.getByText('Drop files here to upload')).toBeInTheDocument();
+
+    fireEvent.drop(card, { dataTransfer });
+    expect(screen.queryByText('Drop files here to upload')).not.toBeInTheDocument();
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].headers['X-File-Name']).toBe(encodeURIComponent('dropped.pdf'));
+    const uploaded = sampleAttachments()[0];
+    attachments = [uploaded];
+    requests[0].respond(201, uploaded);
+    expect(await screen.findByText('Approval letter.pdf')).toBeInTheDocument();
+  });
+
+  it('the "From" column shows the entry\'s title and date, and opens History on it', async () => {
+    const onOpenHistory = vi.fn();
+    mockFetch({
+      'GET /api/projects/1/attachments': () => ({ body: sampleAttachments() }),
+      'GET /api/projects/1/entries': () => ({ body: sampleEntries() }),
+    });
+    const user = userEvent.setup();
+    render(<AttachmentsTab project={sampleProject()} attachmentTypes={TYPES} onOpenHistory={onOpenHistory} />);
+
+    const link = await screen.findByRole('button', { name: 'Kickoff · 24 Sep' });
+    await user.click(link);
+    expect(onOpenHistory).toHaveBeenCalledWith(300);
+  });
+
+  it('falls back to a plain "View in History" link when the entry cannot be found', async () => {
+    mockFetch({
+      'GET /api/projects/1/attachments': () => ({ body: sampleAttachments() }),
+      'GET /api/projects/1/entries': () => ({ body: [] }),
+    });
+    render(<AttachmentsTab project={sampleProject()} attachmentTypes={TYPES} onOpenHistory={vi.fn()} />);
+
+    expect(await screen.findByRole('button', { name: 'View in History' })).toBeInTheDocument();
   });
 
   it('renders the tab in Arabic', async () => {

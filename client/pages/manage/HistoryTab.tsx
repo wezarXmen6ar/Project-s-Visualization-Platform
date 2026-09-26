@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { AttachmentRecord, EntryType, ListValue, Me, ProjectRecord, ResourceRecord, ToDoRecord } from '../../../shared/types';
 import { api } from '../../api';
 import { EntryForm } from '../../components/EntryForm';
@@ -20,16 +20,40 @@ interface HistoryTabProps {
   nameFor?: PhaseNameFor;
   /** For the "Attach files" picker's type default (Meeting Minutes / Other) and its own list editor entry. */
   attachmentTypes: ListValue[];
+  /** An entry to scroll to and briefly highlight, e.g. from the Attachments tab's "From" column. */
+  highlightEntryId?: number | null;
+  /** Called once the highlight has been applied (or the entry couldn't be found), so the caller can clear it. */
+  onHighlighted?: () => void;
 }
 
 /** The History tab: meetings and updates, filterable by phase, with an inline add/edit form. */
-export function HistoryTab({ project, me, people, todos, toggleDone, nameFor, attachmentTypes }: HistoryTabProps) {
+export function HistoryTab({
+  project, me, people, todos, toggleDone, nameFor, attachmentTypes, highlightEntryId, onHighlighted,
+}: HistoryTabProps) {
   const t = useT();
   const [phaseFilter, setPhaseFilter] = useState<number | null>(null);
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   const loaded = useAsync(() => api.listEntries(project.id, phaseFilter ?? undefined), [project.id, phaseFilter, version]);
   const entries = loaded.data ?? [];
+  const [highlightedId, setHighlightedId] = useState<number | null>(null);
+
+  // Lands on the entry the "From" column's link pointed to: scrolls it into view and briefly highlights it. If it
+  // isn't in the loaded list (deleted, or filtered out by the phase filter), this is a no-op fallback to plain History.
+  useEffect(() => {
+    if (highlightEntryId == null || loaded.data === undefined) return;
+    const found = entries.some((e) => e.id === highlightEntryId);
+    if (found) {
+      setHighlightedId(highlightEntryId);
+      const el = document.getElementById(`entry-${highlightEntryId}`);
+      if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'center' });
+    }
+    onHighlighted?.();
+    if (!found) return;
+    const timer = setTimeout(() => setHighlightedId(null), 2000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightEntryId, loaded.data]);
   // Every entry's attachments are shown inline, so the whole project's list is loaded once and grouped by entryId.
   const attachmentsLoaded = useAsync(() => api.listAttachments(project.id), [project.id, version]);
   const attachmentsByEntry = new Map<number, AttachmentRecord[]>();
@@ -134,6 +158,7 @@ export function HistoryTab({ project, me, people, todos, toggleDone, nameFor, at
                 onToggleFollowUp={toggleDone}
                 attachments={attachmentsByEntry.get(entry.id) ?? []}
                 actions={{ onEdit: () => setEditingId(entry.id), onDelete: () => void deleteEntry(entry.id) }}
+                highlighted={highlightedId === entry.id}
               />
             ),
           )}

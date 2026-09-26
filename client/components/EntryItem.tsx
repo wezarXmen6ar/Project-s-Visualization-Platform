@@ -26,10 +26,14 @@ interface EntryItemProps {
     onEdit: () => void;
     onDelete: () => void;
   };
+  /** Briefly marks this entry, e.g. right after the Attachments tab's "From" column linked to it. */
+  highlighted?: boolean;
 }
 
 /** One meeting or update in the History tab's list: its icon, title, date, phase, attendees, notes and follow-ups. */
-export function EntryItem({ entry, nameFor, followUps = [], onToggleFollowUp, attachments = [], actions }: EntryItemProps) {
+export function EntryItem({
+  entry, nameFor, followUps = [], onToggleFollowUp, attachments = [], actions, highlighted,
+}: EntryItemProps) {
   const t = useT();
   const { formatDate } = useFormat();
   const [expanded, setExpanded] = useState(false);
@@ -40,7 +44,7 @@ export function EntryItem({ entry, nameFor, followUps = [], onToggleFollowUp, at
   const shownBody = expanded || !isLong ? entry.body : bodyLines.slice(0, NOTE_LINES).join('\n');
 
   return (
-    <li className="entry-item">
+    <li id={`entry-${entry.id}`} className={`entry-item${highlighted ? ' entry-highlight' : ''}`}>
       <div className="entry-item-head">
         {entry.type === 'meeting' ? <MeetingIcon /> : <UpdateIcon />}
         <div className="entry-item-title-block">

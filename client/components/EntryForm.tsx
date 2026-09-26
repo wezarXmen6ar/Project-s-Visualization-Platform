@@ -69,6 +69,9 @@ export function EntryForm({ project, me, people, type, initial, nameFor, attachm
   const existingForEntry = (existingAttachments.data ?? []).filter(
     (a) => existingIds.includes(a.id) && !unlinkedExisting.includes(a.id),
   );
+  // Matched by the type's editable English name, which is the seeded value from the constraints table. If the user
+  // renames it in Settings, this simply finds nothing and the picker falls back to no default type (typeId: null) —
+  // uploads still work, they just start without a preselected type.
   const attachTypeId =
     attachmentTypes.find((v) => v.name === (isMeeting ? 'Meeting Minutes' : 'Other'))?.id ?? null;
 
