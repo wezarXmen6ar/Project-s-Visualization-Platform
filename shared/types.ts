@@ -252,6 +252,8 @@ export interface EntryRecord {
   phase: (Ref & PhaseNameParts) | null;
   /** Meetings only; [] for updates, ordered by name. */
   attendees: Ref[];
+  /** Meetings only; [] for updates. Anyone typed in who isn't in Resources, in the order entered. */
+  guests: string[];
   /** Filled from Task 2 on; [] until then. */
   attachmentIds: number[];
   followUpToDoIds: number[];

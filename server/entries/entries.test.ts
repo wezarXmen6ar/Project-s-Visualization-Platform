@@ -77,6 +77,47 @@ describe('creating a meeting', () => {
     expect(created.attendees).toEqual([{ id: ted.id, name: 'Ted' }]);
   });
 
+  it('creates guest attendees in the order entered, deduplicating case-insensitively', () => {
+    const data = entryInputSchema.parse({
+      type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff',
+      attendeeIds: [ted.id], guestNames: ['Visitor One', 'Visitor Two', 'visitor one'],
+    });
+    const created = createEntry(db, project.id, data);
+    expect(created.guests).toEqual(['Visitor One', 'Visitor Two']);
+  });
+
+  it('an update replaces the guest list', () => {
+    const created = createEntry(
+      db, project.id,
+      entryInputSchema.parse({
+        type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff', guestNames: ['Visitor One'],
+      }),
+    );
+    expect(created.guests).toEqual(['Visitor One']);
+
+    const updated = updateEntry(
+      db, created.id,
+      entryInputSchema.parse({
+        type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff', guestNames: ['Visitor Two'],
+      }),
+    )!;
+    expect(updated.guests).toEqual(['Visitor Two']);
+  });
+
+  it('deleting an entry cascades its guests', () => {
+    const created = createEntry(
+      db, project.id,
+      entryInputSchema.parse({
+        type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff', guestNames: ['Visitor One'],
+      }),
+    );
+    expect(db.prepare('SELECT COUNT(*) AS n FROM entry_guests WHERE entry_id = ?').get(created.id)).toEqual({ n: 1 });
+
+    deleteEntry(db, created.id);
+
+    expect(db.prepare('SELECT COUNT(*) AS n FROM entry_guests WHERE entry_id = ?').get(created.id)).toEqual({ n: 0 });
+  });
+
   it('rejects a follow-up whose assignee is not on the project, and saves nothing', () => {
     const data = entryInputSchema.parse({
       type: 'meeting',
@@ -93,6 +134,15 @@ describe('creating a meeting', () => {
   it('rejects an update with attendees', () => {
     const data = entryInputSchema.parse({
       type: 'update', effectiveDate: '2026-09-26', title: 'Status', attendeeIds: [ted.id],
+    });
+    expect(checkEntry(db, project.id, data)).toEqual([
+      { path: 'attendeeIds', message: 'Only meetings have attendees', code: 'validation.updateHasAttendees' },
+    ]);
+  });
+
+  it('rejects an update with guests, using the same coded error as attendees', () => {
+    const data = entryInputSchema.parse({
+      type: 'update', effectiveDate: '2026-09-26', title: 'Status', guestNames: ['Visitor'],
     });
     expect(checkEntry(db, project.id, data)).toEqual([
       { path: 'attendeeIds', message: 'Only meetings have attendees', code: 'validation.updateHasAttendees' },

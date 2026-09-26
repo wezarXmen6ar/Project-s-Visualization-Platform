@@ -80,7 +80,7 @@ describe('HistoryTab', () => {
         const created: EntryRecord = {
           id: 900, projectId: 1, type: 'meeting', effectiveDate: input.effectiveDate, createdAt: '2026-10-07T09:00:00.000Z',
           title: input.title, body: input.body, highlight: input.highlight, phase: null,
-          attendees: [{ id: 70, name: 'Sara Ahmed' }, { id: 71, name: 'Fatima Noor' }],
+          attendees: [{ id: 70, name: 'Sara Ahmed' }, { id: 71, name: 'Fatima Noor' }], guests: [],
           attachmentIds: [], followUpToDoIds: [950],
         };
         entries = [created];

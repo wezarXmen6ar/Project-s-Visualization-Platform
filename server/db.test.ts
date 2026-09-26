@@ -193,4 +193,31 @@ describe('migrate', () => {
     const check = db.prepare('PRAGMA integrity_check').get() as unknown as { integrity_check: string };
     expect(check.integrity_check).toBe('ok');
   });
+
+  it('adds entry_guests, upgrading from version 15, and cascades on entry delete', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('PRAGMA foreign_keys = ON');
+    for (const m of MIGRATIONS.slice(0, 15)) db.exec(m);
+    db.exec('PRAGMA user_version = 15');
+    db.prepare(
+      "INSERT INTO projects (name, color, start_date, created_at) VALUES ('P', '#000000', '2026-01-05', 'x')",
+    ).run();
+    db.prepare(
+      "INSERT INTO entries (project_id, type, effective_date, created_at, title) VALUES (1, 'meeting', '2026-09-26', 'x', 'Kickoff')",
+    ).run();
+
+    migrate(db);
+
+    const version = db.prepare('PRAGMA user_version').get() as unknown as { user_version: number };
+    expect(version.user_version).toBe(MIGRATIONS.length);
+    const columns = (db.prepare('PRAGMA table_info(entry_guests)').all() as unknown as { name: string }[]).map((c) => c.name);
+    expect(columns).toEqual(expect.arrayContaining(['id', 'entry_id', 'name', 'sort_order']));
+
+    db.prepare("INSERT INTO entry_guests (entry_id, name, sort_order) VALUES (1, 'Visitor', 0)").run();
+    db.prepare('DELETE FROM entries WHERE id = 1').run();
+    expect(db.prepare('SELECT COUNT(*) AS n FROM entry_guests').get()).toEqual({ n: 0 });
+
+    const check = db.prepare('PRAGMA integrity_check').get() as unknown as { integrity_check: string };
+    expect(check.integrity_check).toBe('ok');
+  });
 });

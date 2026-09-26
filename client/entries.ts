@@ -36,6 +36,7 @@ export function entryToInput(e: EntryRecord): EntryInput {
     phaseId: e.phase?.id ?? null,
     highlight: e.highlight,
     attendeeIds: e.attendees.map((a) => a.id),
+    guestNames: e.guests,
     followUps: [],
     attachmentIds: e.attachmentIds,
   };

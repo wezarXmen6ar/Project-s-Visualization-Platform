@@ -221,6 +221,7 @@ export function sampleEntries(): EntryRecord[] {
     highlight: false,
     phase: null,
     attendees: [],
+    guests: [],
     attachmentIds: [],
     followUpToDoIds: [],
     createdAt: '2026-09-20T09:00:00.000Z',

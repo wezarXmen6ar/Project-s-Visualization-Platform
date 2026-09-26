@@ -291,6 +291,15 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE resources ADD COLUMN engagement_start TEXT;
   ALTER TABLE resources ADD COLUMN engagement_end TEXT;
   `,
+  `
+  CREATE TABLE entry_guests (
+    id INTEGER PRIMARY KEY,
+    entry_id INTEGER NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX entry_guests_entry ON entry_guests(entry_id);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

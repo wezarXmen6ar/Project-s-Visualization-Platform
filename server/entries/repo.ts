@@ -50,6 +50,23 @@ function attendeesByEntry(db: DatabaseSync, entryIds: number[]): Map<number, Ref
   return map;
 }
 
+function guestsByEntry(db: DatabaseSync, entryIds: number[]): Map<number, string[]> {
+  const map = new Map<number, string[]>();
+  if (entryIds.length === 0) return map;
+  const placeholders = entryIds.map(() => '?').join(', ');
+  const rows = db
+    .prepare(
+      `SELECT entry_id, name FROM entry_guests WHERE entry_id IN (${placeholders}) ORDER BY entry_id, sort_order`,
+    )
+    .all(...entryIds) as unknown as { entry_id: number; name: string }[];
+  for (const row of rows) {
+    const list = map.get(row.entry_id) ?? [];
+    list.push(row.name);
+    map.set(row.entry_id, list);
+  }
+  return map;
+}
+
 function followUpIdsByEntry(db: DatabaseSync, entryIds: number[]): Map<number, number[]> {
   const map = new Map<number, number[]>();
   if (entryIds.length === 0) return map;
@@ -80,7 +97,9 @@ function attachmentIdsByEntry(db: DatabaseSync, entryIds: number[]): Map<number,
   return map;
 }
 
-function toEntry(row: EntryRow, attendees: Ref[], followUpToDoIds: number[], attachmentIds: number[]): EntryRecord {
+function toEntry(
+  row: EntryRow, attendees: Ref[], guests: string[], followUpToDoIds: number[], attachmentIds: number[],
+): EntryRecord {
   return {
     id: row.id,
     projectId: row.project_id,
@@ -92,6 +111,7 @@ function toEntry(row: EntryRow, attendees: Ref[], followUpToDoIds: number[], att
     highlight: row.highlight === 1,
     phase: phaseRefFromRow(row),
     attendees,
+    guests,
     attachmentIds,
     followUpToDoIds,
   };
@@ -101,9 +121,10 @@ export function getEntry(db: DatabaseSync, id: number): EntryRecord | undefined 
   const row = db.prepare(`${SELECT_ENTRIES} WHERE e.id = ?`).get(id) as unknown as EntryRow | undefined;
   if (!row) return undefined;
   const attendees = attendeesByEntry(db, [id]).get(id) ?? [];
+  const guests = guestsByEntry(db, [id]).get(id) ?? [];
   const followUpToDoIds = followUpIdsByEntry(db, [id]).get(id) ?? [];
   const attachmentIds = attachmentIdsByEntry(db, [id]).get(id) ?? [];
-  return toEntry(row, attendees, followUpToDoIds, attachmentIds);
+  return toEntry(row, attendees, guests, followUpToDoIds, attachmentIds);
 }
 
 export interface EntryFilter {
@@ -132,9 +153,12 @@ export function listEntries(db: DatabaseSync, projectId: number, filter: EntryFi
     .all(projectId, ...(phaseIds ?? [])) as unknown as EntryRow[];
   const ids = rows.map((r) => r.id);
   const attendees = attendeesByEntry(db, ids);
+  const guests = guestsByEntry(db, ids);
   const followUps = followUpIdsByEntry(db, ids);
   const attachments = attachmentIdsByEntry(db, ids);
-  return rows.map((r) => toEntry(r, attendees.get(r.id) ?? [], followUps.get(r.id) ?? [], attachments.get(r.id) ?? []));
+  return rows.map((r) =>
+    toEntry(r, attendees.get(r.id) ?? [], guests.get(r.id) ?? [], followUps.get(r.id) ?? [], attachments.get(r.id) ?? []),
+  );
 }
 
 /**
@@ -150,7 +174,7 @@ export function checkEntry(
     const phase = db.prepare('SELECT id FROM phases WHERE id = ? AND project_id = ?').get(data.phaseId, projectId);
     if (!phase) issues.push({ path: 'phaseId', message: translate('en', 'error.unknownPhase'), code: 'error.unknownPhase' });
   }
-  if (data.type === 'update' && data.attendeeIds.length > 0) {
+  if (data.type === 'update' && (data.attendeeIds.length > 0 || data.guestNames.length > 0)) {
     issues.push({
       path: 'attendeeIds', message: translate('en', 'validation.updateHasAttendees'), code: 'validation.updateHasAttendees',
     });
@@ -205,6 +229,9 @@ export function createEntry(db: DatabaseSync, projectId: number, data: EntryData
     const insertAttendee = db.prepare('INSERT INTO entry_attendees (entry_id, resource_id) VALUES (?, ?)');
     for (const resourceId of new Set(data.attendeeIds)) insertAttendee.run(entryId, resourceId);
 
+    const insertGuest = db.prepare('INSERT INTO entry_guests (entry_id, name, sort_order) VALUES (?, ?, ?)');
+    data.guestNames.forEach((name, i) => insertGuest.run(entryId, name, i));
+
     const insertFollowUp = db.prepare(
       'INSERT INTO todos (project_id, title, assignee_id, due_date, created_at, source_entry_id) VALUES (?, ?, ?, ?, ?, ?)',
     );
@@ -232,6 +259,10 @@ export function updateEntry(db: DatabaseSync, id: number, data: EntryData): Entr
     db.prepare('DELETE FROM entry_attendees WHERE entry_id = ?').run(id);
     const insertAttendee = db.prepare('INSERT INTO entry_attendees (entry_id, resource_id) VALUES (?, ?)');
     for (const resourceId of new Set(data.attendeeIds)) insertAttendee.run(id, resourceId);
+
+    db.prepare('DELETE FROM entry_guests WHERE entry_id = ?').run(id);
+    const insertGuest = db.prepare('INSERT INTO entry_guests (entry_id, name, sort_order) VALUES (?, ?, ?)');
+    data.guestNames.forEach((name, i) => insertGuest.run(id, name, i));
 
     db.prepare('UPDATE attachments SET entry_id = NULL WHERE entry_id = ?').run(id);
     const linkAttachment = db.prepare('UPDATE attachments SET entry_id = ? WHERE id = ? AND project_id = ?');

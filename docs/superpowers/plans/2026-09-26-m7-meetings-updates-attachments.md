@@ -46,6 +46,7 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
 - **Accounts** (added 2026-09-26, user): each person's work accounts (network, email, VPN, Jira…) have an expiry date and their own reminder lead (default 30 days), because renewal takes weeks. They join the documents in the dashboard reminder.
 - **Residence** (added 2026-09-26, user): a tech-team person lives in the UAE or abroad. Information only.
 - **Company for our team** (added 2026-09-26, user): our own team members can be contracted through a company too. The Company field is optional for our team and required for outsourced people.
+- **Guest attendees** (added 2026-09-26, user): a meeting's attendees can include any name typed in, as a guest, for people who aren't in Resources. Guests are never shown on the presentation side.
 - **Person documents** (added 2026-09-26):
   - Each person has their own documents, with types NDA, Police clearance, UAE ID, Passport, Company contract, Information Security Approval and Other.
   - Each document has an **optional expiry date**. The person's page and the dashboard warn 30 days ahead and mark expired ones in red.
@@ -112,7 +113,7 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
   - **Never commit to `main`.**
   - On merge, every branch (`main`, `design/portfolio-spec`, `build/m1-m2`, `build/m2`…`build/m7`) is fast-forwarded.
 - **No new npm dependencies.**
-- **Database:** `node:sqlite`, with raw parameterised SQL. **Append migrations only.** Migrations 1–12 exist; M7 adds 13 to 17. Multi-row writes run in `transaction(db, …)`.
+- **Database:** `node:sqlite`, with raw parameterised SQL. **Append migrations only.** Migrations 1–12 exist; M7 adds 13 to 18. Multi-row writes run in `transaction(db, …)`.
 - **Files:**
   - They live under a configurable `attachmentsDir` (the `buildApp` option, default `'attachments'`), which is gitignored.
   - Stored names are `<uuid>-<sanitised original name>` inside `<attachmentsDir>/<projectId>/`, and are never overwritten.
@@ -587,10 +588,10 @@ ALTER TABLE resources ADD COLUMN engagement_end TEXT;
 
 **Files:**
 - Create: `server/people/documents.ts` (the repo, reusing `server/attachments/files.ts`), `client/pages/manage/PersonDocuments.tsx`, `client/pages/manage/ExpiringDocumentsNotice.tsx`
-- Modify: `server/db.ts` (migration 16), `shared/types.ts` (`ListName` gains `'personDocumentType'`; `PersonDocumentRecord`), `shared/schemas.ts`, `server/app.ts`, `server/resources/repo.ts` (documents count as in use for delete, but not for a side change), `shared/i18n/*`, `client/api.ts`, `client/pages/manage/PersonPage.tsx`, `client/pages/manage/ManageDashboardPage.tsx`, `client/pages/manage/SettingsPage.tsx` (the Person document types list)
+- Modify: `server/db.ts` (migration 17), `shared/types.ts` (`ListName` gains `'personDocumentType'`; `PersonDocumentRecord`), `shared/schemas.ts`, `server/app.ts`, `server/resources/repo.ts` (documents count as in use for delete, but not for a side change), `shared/i18n/*`, `client/api.ts`, `client/pages/manage/PersonPage.tsx`, `client/pages/manage/ManageDashboardPage.tsx`, `client/pages/manage/SettingsPage.tsx` (the Person document types list)
 - Test: `server/people/documents.test.ts` (new), `server/app.test.ts`, `client/pages/manage/PersonDocuments.test.tsx` (new), `client/pages/manage/ManageDashboardPage.test.tsx`, plus Arabic tests and the no-English guard
 
-**Migration 16:**
+**Migration 17:**
 ```sql
 CREATE TABLE person_documents (
   id INTEGER PRIMARY KEY,
@@ -645,7 +646,7 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
 
 **Accounts and residence (added 2026-09-26, user):** people's work accounts expire every few months, and renewal takes weeks, so the user needs a warning early enough to apply. Whether a team member lives in the UAE or abroad is information only.
 
-**Also in migration 16:**
+**Also in migration 17:**
 ```sql
 ALTER TABLE resources ADD COLUMN residence TEXT CHECK (residence IN ('uae', 'abroad'));
 CREATE TABLE person_accounts (
@@ -705,10 +706,10 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
 
 **Files:**
 - Create: `server/keyDates/repo.ts`, `client/pages/manage/KeyDatesCard.tsx`, `client/components/KeyDateRows.tsx`, `client/pages/manage/KeyDatesNotice.tsx`
-- Modify: `server/db.ts` (migration 17), `shared/types.ts` (`ListName` gains `'keyDateType'`; `KeyDateRecord`), `shared/schemas.ts`, `server/app.ts`, `server/lists/repo.ts` (the in-use rule), `server/attachments/repo.ts` (deleting an attachment keeps its key dates, unlinked), `shared/i18n/*`, `client/api.ts`, `client/pages/manage/AttachmentsTab.tsx` (the upload row and Edit), `client/pages/manage/ProjectDetailsTab.tsx`, `client/pages/manage/ManageDashboardPage.tsx`, `client/pages/manage/SettingsPage.tsx`, `client/styles.css`
+- Modify: `server/db.ts` (migration 18), `shared/types.ts` (`ListName` gains `'keyDateType'`; `KeyDateRecord`), `shared/schemas.ts`, `server/app.ts`, `server/lists/repo.ts` (the in-use rule), `server/attachments/repo.ts` (deleting an attachment keeps its key dates, unlinked), `shared/i18n/*`, `client/api.ts`, `client/pages/manage/AttachmentsTab.tsx` (the upload row and Edit), `client/pages/manage/ProjectDetailsTab.tsx`, `client/pages/manage/ManageDashboardPage.tsx`, `client/pages/manage/SettingsPage.tsx`, `client/styles.css`
 - Test: `server/keyDates/keyDates.test.ts` (new), `client/pages/manage/KeyDatesCard.test.tsx` (new), `AttachmentsTab.test.tsx`, `ManageDashboardPage.test.tsx`, `SettingsPage.test.tsx`, plus Arabic tests and the no-English guard
 
-**Migration 17:**
+**Migration 18:**
 ```sql
 CREATE TABLE key_dates (
   id INTEGER PRIMARY KEY,
@@ -752,7 +753,7 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
 - **Settings** gets a **Key date types** list, bilingual.
 
 - [ ] **Step 1: Write the failing tests:**
-  - migration 17 upgrades a version-16 database and seeds the six types;
+  - migration 18 upgrades a version-17 database and seeds the six types;
   - creating a key date with an attachment from another project answers 400 `error.unknownAttachment`;
   - `upcoming?withinDays=30` with today fixed returns a soon one and one that passed last week, but not one 60 days ahead or one that passed 2 months ago;
   - deleting the linked attachment keeps the key date with `attachment: null`;

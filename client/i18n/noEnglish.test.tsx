@@ -219,6 +219,7 @@ function arabicEntries(): EntryRecord[] {
       body: 'السطر الأول.\nالسطر الثاني.\nالسطر الثالث.\nالسطر الرابع.',
       phase: { id: 120, name: `Development › ${INCREMENT}`, phaseName: 'Development', subPhaseName: INCREMENT },
       attendees: [{ id: 70, name: SARA }, { id: 71, name: FATIMA }],
+      guests: ['خالد المنصوري'],
       attachmentIds: [401], followUpToDoIds: [200],
     },
   ];
@@ -386,7 +387,7 @@ describe('no English left in the Arabic pages', () => {
     expectNoEnglish('the project page with the History tab, the add-meeting form open');
     await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
-    await user.click(screen.getByRole('tab', { name: 'الأشخاص' }));
+    await user.click(screen.getByRole('tab', { name: 'فريق العمل' }));
     await screen.findByText('60% · مسؤول', { exact: false });
     expectNoEnglish('the project page on the People tab');
 

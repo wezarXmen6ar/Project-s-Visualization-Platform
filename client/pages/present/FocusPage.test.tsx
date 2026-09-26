@@ -72,7 +72,7 @@ describe('FocusPage', () => {
     const entry = (id: number, title: string, highlight: boolean): EntryRecord => ({
       id, projectId: 1, type: 'meeting', effectiveDate: '2026-09-29', createdAt: '2026-09-29T09:00:00.000Z', title,
       body: ['Line one.', 'Line two.', 'Line three.', 'Line four.'].join('\n'), highlight, phase: DEV,
-      attendees: [{ id: 70, name: 'Sara Ahmed' }], attachmentIds: [], followUpToDoIds: [800],
+      attendees: [{ id: 70, name: 'Sara Ahmed' }], guests: [], attachmentIds: [], followUpToDoIds: [800],
     });
     const attachment = (id: number, name: string, entryId: number | null): AttachmentRecord => ({
       id, projectId: 1, phase: entryId === null ? DEV : null, entryId, type: null, name, mime: 'application/pdf', size: 1000,

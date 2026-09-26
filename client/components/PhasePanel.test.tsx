@@ -23,7 +23,7 @@ function meeting(overrides: Partial<EntryRecord> = {}): EntryRecord {
   return {
     id: 500, projectId: 1, type: 'meeting', effectiveDate: '2026-10-05', createdAt: '2026-10-05T09:00:00.000Z',
     title: 'Design review', body: 'Agreed the screens.', highlight: false, phase: DEV,
-    attendees: [{ id: 70, name: 'Sara Ahmed' }], attachmentIds: [], followUpToDoIds: [],
+    attendees: [{ id: 70, name: 'Sara Ahmed' }], guests: [], attachmentIds: [], followUpToDoIds: [],
     ...overrides,
   };
 }

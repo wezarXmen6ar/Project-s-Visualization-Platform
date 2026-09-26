@@ -59,13 +59,19 @@ export function EntryItem({
             <span>{formatDate(entry.effectiveDate)}</span>
             {entry.phase ? <span> · {phaseRefLabel(entry.phase, nameFor)}</span> : null}
           </div>
-          {!presentation && entry.type === 'meeting' && entry.attendees.length > 0 ? (
+          {!presentation && entry.type === 'meeting' && (entry.attendees.length > 0 || entry.guests.length > 0) ? (
             <div className="entry-item-meta">
               {t('history.attendeesLabel')}:{' '}
               {entry.attendees.map((a, i) => (
                 <span key={a.id}>
                   {i > 0 ? ', ' : ''}
                   <Link to={`/manage/resources/${a.id}`} dir="auto" data-user-content="">{a.name}</Link>
+                </span>
+              ))}
+              {entry.guests.map((g, i) => (
+                <span key={`guest-${i}`}>
+                  {entry.attendees.length > 0 || i > 0 ? ', ' : ''}
+                  <span dir="auto" data-user-content="">{g}</span> <span>{t('history.guestMarker')}</span>
                 </span>
               ))}
             </div>

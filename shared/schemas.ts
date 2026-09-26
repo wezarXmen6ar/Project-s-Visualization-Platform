@@ -317,6 +317,25 @@ export const entryInputSchema = z.object({
   phaseId: optionalId,
   highlight: z.boolean().default(false),
   attendeeIds: z.array(z.number().int().positive()).max(100).default([]),
+  /**
+   * Meetings only; anyone typed in who isn't in Resources. Each name is trimmed, 1-100 chars, and duplicates
+   * (case-insensitive) are dropped, keeping the first occurrence's casing and the order entered.
+   */
+  guestNames: z
+    .array(z.string().trim().min(1, 'validation.guestNameRequired').max(100, tooLong(100)))
+    .max(50, 'validation.tooManyGuests')
+    .default([])
+    .transform((names) => {
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const name of names) {
+        const key = name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(name);
+      }
+      return out;
+    }),
   /** On create only; ignored on update. */
   followUps: z.array(followUpInputSchema).max(50).default([]),
   /** Used from Task 2 on. */

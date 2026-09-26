@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type KeyboardEvent } from 'react';
 import { todayLocal } from '../../shared/calendar';
 import { entryInputSchema, toIssues, type EntryInput } from '../../shared/schemas';
 import type { AttachmentRecord, EntryRecord, EntryType, ListValue, Me, ProjectRecord, ResourceRecord } from '../../shared/types';
@@ -47,7 +47,7 @@ export function EntryForm({
 
   const defaults: EntryInput = initial ? entryToInput(initial) : {
     type: entryType, effectiveDate: todayLocal(), title: '', body: '', phaseId: presetPhaseId, highlight: false,
-    attendeeIds: [], followUps: [], attachmentIds: [],
+    attendeeIds: [], guestNames: [], followUps: [], attachmentIds: [],
   };
 
   const [title, setTitle] = useState(defaults.title);
@@ -56,6 +56,7 @@ export function EntryForm({
   const [body, setBody] = useState(defaults.body ?? '');
   const [highlight, setHighlight] = useState(defaults.highlight ?? false);
   const [attendeeIds, setAttendeeIds] = useState<number[]>(defaults.attendeeIds ?? []);
+  const [guestNames, setGuestNames] = useState<string[]>(defaults.guestNames ?? []);
   const [search, setSearch] = useState('');
   const [followUps, setFollowUps] = useState<FollowUpRow[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -91,11 +92,29 @@ export function EntryForm({
   const othersAvailable = available(others);
   const followUpAssigneeChoices = assigneeChoices(project, me, null, lang);
 
+  const trimmedSearch = search.trim();
+  const matchesAPerson = people.some((p) => p.name.toLowerCase() === trimmedSearch.toLowerCase());
+  const showAddGuestOption = trimmedSearch !== '' && !matchesAPerson;
+
   function addAttendee(id: number) {
     setAttendeeIds((v) => (v.includes(id) ? v : [...v, id]));
   }
   function removeAttendee(id: number) {
     setAttendeeIds((v) => v.filter((x) => x !== id));
+  }
+  function addGuest(name: string) {
+    const trimmed = name.trim();
+    if (trimmed === '') return;
+    setGuestNames((v) => (v.some((g) => g.toLowerCase() === trimmed.toLowerCase()) ? v : [...v, trimmed]));
+    setSearch('');
+  }
+  function removeGuest(name: string) {
+    setGuestNames((v) => v.filter((g) => g !== name));
+  }
+  function onSearchKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (showAddGuestOption) addGuest(trimmedSearch);
   }
   function addFollowUp() {
     setFollowUps((v) => [...v, { title: '', assigneeId: me.resourceId, dueDate: '' }]);
@@ -121,6 +140,7 @@ export function EntryForm({
       phaseId,
       highlight,
       attendeeIds: isMeeting ? attendeeIds : [],
+      guestNames: isMeeting ? guestNames : [],
       followUps:
         isNew && isMeeting
           ? followUps
@@ -180,12 +200,21 @@ export function EntryForm({
       {isMeeting ? (
         <div className="attendee-picker">
           <label htmlFor="entry-attendee-search">{t('entryForm.attendees')}</label>
-          {chosen.length > 0 ? (
+          {chosen.length > 0 || guestNames.length > 0 ? (
             <ul className="chip-list">
               {chosen.map((p) => (
                 <li key={p.id} className="chip">
                   <span dir="auto" data-user-content="">{p.name}</span>
                   <button type="button" aria-label={t('entryForm.removeAttendeeAria', { name: p.name })} onClick={() => removeAttendee(p.id)}>
+                    ×
+                  </button>
+                </li>
+              ))}
+              {guestNames.map((g) => (
+                <li key={`guest-${g}`} className="chip chip-guest">
+                  <span dir="auto" data-user-content="">{g}</span>
+                  <span className="chip-guest-label">{t('entryForm.guestLabel')}</span>
+                  <button type="button" aria-label={t('entryForm.removeAttendeeAria', { name: g })} onClick={() => removeGuest(g)}>
                     ×
                   </button>
                 </li>
@@ -197,6 +226,7 @@ export function EntryForm({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={onSearchKeyDown}
             placeholder={t('entryForm.searchPeople')}
             dir="auto"
           />
@@ -217,6 +247,13 @@ export function EntryForm({
                 </button>
               </li>
             ))}
+            {showAddGuestOption ? (
+              <li>
+                <button type="button" onClick={() => addGuest(trimmedSearch)}>
+                  {t('entryForm.addGuestOption', { name: trimmedSearch })}
+                </button>
+              </li>
+            ) : null}
           </ul>
         </div>
       ) : null}

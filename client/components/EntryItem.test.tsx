@@ -18,6 +18,7 @@ function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
     highlight: false,
     phase: null,
     attendees: [],
+    guests: [],
     attachmentIds: [],
     followUpToDoIds: [1],
     ...overrides,
@@ -75,5 +76,41 @@ describe('EntryItem', () => {
     expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
     expect(screen.getByRole('checkbox')).not.toBeDisabled();
+  });
+
+  it('lists guests after the people, marked "(guest)", as plain text (not a link)', () => {
+    renderItem(
+      <EntryItem
+        entry={entry({ attendees: [{ id: 70, name: 'Sara Ahmed' }], guests: ['Visiting Consultant'] })}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'Sara Ahmed' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Visiting Consultant' })).not.toBeInTheDocument();
+    expect(screen.getByText('Visiting Consultant')).toBeInTheDocument();
+    expect(screen.getByText('(guest)')).toBeInTheDocument();
+  });
+
+  it('presentation mode hides both attendees and guests', () => {
+    renderItem(
+      <EntryItem
+        entry={entry({ attendees: [{ id: 70, name: 'Sara Ahmed' }], guests: ['Visiting Consultant'] })}
+        presentation
+      />,
+    );
+    expect(screen.queryByText('Sara Ahmed')).not.toBeInTheDocument();
+    expect(screen.queryByText('Visiting Consultant')).not.toBeInTheDocument();
+    expect(screen.queryByText('(guest)')).not.toBeInTheDocument();
+  });
+
+  it('renders a guest in Arabic, with the ضيف marker', () => {
+    render(
+      <LanguageProvider lang="ar">
+        <MemoryRouter>
+          <EntryItem entry={entry({ guests: ['زائر'] })} />
+        </MemoryRouter>
+      </LanguageProvider>,
+    );
+    expect(screen.getByText('زائر')).toHaveAttribute('dir', 'auto');
+    expect(screen.getByText('(ضيف)')).toBeInTheDocument();
   });
 });

@@ -61,6 +61,46 @@ describe('EntryForm', () => {
     expect(input.followUps).toEqual([{ title: 'Book the room', assigneeId: 70, dueDate: null }]);
   });
 
+  it('adds a guest via the "Add as a guest" option, and removes it with its chip button', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(
+      <EntryForm project={project()} me={me} people={samplePeople()} attachmentTypes={attachmentTypes} type="meeting" onSave={onSave} onCancel={vi.fn()} />,
+    );
+
+    await user.type(screen.getByLabelText('Title'), 'Kickoff');
+    await user.type(screen.getByPlaceholderText('Search people'), 'Visiting Consultant');
+    await user.click(screen.getByRole('button', { name: '+ Add "Visiting Consultant" as a guest' }));
+    expect(screen.getByText('Visiting Consultant')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove Visiting Consultant' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const input: EntryData = onSave.mock.calls[0][0];
+    expect(input.guestNames).toEqual(['Visiting Consultant']);
+
+    await user.click(screen.getByRole('button', { name: 'Remove Visiting Consultant' }));
+    expect(screen.queryByText('Visiting Consultant')).not.toBeInTheDocument();
+  });
+
+  it('Enter in the search box adds a guest when there is no matching person', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(
+      <EntryForm project={project()} me={me} people={samplePeople()} attachmentTypes={attachmentTypes} type="meeting" onSave={onSave} onCancel={vi.fn()} />,
+    );
+
+    await user.type(screen.getByLabelText('Title'), 'Kickoff');
+    await user.type(screen.getByPlaceholderText('Search people'), 'A Visitor{enter}');
+    expect(screen.getByText('A Visitor')).toBeInTheDocument();
+    // Enter added the guest instead of submitting the form.
+    expect(onSave).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const input: EntryData = onSave.mock.calls[0][0];
+    expect(input.guestNames).toEqual(['A Visitor']);
+  });
+
   it('an update form has no attendees field and no follow-ups', () => {
     render(
       <EntryForm project={project()} me={me} people={samplePeople()} attachmentTypes={attachmentTypes} type="update" onSave={vi.fn()} onCancel={vi.fn()} />,
@@ -94,7 +134,7 @@ describe('EntryForm', () => {
         initial={{
           id: 300, projectId: 1, type: 'meeting', effectiveDate: '2026-09-24', createdAt: '2026-09-20T09:00:00.000Z',
           title: 'Kickoff', body: '', highlight: false, phase: null,
-          attendees: [{ id: 70, name: 'Sara Ahmed' }], attachmentIds: [], followUpToDoIds: [],
+          attendees: [{ id: 70, name: 'Sara Ahmed' }], guests: [], attachmentIds: [], followUpToDoIds: [],
         }}
         onSave={onSave}
         onCancel={vi.fn()}

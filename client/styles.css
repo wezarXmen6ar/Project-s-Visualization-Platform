@@ -826,6 +826,7 @@ button.heat:hover { border-color: var(--border-strong); }
   background: var(--primary-wash);
 }
 .chip button { background: none; border: none; cursor: pointer; color: var(--muted); font: inherit; }
+.chip-guest-label { font-size: 0.75rem; color: var(--muted); }
 .attendee-options { list-style: none; margin: var(--sp-2) 0 0; padding: 0; max-height: 12rem; overflow-y: auto; }
 .attendee-options li button {
   display: block;
