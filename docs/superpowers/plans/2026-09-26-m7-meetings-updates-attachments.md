@@ -7,7 +7,7 @@
 - **upload files** of any type (up to 50 MB), with a type and an optional phase, and preview PDFs and images inside the app;
 - see all of it in a **History** tab, and in a **side panel** that opens when a Gantt bar is clicked.
 
-Entries marked **"show in presentation"** appear to stakeholders in the focus view. The project page moves its sections into **tabs**. Everything ships in Arabic and English.
+Entries marked **"show in presentation"** appear to stakeholders in the focus view. The project page moves its sections into **tabs**. **Outsourced people** are kept in their own section and archived when their engagement ends. **Each person gets their own documents**, such as an NDA, police clearance, UAE ID, passport or contract, with expiry reminders. Everything ships in Arabic and English.
 
 **Architecture:**
 - **Storage:** two new schema versions.
@@ -39,6 +39,14 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
 - **The project page uses tabs.**
 - **Uploads:** **any file up to 50 MB.** PDFs and images preview inside the app; other files download and open in their own program.
 - **Clicking a Gantt bar** (a phase or a sub-phase) **opens a side panel with that phase's history.** Hovering still shows the quick details card.
+- **Outsourced people** (added 2026-09-26):
+  - Each tech-team person is **Our team** or **Outsourced**, and an outsourced person has a company, a project, and start and end dates.
+  - Resources shows them in their own section while engaged, and moves them to a collapsed "Past outsourced" list afterwards. They're never deleted.
+  - They **can be assigned to phases, but are not in the workload heatmap** (the user's choice).
+- **Person documents** (added 2026-09-26):
+  - Each person has their own documents, with types NDA, Police clearance, UAE ID, Passport, Company contract, Information Security Approval and Other.
+  - Each document has an **optional expiry date**. The person's page and the dashboard warn 30 days ahead and mark expired ones in red.
+- **Attachment types:** Approval → اعتماد, Documentation → وثائق المشروع, and **Contract → العقد** is added (user).
 
 **Deliberate choices (flag if you disagree):**
 - **The tab is called "History" (السجل), not "Timeline".** The Gantt chart's card is already titled "Timeline" (الجدول الزمني), and two tabs with the same name would confuse. The spec's "Timeline tab" is this History tab.
@@ -55,13 +63,14 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
   | English | Arabic |
   |---|---|
   | Meeting Minutes | محضر اجتماع |
-  | Approval | موافقة |
+  | Approval | اعتماد |
   | Change Request | Change Request |
   | Business Analysis Document | الدراسة التحليلية |
   | BRD | وثيقة متطلبات الأعمال (BRD) |
-  | Documentation | التوثيق |
+  | Documentation | وثائق المشروع |
   | Design | التصميم |
   | Test Report | تقرير الاختبار |
+  | Contract | العقد |
   | Other | أخرى |
 - **On a touch screen, tapping a bar opens the side panel.** The panel shows the phase's details at the top, so the tap-to-pin card is no longer needed for bars. It stays for segments inside the panel's summary, if any.
 - **Attachments aren't in the daily database backup.** They are never overwritten, and deleted ones are kept in `_deleted`. The layout pass or a later milestone can add copying the attachments folder if the user wants it.
@@ -98,7 +107,7 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
   - **Never commit to `main`.**
   - On merge, every branch (`main`, `design/portfolio-spec`, `build/m1-m2`, `build/m2`…`build/m7`) is fast-forwarded.
 - **No new npm dependencies.**
-- **Database:** `node:sqlite`, with raw parameterised SQL. **Append migrations only.** Migrations 1–12 exist; M7 adds 13 and 14. Multi-row writes run in `transaction(db, …)`.
+- **Database:** `node:sqlite`, with raw parameterised SQL. **Append migrations only.** Migrations 1–12 exist; M7 adds 13, 14, 15 and 16. Multi-row writes run in `transaction(db, …)`.
 - **Files:**
   - They live under a configurable `attachmentsDir` (the `buildApp` option, default `'attachments'`), which is gitignored.
   - Stored names are `<uuid>-<sanitised original name>` inside `<attachmentsDir>/<projectId>/`, and are never overwritten.
@@ -145,7 +154,10 @@ client/components/Uploader.tsx          NEW: pick files, upload with progress an
 client/components/FilePreview.tsx       NEW: PDF/image preview dialog                         (Task 5)
 client/components/PhasePanel.tsx        NEW: the side panel (manage and read-only modes)      (Task 6)
 client/gantt/Gantt.tsx                  onPieceOpen(phaseId)                                 (Task 6)
-server/demoData.ts                      demo meetings, updates, attachments                  (Task 7)
+server/people/documents.ts              NEW: person documents (reuses attachments/files.ts)  (Task 8)
+client/pages/manage/PersonDocuments.tsx NEW: the Documents card on a person's page          (Task 8)
+client/pages/manage/ExpiringDocumentsNotice.tsx NEW: the dashboard notice                  (Task 8)
+server/demoData.ts                      demo meetings, updates, files, outsourced people, documents (Task 9)
 ```
 
 ---
@@ -278,14 +290,15 @@ CREATE TABLE attachments (
 CREATE INDEX attachments_project ON attachments(project_id);
 INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
   ('attachmentType', 'Meeting Minutes', 'محضر اجتماع', 0),
-  ('attachmentType', 'Approval', 'موافقة', 1),
+  ('attachmentType', 'Approval', 'اعتماد', 1),
   ('attachmentType', 'Change Request', 'Change Request', 2),
   ('attachmentType', 'Business Analysis Document', 'الدراسة التحليلية', 3),
   ('attachmentType', 'BRD', 'وثيقة متطلبات الأعمال (BRD)', 4),
-  ('attachmentType', 'Documentation', 'التوثيق', 5),
+  ('attachmentType', 'Documentation', 'وثائق المشروع', 5),
   ('attachmentType', 'Design', 'التصميم', 6),
   ('attachmentType', 'Test Report', 'تقرير الاختبار', 7),
-  ('attachmentType', 'Other', 'أخرى', 8);
+  ('attachmentType', 'Contract', 'العقد', 8),
+  ('attachmentType', 'Other', 'أخرى', 9);
 ```
 Check the `list_values` columns and unique index in `server/db.ts` before writing the INSERT, and adjust it if needed.
 
@@ -505,7 +518,139 @@ Check the `list_values` columns and unique index in `server/db.ts` before writin
 
 ---
 
-### Task 7: Demo meetings, updates and files (completes M7)
+### Task 7: Outsourced people, kept apart from your own team
+
+**Why (user, 2026-09-26):** some people are outsourced. They work for a company, are hired for one project, and move on. Listing them next to the user's own team clutters Resources with people who have long gone.
+
+**Files:**
+- Modify: `server/db.ts` (migration 15), `shared/types.ts` (`ListName` gains `'company'`; `ResourceRecord` gains the engagement fields), `shared/schemas.ts` (`resourceInputSchema`), `server/resources/repo.ts`, `server/assignments/repo.ts` (`workloadData` and `checkAssignmentPeople`), `server/lists/repo.ts` (the in-use rule for companies), `shared/i18n/*`, `client/pages/manage/PersonPage.tsx`, `client/pages/manage/ResourcesPage.tsx`, `client/pages/manage/peopleTable.ts`, `client/components/AssignmentsEditor.tsx`, `client/pages/manage/SettingsPage.tsx` (the Companies list), `client/testing/mockFetch.ts`
+- Test: `server/resources/resources.test.ts`, `server/assignments/assignments.test.ts`, `server/db.test.ts`, `client/pages/manage/ResourcesPage.test.tsx`, `client/pages/manage/PersonPage.test.tsx`, `client/components/AssignmentsEditor.test.tsx`, plus Arabic tests
+
+**Migration 15:**
+```sql
+ALTER TABLE resources ADD COLUMN employment TEXT NOT NULL DEFAULT 'staff' CHECK (employment IN ('staff', 'outsourced'));
+ALTER TABLE resources ADD COLUMN company_id INTEGER REFERENCES list_values(id);
+ALTER TABLE resources ADD COLUMN engagement_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL;
+ALTER TABLE resources ADD COLUMN engagement_start TEXT;
+ALTER TABLE resources ADD COLUMN engagement_end TEXT;
+```
+
+**Rules:**
+- **Only tech-team people** can be outsourced. Business-side contacts stay as they are, so the server forces `employment='staff'` for the business side.
+- **An outsourced person has:**
+  - a **company**, required (from the editable **Companies** list, with "+ Add new company…" inline);
+  - the **project** they're hired for, optional;
+  - an **engagement start**, optional;
+  - an **engagement end**, optional.
+- **Engaged** means today falls between the start (or open-ended) and the end (or open-ended). **Past** means the end date is before today.
+- **Workload (the user's choice):** outsourced people **are not in the workload heatmap**, don't count towards overbooking, and don't trigger overbooking warnings. `workloadData.resources` returns staff only, and the assignments of outsourced people are left out of `workloadData.assignments`.
+- **Assigning:**
+  - Outsourced people **can be assigned to phases while engaged.** Pickers list them in their own group, "Outsourced", showing their company, e.g. "Omar Farid · TechNova".
+  - Once past, they're no longer offered, but they stay on any phases they're already on, like inactive people. `checkAssignmentPeople` rejects a newly added outsourced person who isn't engaged, with `error.personEngagementEnded`: "{name}'s engagement has ended" / "انتهى تعاقد {name}".
+- **The Resources page:**
+  - The People table lists **our team and business contacts** as now.
+  - An **Outsourced** section below it lists engaged outsourced people, with company, project, start, end and contact. It's sortable and filterable, like the People table.
+  - A collapsed **Past outsourced (N)** list keeps the ones whose engagement has ended, for history. Nothing is deleted.
+  - The Side filter gains nothing; outsourced people are a section, not a side.
+- **The person form** (tech side): a toggle, **Our team** / **Outsourced**. Choosing Outsourced shows Company, Project, Start and End.
+- **Companies list:** Settings gets a **Companies** list. A company in use can't be deleted.
+- **To-dos:** an outsourced person can be a to-do assignee like anyone on the project. "I am" must still be one of the user's own staff; the server refuses outsourced people with `error.chooseTechTeamMember`.
+
+- [ ] **Step 1: Write the failing tests:**
+  - migration 15 upgrades a version-14 database, and existing people become `staff`;
+  - creating an outsourced person without a company answers 400 (`validation.companyRequired`);
+  - a business contact submitted as outsourced is stored as staff;
+  - `workloadData` excludes outsourced people and their assignments;
+  - assigning an outsourced person whose engagement ended answers 400 `error.personEngagementEnded`, while one already on the phase stays;
+  - the Resources page shows the Outsourced section with the engaged person, and "Past outsourced (1)" collapsed with the ended one;
+  - the person form shows the company fields only when Outsourced is chosen;
+  - `AssignmentsEditor` shows an "Outsourced" group with the company name;
+  - Arabic render tests.
+- [ ] **Step 2:** Run the tests and confirm they FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
+- [ ] **Step 5:** Commit with `feat: outsourced people with their company and engagement dates, kept in their own section and archived when their engagement ends`.
+
+---
+
+### Task 8: Each person's documents, with expiry reminders
+
+**Why (user, 2026-09-26):** each person has important documents: an NDA, a police clearance, their UAE ID, passport, company contract, or an information security approval. When needed, they can't be found.
+
+**Files:**
+- Create: `server/people/documents.ts` (the repo, reusing `server/attachments/files.ts`), `client/pages/manage/PersonDocuments.tsx`, `client/pages/manage/ExpiringDocumentsNotice.tsx`
+- Modify: `server/db.ts` (migration 16), `shared/types.ts` (`ListName` gains `'personDocumentType'`; `PersonDocumentRecord`), `shared/schemas.ts`, `server/app.ts`, `server/resources/repo.ts` (documents count as in use for delete, but not for a side change), `shared/i18n/*`, `client/api.ts`, `client/pages/manage/PersonPage.tsx`, `client/pages/manage/ManageDashboardPage.tsx`, `client/pages/manage/SettingsPage.tsx` (the Person document types list)
+- Test: `server/people/documents.test.ts` (new), `server/app.test.ts`, `client/pages/manage/PersonDocuments.test.tsx` (new), `client/pages/manage/ManageDashboardPage.test.tsx`, plus Arabic tests and the no-English guard
+
+**Migration 16:**
+```sql
+CREATE TABLE person_documents (
+  id INTEGER PRIMARY KEY,
+  resource_id INTEGER NOT NULL REFERENCES resources(id),
+  type_id INTEGER REFERENCES list_values(id),
+  original_name TEXT NOT NULL,
+  stored_name TEXT NOT NULL UNIQUE,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  expiry_date TEXT,
+  note TEXT,
+  uploaded_at TEXT NOT NULL
+);
+CREATE INDEX person_documents_resource ON person_documents(resource_id);
+INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
+  ('personDocumentType', 'NDA', 'وثيقة عدم الإفصاح', 0),
+  ('personDocumentType', 'Police clearance', 'شهادة بحث الحالة الجنائية', 1),
+  ('personDocumentType', 'UAE ID', 'الهوية الإماراتية', 2),
+  ('personDocumentType', 'Passport', 'جواز السفر', 3),
+  ('personDocumentType', 'Company contract', 'عقد الشركة', 4),
+  ('personDocumentType', 'Information Security Approval', 'موافقة أمن المعلومات', 5),
+  ('personDocumentType', 'Other', 'أخرى', 6);
+```
+
+**Rules:**
+- **Storage:** documents are stored under `<attachmentsDir>/people/<resourceId>/`, with the same safe naming, 50 MB limit, raw-body upload, download and preview, and move-to-`_deleted` on delete as Task 2.
+- **Routes:**
+
+  | Route | Behaviour |
+  |---|---|
+  | `POST /api/resources/:id/documents` | Upload. The query takes `typeId`, `expiryDate` and `note`. |
+  | `GET /api/resources/:id/documents` | List. |
+  | `GET /api/person-documents/:id/file?inline=1` | Download or preview. |
+  | `PUT /api/person-documents/:id` | Update the metadata. |
+  | `DELETE /api/person-documents/:id` | Delete. |
+  | `GET /api/person-documents/expiring?withinDays=30` | Returns every document that is expired, or expires within the window, with its person's name. |
+
+- **Expiry states:** *expired* when the expiry date is before today; *expires soon* when it is within 30 days; otherwise fine, or none if there's no expiry date.
+- **Private:** these documents are **never** shown on the presentation side, and never listed on the project pages.
+- **Deleting a person** is refused while they have documents ("…has 3 documents" / "…لديه 3 وثائق"); make them inactive instead. Documents don't block a side change.
+
+**What the user sees:**
+- **The person page, a "Documents" card (الوثائق):**
+  - **Upload document** takes a type, an optional expiry date and an optional note.
+  - The table shows type, file name, expiry and uploaded date. Expiry is red when expired ("منتهية") and amber within 30 days ("تنتهي خلال 12 يوماً"), with an Arabic plural for the days.
+  - Row actions: Preview (PDF or image), Download, Edit and Delete. Delete asks for confirmation.
+- **The dashboard, a notice** when any documents are expired or expire within 30 days:
+  - one document: "Fatima Noor's passport expires in 12 days" / "ينتهي جواز السفر لفاطمة نور خلال 12 يوماً";
+  - several: "3 documents expire soon or have expired" / "3 وثائق منتهية أو قاربت على الانتهاء".
+  - It has a link, **See documents**, that goes to the person page for one document, or to a small list for several: the notice expands to show each person and document with links.
+- **Settings** gets a **Person document types** list, bilingual.
+
+- [ ] **Step 1: Write the failing tests:**
+  - uploading a passport with an expiry date returns 201;
+  - `expiring?withinDays=30`, with today fixed, returns the expired and the soon ones but not a later one;
+  - deleting a person with documents answers 409 with `error.reasonHasDocuments`;
+  - the file routes behave as in Task 2: an Arabic file name round-trips, `inline` is used only for previewable types, and delete moves the file to `_deleted`;
+  - `PersonDocuments` shows an expired one in red and a soon one in amber, with the Arabic day plural;
+  - the dashboard notice shows the single and plural forms, in both languages;
+  - `/present` renders no person documents, which the read-only guard confirms.
+- [ ] **Step 2:** Run the tests and confirm they FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
+- [ ] **Step 5:** Commit with `feat: each person's documents with expiry reminders on their page and the dashboard`.
+
+---
+
+### Task 9: Demo meetings, updates, files, outsourced people and documents (completes M7)
 
 **Files:**
 - Modify: `server/demoData.ts`, `server/demoData.test.ts`, `server/seed.ts` (pass the attachments folder)
@@ -532,13 +677,24 @@ Check the `list_values` columns and unique index in `server/db.ts` before writin
   - an **محضر اجتماع** file named **"محضر ورشة المتطلبات.pdf"**.
 - **The demo files** are tiny valid PDFs, generated in code: a minimal one-page PDF with the file's title as text. Use Latin-safe text inside the PDF (the PDF's own content doesn't need Arabic glyphs); the file name can be Arabic. They're written through the same attachments repo, into the configured attachments folder.
 - **`seedDemo`** takes an `attachmentsDir` parameter. `npm run seed` uses `'attachments'`, and tests use a temporary folder.
+- **Outsourced people:**
+  - A company, **TechNova Solutions**, whose Arabic name is **تك نوفا للحلول**.
+  - **Omar Farid**, a developer, outsourced to E-Services Mobile App from 2026-11-01 to 2027-03-31. He's assigned at 60% to Increment 4 – Notifications. He doesn't appear on the heatmap.
+  - **Lena Park**, a QA engineer, outsourced to Customer Portal Revamp from 2026-03-01 to 2026-06-30. Her engagement is past, so she's in "Past outsourced".
+- **Person documents:**
+  - **Fatima Noor:** a Passport expiring **2026-10-20** (expires soon), and an NDA with no expiry.
+  - **Omar Farid:** a Company contract expiring 2027-03-31, and a Police clearance that **expired 2026-09-01**.
+  - Hassan Ali: a UAE ID expiring 2028-05-01.
+  - The files are tiny generated PDFs, as for the attachments.
 - **The M4/M5/M6 demo assertions** stay unchanged. If a count of to-dos changes because of the new follow-up, filter it in the test the way M6 did, keeping the expected values.
 
 - [ ] **Step 1: Write the failing test:**
   - after seeding, E-Services has 2 entries;
   - the workshop has 3 attendees, a follow-up to-do linked back to it, and a Meeting Minutes attachment whose file exists and starts with `%PDF`;
   - the Arabic project's meeting has an Arabic title, and an attachment with an Arabic file name;
-  - the highlighted entries total 4.
+  - the highlighted entries total 4;
+  - Omar Farid is outsourced, engaged and absent from `workloadData`, and Lena Park is past;
+  - `expiring?withinDays=30` (today 2026-09-26) returns Fatima's passport and Omar's police clearance.
 - [ ] **Step 2:** Run the test and confirm it FAILS.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
@@ -554,8 +710,15 @@ Check the `list_values` columns and unique index in `server/db.ts` before writin
 3. **The Attachments tab:** upload any file (a Word or Excel file, for example), filter by type, preview a PDF, download, and delete it (it goes to `attachments/_deleted`).
 4. **Click the Development bar,** then an increment. The side panel slides in from the right in English and from the left in Arabic, with that phase's history. Switch By week / By type, add an update from the panel, and close it with Escape.
 5. **To-dos from a meeting** show "من اجتماع …" / "From the meeting on …".
-6. **Settings** has the **Attachment types** list, in both languages.
+6. **Settings** has the **Attachment types**, **Companies** and **Person document types** lists, in both languages.
 7. **Presentation → focus view:** clicking a bar shows only highlighted entries and their files, with no to-dos and no editing.
+7a. **Resources:**
+   - the **Outsourced** section shows Omar Farid (TechNova) and a collapsed **Past outsourced (1)** with Lena Park;
+   - Omar isn't on the heatmap, but he is on Increment 4;
+   - add an outsourced person with a new company.
+7b. **Person documents:**
+   - **Fatima Noor's page** shows her passport in amber (expires soon). Upload a UAE ID with an expiry, preview it, then delete it.
+   - The **dashboard** shows the expiring-documents notice: Fatima's passport and Omar's expired police clearance.
 8. **Arabic:** the whole flow reads naturally. Review the new glossary terms.
 
 **When M7 is approved, fast-forward every branch to `build/m7`. Then write the M8 plan (progress and decisions) on `design/portfolio-spec`.**

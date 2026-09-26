@@ -60,7 +60,15 @@ client/   React + Vite
 ## 2. Data model (APPROVED)
 
 **People and calendar**
-- `Resource`: name, **side** (Tech team or Business side), role, specialisation (front end, back end or full stack), email, phone (UAE mobile), capacity % (default 100), active flag. Roles are an editable list (Project manager, Tech lead, Business analyst, Developer, Designer, QA, DB engineer, InfoSec). **Business-side people (M4 decision, 2026-09-25)** are contacts, such as a project's business PM: they have a phone and email but no role, specialisation or capacity, are never assigned to phases and are not counted in workload. A person in use is made inactive rather than deleted.
+- `Resource`: name, **side** (Tech team or Business side), role, specialisation (front end, back end or full stack), email, phone (UAE mobile), capacity % (default 100), active flag. Roles are an editable list (Project manager, Tech lead, Business analyst, Developer, Designer, QA, DB engineer, InfoSec). **Business-side people (M4 decision, 2026-09-25)** are contacts, such as a project's business PM: they have a phone and email but no role, specialisation or capacity, are never assigned to phases and are not counted in workload. A person in use is made inactive rather than deleted. **Outsourced people (M7, user 2026-09-26):**
+- A tech-team person is **Our team** or **Outsourced**. An outsourced person has a company (an editable list), the project they're hired for, and engagement start and end dates.
+- They can be assigned to phases while engaged, but aren't counted in the workload heatmap.
+- Resources shows them in their own section while engaged, and archives them in a collapsed "Past outsourced" list once their engagement ends. They're never deleted.
+
+**Person documents (M7):**
+- Each person keeps their own documents: NDA, police clearance, UAE ID, passport, company contract, information security approval, and others. The types are an editable list.
+- Each document has an optional expiry date. The person's page and the dashboard warn 30 days before it expires, and mark expired documents.
+- Person documents are private: they never appear on the presentation side.
 - `Holiday`: name, start date, end date. `Leave`: resource, start date, end date. Weekend days are a setting.
 
 **Projects**

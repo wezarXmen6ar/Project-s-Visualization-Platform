@@ -204,7 +204,7 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | Show done / Hide done | إظهار المنجزة / إخفاء المنجزة |
 | Backups | النسخ الاحتياطية |
 
-## Proposed for M7: meetings, updates and attachments (user's first review applied 2026-09-26; Approval and Documentation still open)
+## Proposed for M7: meetings, updates and attachments (user's review applied 2026-09-26)
 | English | Arabic |
 |---|---|
 | Meeting / Meetings | اجتماع / الاجتماعات |
@@ -226,4 +226,23 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | Group by week / by type | حسب الأسبوع / حسب النوع |
 | From the meeting on {date} | من اجتماع {date} |
 | Retry | إعادة المحاولة |
-| Attachment types: Meeting Minutes, Approval, Change Request, Business Analysis Document, BRD, Documentation, Design, Test Report, Other | محضر اجتماع، موافقة، Change Request، الدراسة التحليلية، وثيقة متطلبات الأعمال (BRD)، التوثيق، التصميم، تقرير الاختبار، أخرى |
+| Attachment types: Meeting Minutes, Approval, Change Request, Business Analysis Document, BRD, Documentation, Design, Test Report, Contract, Other | محضر اجتماع، اعتماد، Change Request، الدراسة التحليلية، وثيقة متطلبات الأعمال (BRD)، وثائق المشروع، التصميم، تقرير الاختبار، العقد، أخرى |
+| Contract | العقد (user) |
+
+## M7: outsourced people and person documents
+| English | Arabic | Note |
+|---|---|---|
+| NDA | وثيقة عدم الإفصاح | user |
+| Police clearance | شهادة بحث الحالة الجنائية | user |
+| UAE ID | الهوية الإماراتية | user |
+| Passport | جواز السفر | user |
+| Company contract | عقد الشركة | user |
+| Information Security Approval | موافقة أمن المعلومات | user |
+| Documents (a person's) | الوثائق | proposed |
+| Upload document | رفع وثيقة | proposed |
+| Expiry date | تاريخ الانتهاء | proposed |
+| Expired / Expires in {n} days | منتهية / تنتهي خلال {n} يوماً (Arabic plurals) | proposed |
+| Our team / Outsourced | فريقنا / متعاقد خارجي | proposed |
+| Outsourced (section) / Past outsourced | المتعاقدون الخارجيون / المتعاقدون السابقون | proposed |
+| Company / Companies | الشركة / الشركات | proposed |
+| Engagement start / end | بداية التعاقد / نهاية التعاقد | proposed |
