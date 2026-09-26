@@ -176,6 +176,35 @@ describe('lists API', () => {
     expect(project.phases[0].subPhases[0].name).toBe('QA');
   });
 
+  it('starts with the default attachment types, with their Arabic names', async () => {
+    const lists = (await buildApp(db).inject({ method: 'GET', url: '/api/lists' })).json();
+    expect(names(lists.attachmentType)).toEqual([
+      'Meeting Minutes', 'Approval', 'Change Request', 'Business Analysis Document', 'BRD', 'Documentation', 'Design',
+      'Test Report', 'Contract', 'Other',
+    ]);
+    expect(lists.attachmentType.find((v: { name: string }) => v.name === 'Approval').nameAr).toBe('اعتماد');
+  });
+
+  it('refuses to delete an attachment type that is in use', async () => {
+    const app = buildApp(db);
+    const approval = (await app.inject({ method: 'GET', url: '/api/lists' })).json()
+      .attachmentType.find((v: { name: string }) => v.name === 'Approval');
+    await app.inject({
+      method: 'POST', url: '/api/projects',
+      payload: { name: 'P', color: '#3b82f6', startDate: '2026-01-05', phases: [{ name: 'A', durationDays: 5 }] },
+    });
+    const project = (await app.inject({ method: 'GET', url: '/api/projects' })).json()[0];
+    db.prepare(
+      "INSERT INTO attachments (project_id, type_id, original_name, stored_name, mime, size, uploaded_at) VALUES (?, ?, 'a.pdf', 'x-a.pdf', 'application/pdf', 10, 'x')",
+    ).run(project.id, approval.id);
+
+    const refused = await app.inject({ method: 'DELETE', url: `/api/lists/attachmentType/${approval.id}` });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toEqual({
+      error: '"Approval" is used by 1 attachment', code: 'error.listValueInUseAttachments', params: { name: 'Approval', count: 1 },
+    });
+  });
+
   it('refuses to delete a phase value that has starter to-dos, even when no project uses it', async () => {
     const app = buildApp(db);
     const design = (await app.inject({ method: 'GET', url: '/api/lists' })).json()

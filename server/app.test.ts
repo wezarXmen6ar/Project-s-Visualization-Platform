@@ -246,9 +246,16 @@ describe('to-dos', () => {
 });
 
 describe('entries', () => {
+  let attachmentsTmp: string;
+
+  afterEach(() => {
+    if (attachmentsTmp) rmSync(attachmentsTmp, { recursive: true, force: true });
+  });
+
   async function setup() {
+    attachmentsTmp = mkdtempSync(join(tmpdir(), 'pvp-entries-attachments-'));
     const db = openDb(':memory:');
-    const app = buildApp(db);
+    const app = buildApp(db, { attachmentsDir: attachmentsTmp });
     const sara = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Sara', side: 'tech' } })).json();
     const ted = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Ted', side: 'tech' } })).json();
     const out = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Out', side: 'tech' } })).json();
@@ -419,6 +426,23 @@ describe('entries', () => {
 
     const again = await app.inject({ method: 'DELETE', url: `/api/entries/${created.id}` });
     expect(again.statusCode).toBe(404);
+  });
+
+  it('links an uploaded attachment when creating an entry', async () => {
+    const { app, project } = await setup();
+    const uploaded = (
+      await app.inject({
+        method: 'POST', url: `/api/projects/${project.id}/attachments`, payload: Buffer.from('data'),
+        headers: { 'content-type': 'application/octet-stream', 'x-file-name': encodeURIComponent('minutes.pdf') },
+      })
+    ).json();
+
+    const res = await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/entries`,
+      payload: { type: 'update', effectiveDate: '2026-09-26', title: 'Status', attachmentIds: [uploaded.id] },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().attachmentIds).toEqual([uploaded.id]);
   });
 });
 

@@ -304,6 +304,16 @@ export type FollowUpData = z.output<typeof followUpInputSchema>;
 export type EntryInput = z.input<typeof entryInputSchema>;
 export type EntryData = z.output<typeof entryInputSchema>;
 
+/** PUT /api/attachments/:id: metadata only. `documentDate` blank/omitted clears it. */
+export const attachmentUpdateSchema = z.object({
+  typeId: optionalId,
+  phaseId: optionalId,
+  documentDate: isoDate.nullish().transform((v) => v ?? null),
+  entryId: optionalId,
+});
+export type AttachmentUpdateInput = z.input<typeof attachmentUpdateSchema>;
+export type AttachmentUpdateData = z.output<typeof attachmentUpdateSchema>;
+
 export const starterToDoInputSchema = z.object({
   phaseListId: z.number().int().positive(),
   title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200, tooLong(200)),

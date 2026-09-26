@@ -111,6 +111,46 @@ describe('creating a meeting', () => {
   });
 });
 
+describe('attachments', () => {
+  function insertAttachment(pid: number): number {
+    const res = db
+      .prepare(
+        `INSERT INTO attachments (project_id, original_name, stored_name, mime, size, uploaded_at)
+         VALUES (?, 'a.pdf', ?, 'application/pdf', 10, ?)`,
+      )
+      .run(pid, `${Math.random()}-a.pdf`, new Date().toISOString());
+    return Number(res.lastInsertRowid);
+  }
+
+  it('links attachmentIds on create, and unlinks (without deleting) whichever are no longer listed on update', () => {
+    const attachmentId = insertAttachment(project.id);
+    const created = createEntry(
+      db, project.id, entryInputSchema.parse({ type: 'update', effectiveDate: '2026-09-26', title: 'Status', attachmentIds: [attachmentId] }),
+    );
+    expect(created.attachmentIds).toEqual([attachmentId]);
+
+    const updated = updateEntry(
+      db, created.id, entryInputSchema.parse({ type: 'update', effectiveDate: '2026-09-26', title: 'Status' }),
+    )!;
+    expect(updated.attachmentIds).toEqual([]);
+
+    const stillThere = db.prepare('SELECT id FROM attachments WHERE id = ?').get(attachmentId);
+    expect(stillThere).toBeTruthy();
+  });
+
+  it('rejects an attachment from another project', () => {
+    const otherProject = createProjectRow(
+      db, DEFAULT_CALENDAR,
+      newProjectSchema.parse({ name: 'Other', color: '#3b82f6', startDate: '2026-09-25', phases: [{ name: 'A', durationDays: 5 }] }),
+    );
+    const attachmentId = insertAttachment(otherProject.id);
+    const data = entryInputSchema.parse({ type: 'update', effectiveDate: '2026-09-26', title: 'Status', attachmentIds: [attachmentId] });
+    expect(checkEntry(db, project.id, data)).toEqual([
+      { path: 'attachmentIds.0', message: 'Unknown attachment', code: 'error.unknownAttachment' },
+    ]);
+  });
+});
+
 describe('listEntries', () => {
   it('sorts newest effective date first, then id descending', () => {
     const a = createEntry(db, project.id, entryInputSchema.parse({ type: 'update', effectiveDate: '2026-09-20', title: 'A' }));

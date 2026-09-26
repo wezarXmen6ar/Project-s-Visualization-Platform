@@ -79,6 +79,15 @@ const DEFAULT_NAMES_AR: Record<string, string> = {
   Customer: 'الجمهور',
   Management: 'إداري',
   'Digitalisation of internal operations': 'رقمنة العمليات الداخلية',
+  'Meeting Minutes': 'محضر اجتماع',
+  Approval: 'اعتماد',
+  'Change Request': 'Change Request',
+  'Business Analysis Document': 'الدراسة التحليلية',
+  BRD: 'وثيقة متطلبات الأعمال (BRD)',
+  Documentation: 'وثائق المشروع',
+  'Test Report': 'تقرير الاختبار',
+  Contract: 'العقد',
+  Other: 'أخرى',
 };
 
 export function sampleLists(): Lists {
@@ -103,6 +112,10 @@ export function sampleLists(): Lists {
     role: [
       'Project manager', 'Tech lead', 'Business analyst', 'Developer', 'Designer', 'QA', 'DB engineer', 'InfoSec',
     ].map((name, i) => ({ id: 60 + i, list: 'role' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
+    attachmentType: [
+      'Meeting Minutes', 'Approval', 'Change Request', 'Business Analysis Document', 'BRD', 'Documentation', 'Design',
+      'Test Report', 'Contract', 'Other',
+    ].map((name, i) => ({ id: 100 + i, list: 'attachmentType' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
   };
 }
 

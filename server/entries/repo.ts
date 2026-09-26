@@ -65,7 +65,22 @@ function followUpIdsByEntry(db: DatabaseSync, entryIds: number[]): Map<number, n
   return map;
 }
 
-function toEntry(row: EntryRow, attendees: Ref[], followUpToDoIds: number[]): EntryRecord {
+function attachmentIdsByEntry(db: DatabaseSync, entryIds: number[]): Map<number, number[]> {
+  const map = new Map<number, number[]>();
+  if (entryIds.length === 0) return map;
+  const placeholders = entryIds.map(() => '?').join(', ');
+  const rows = db
+    .prepare(`SELECT id, entry_id FROM attachments WHERE entry_id IN (${placeholders}) ORDER BY id`)
+    .all(...entryIds) as unknown as { id: number; entry_id: number }[];
+  for (const row of rows) {
+    const list = map.get(row.entry_id) ?? [];
+    list.push(row.id);
+    map.set(row.entry_id, list);
+  }
+  return map;
+}
+
+function toEntry(row: EntryRow, attendees: Ref[], followUpToDoIds: number[], attachmentIds: number[]): EntryRecord {
   return {
     id: row.id,
     projectId: row.project_id,
@@ -77,7 +92,7 @@ function toEntry(row: EntryRow, attendees: Ref[], followUpToDoIds: number[]): En
     highlight: row.highlight === 1,
     phase: phaseRefFromRow(row),
     attendees,
-    attachmentIds: [],
+    attachmentIds,
     followUpToDoIds,
   };
 }
@@ -87,7 +102,8 @@ export function getEntry(db: DatabaseSync, id: number): EntryRecord | undefined 
   if (!row) return undefined;
   const attendees = attendeesByEntry(db, [id]).get(id) ?? [];
   const followUpToDoIds = followUpIdsByEntry(db, [id]).get(id) ?? [];
-  return toEntry(row, attendees, followUpToDoIds);
+  const attachmentIds = attachmentIdsByEntry(db, [id]).get(id) ?? [];
+  return toEntry(row, attendees, followUpToDoIds, attachmentIds);
 }
 
 export interface EntryFilter {
@@ -117,7 +133,8 @@ export function listEntries(db: DatabaseSync, projectId: number, filter: EntryFi
   const ids = rows.map((r) => r.id);
   const attendees = attendeesByEntry(db, ids);
   const followUps = followUpIdsByEntry(db, ids);
-  return rows.map((r) => toEntry(r, attendees.get(r.id) ?? [], followUps.get(r.id) ?? []));
+  const attachments = attachmentIdsByEntry(db, ids);
+  return rows.map((r) => toEntry(r, attendees.get(r.id) ?? [], followUps.get(r.id) ?? [], attachments.get(r.id) ?? []));
 }
 
 /**
@@ -146,6 +163,17 @@ export function checkEntry(
       if (!person) issues.push({ path: `attendeeIds.${i}`, message: translate('en', 'error.unknownPerson'), code: 'error.unknownPerson' });
     });
   }
+  const seenAttachments = new Set<number>();
+  data.attachmentIds.forEach((attachmentId, i) => {
+    if (seenAttachments.has(attachmentId)) return;
+    seenAttachments.add(attachmentId);
+    const attachment = db.prepare('SELECT project_id FROM attachments WHERE id = ?').get(attachmentId) as unknown as
+      | { project_id: number }
+      | undefined;
+    if (!attachment || attachment.project_id !== projectId) {
+      issues.push({ path: `attachmentIds.${i}`, message: translate('en', 'error.unknownAttachment'), code: 'error.unknownAttachment' });
+    }
+  });
   if (!options.skipFollowUps) data.followUps.forEach((f, i) => {
     if (f.assigneeId === null) return;
     const person = db.prepare('SELECT name FROM resources WHERE id = ?').get(f.assigneeId) as unknown as { name: string } | undefined;
@@ -182,13 +210,21 @@ export function createEntry(db: DatabaseSync, projectId: number, data: EntryData
     );
     for (const f of data.followUps) insertFollowUp.run(projectId, f.title, f.assigneeId, f.dueDate, new Date().toISOString(), entryId);
 
+    const linkAttachment = db.prepare('UPDATE attachments SET entry_id = ? WHERE id = ? AND project_id = ?');
+    for (const attachmentId of new Set(data.attachmentIds)) linkAttachment.run(entryId, attachmentId, projectId);
+
     return getEntry(db, entryId)!;
   });
 }
 
-/** Updates the fields, the attendees (replaced) and the phase. `followUps` is ignored. */
+/**
+ * Updates the fields, the attendees (replaced) and the phase. `followUps` is ignored. Attachments in
+ * `attachmentIds` are linked to the entry; attachments that were linked but are no longer listed are unlinked
+ * (their `entry_id` is cleared), never deleted.
+ */
 export function updateEntry(db: DatabaseSync, id: number, data: EntryData): EntryRecord | undefined {
-  if (!getEntry(db, id)) return undefined;
+  const existing = getEntry(db, id);
+  if (!existing) return undefined;
   return transaction(db, () => {
     db.prepare('UPDATE entries SET phase_id = ?, type = ?, effective_date = ?, title = ?, body = ?, highlight = ? WHERE id = ?').run(
       data.phaseId, data.type, data.effectiveDate, data.title, data.body, data.highlight ? 1 : 0, id,
@@ -196,6 +232,11 @@ export function updateEntry(db: DatabaseSync, id: number, data: EntryData): Entr
     db.prepare('DELETE FROM entry_attendees WHERE entry_id = ?').run(id);
     const insertAttendee = db.prepare('INSERT INTO entry_attendees (entry_id, resource_id) VALUES (?, ?)');
     for (const resourceId of new Set(data.attendeeIds)) insertAttendee.run(id, resourceId);
+
+    db.prepare('UPDATE attachments SET entry_id = NULL WHERE entry_id = ?').run(id);
+    const linkAttachment = db.prepare('UPDATE attachments SET entry_id = ? WHERE id = ? AND project_id = ?');
+    for (const attachmentId of new Set(data.attachmentIds)) linkAttachment.run(id, attachmentId, existing.projectId);
+
     return getEntry(db, id);
   });
 }

@@ -1,19 +1,26 @@
-import Fastify from 'fastify';
+import Fastify, { type FastifyError } from 'fastify';
+import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate } from '../shared/calendar';
 import { translate } from '../shared/i18n/translate';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
-  assignmentsUpdateSchema, entryInputSchema, leaveInputSchema, listValueInputSchema, meInputSchema, newProjectSchema,
-  overloadDecisionSchema, projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, starterAcceptSchema, starterTitleSchema,
-  starterToDoInputSchema, toDoInputSchema, toIssues,
+  assignmentsUpdateSchema, attachmentUpdateSchema, entryInputSchema, leaveInputSchema, listValueInputSchema, meInputSchema,
+  newProjectSchema, overloadDecisionSchema, projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, starterAcceptSchema,
+  starterTitleSchema, starterToDoInputSchema, toDoInputSchema, toIssues,
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import { backupStatus } from './backup';
 import {
   checkAssignmentPeople, isTechPerson, phaseAssignmentResourceIds, phaseProjectId, recordDecision, saveAssignments, workloadData,
 } from './assignments/repo';
+import {
+  checkAttachmentRefs, createAttachment, deleteAttachmentRow, getAttachment, getAttachmentFile, listAttachments, updateAttachment,
+} from './attachments/repo';
+import {
+  guessMime, isPreviewable, makeStoredName, moveAttachmentFileToDeleted, readAttachmentFile, removeAttachmentFile, writeAttachmentFile,
+} from './attachments/files';
 import { transaction } from './db';
 import { checkEntry, createEntry, deleteEntry, getEntry, listEntries, updateEntry } from './entries/repo';
 import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
@@ -25,24 +32,44 @@ import { getCalendar, getMe, setMe } from './settings';
 import { acceptStarters, addStarter, deleteStarter, listStarters, renameStarter, starterSuggestions } from './starters/repo';
 import { checkToDo, createToDo, deleteToDo, getToDo, listToDos, updateToDo } from './todos/repo';
 
+const DEFAULT_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024;
+
 export interface AppOptions {
   /** Injectable clock so tests can fix "today". */
   today?: () => ISODate;
   /** Where daily database backups are kept. */
   backupDir?: string;
+  /** Where uploaded files are kept, under `<dir>/<projectId>/`; deleted ones move to `<dir>/<projectId>/_deleted/`. */
+  attachmentsDir?: string;
+  /** The largest upload accepted, in bytes. Lowered in tests instead of sending a real 50 MB buffer. */
+  uploadLimitBytes?: number;
 }
 
 /** A plain error body from one of this route's own message keys (not from a repo result, which already carries one). */
 function err(key: 'error.unknownList' | 'error.personNotFound' | 'error.leaveNotFound' | 'error.projectNotFound' |
   'error.phaseNotFound' | 'error.todoNotFound' | 'error.starterNotFound' | 'error.chooseTechTeamMember' | 'error.invalidYear' |
-  'error.entryNotFound') {
+  'error.entryNotFound' | 'error.attachmentNotFound' | 'error.fileEmpty') {
   return { error: translate('en', key), code: key };
 }
 
 export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   const today = opts.today ?? todayLocal;
   const backupDir = opts.backupDir ?? 'backups';
+  const attachmentsDir = opts.attachmentsDir ?? 'attachments';
+  const uploadLimitBytes = opts.uploadLimitBytes ?? DEFAULT_UPLOAD_LIMIT_BYTES;
+  const projectAttachmentsDir = (projectId: number) => join(attachmentsDir, String(projectId));
   const app = Fastify();
+
+  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: uploadLimitBytes }, (_req, body, done) => {
+    done(null, body);
+  });
+
+  app.setErrorHandler((error: FastifyError, _req, reply) => {
+    if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE') {
+      return reply.code(413).send({ error: translate('en', 'error.fileTooLarge'), code: 'error.fileTooLarge' });
+    }
+    return reply.code(error.statusCode ?? 500).send(error);
+  });
 
   app.get('/api/health', async () => ({ ok: true }));
 
@@ -240,6 +267,108 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.delete<{ Params: { id: string } }>('/api/entries/:id', async (req, reply) =>
     deleteEntry(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send(err('error.entryNotFound')));
+
+  app.get<{ Params: { id: string }; Querystring: { phaseId?: string; typeId?: string } }>(
+    '/api/projects/:id/attachments',
+    async (req, reply) => {
+      const projectId = Number(req.params.id);
+      if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send(err('error.projectNotFound'));
+      const filter: Parameters<typeof listAttachments>[2] = {};
+      const phaseId = Number(req.query.phaseId);
+      if (Number.isInteger(phaseId) && phaseId > 0) filter.phaseId = phaseId;
+      const typeId = Number(req.query.typeId);
+      if (Number.isInteger(typeId) && typeId > 0) filter.typeId = typeId;
+      return listAttachments(db, projectId, filter);
+    },
+  );
+
+  app.post<{ Params: { id: string }; Querystring: { typeId?: string; phaseId?: string; documentDate?: string; entryId?: string } }>(
+    '/api/projects/:id/attachments',
+    async (req, reply) => {
+      const projectId = Number(req.params.id);
+      if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send(err('error.projectNotFound'));
+
+      const body = req.body;
+      if (!Buffer.isBuffer(body) || body.length === 0) return reply.code(400).send(err('error.fileEmpty'));
+
+      const rawName = req.headers['x-file-name'];
+      const originalName = rawName ? decodeURIComponent(String(rawName)) : 'file';
+      const rawType = req.headers['x-file-type'];
+      const mime = rawType ? String(rawType) : guessMime(originalName);
+
+      const parseId = (v: string | undefined) => {
+        const n = Number(v);
+        return v !== undefined && Number.isInteger(n) && n > 0 ? n : null;
+      };
+      const typeId = parseId(req.query.typeId);
+      const phaseId = parseId(req.query.phaseId);
+      const entryId = parseId(req.query.entryId);
+      const documentDate = req.query.documentDate ?? null;
+
+      const issues = checkAttachmentRefs(db, projectId, { typeId, phaseId, entryId });
+      if (issues.length > 0) return reply.code(400).send({ error: 'Invalid attachment', issues });
+
+      const dir = projectAttachmentsDir(projectId);
+      const storedName = makeStoredName(originalName);
+      writeAttachmentFile(dir, storedName, body);
+      try {
+        const created = createAttachment(
+          db, projectId,
+          { phaseId, entryId, typeId, originalName, storedName, mime, size: body.length, documentDate: documentDate as ISODate | null },
+          new Date().toISOString(),
+        );
+        return reply.code(201).send(created);
+      } catch (error) {
+        try {
+          removeAttachmentFile(dir, storedName);
+        } catch {
+          // Best effort: the insert already failed, so surface that error rather than a cleanup failure.
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: { id: string }; Querystring: { inline?: string } }>('/api/attachments/:id/file', async (req, reply) => {
+    const file = getAttachmentFile(db, Number(req.params.id));
+    if (!file) return reply.code(404).send(err('error.attachmentNotFound'));
+    let data: Buffer;
+    try {
+      data = readAttachmentFile(projectAttachmentsDir(file.projectId), file.storedName);
+    } catch {
+      return reply.code(404).send(err('error.attachmentNotFound'));
+    }
+    const inline = req.query.inline === '1' && isPreviewable(file.mime);
+    const encoded = encodeURIComponent(file.originalName);
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encoded}`);
+    reply.type(file.mime);
+    return reply.send(data);
+  });
+
+  app.put<{ Params: { id: string } }>('/api/attachments/:id', async (req, reply) => {
+    const id = Number(req.params.id);
+    const existing = getAttachment(db, id);
+    if (!existing) return reply.code(404).send(err('error.attachmentNotFound'));
+    const parsed = attachmentUpdateSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid attachment', issues: toIssues(parsed.error) });
+    const issues = checkAttachmentRefs(db, existing.projectId, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid attachment', issues });
+    return updateAttachment(db, id, parsed.data);
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/attachments/:id', async (req, reply) => {
+    const id = Number(req.params.id);
+    const file = getAttachmentFile(db, id);
+    if (!file) return reply.code(404).send(err('error.attachmentNotFound'));
+    try {
+      moveAttachmentFileToDeleted(projectAttachmentsDir(file.projectId), file.storedName);
+    } catch {
+      // The row is still removed even when the file is already missing on disk.
+    }
+    deleteAttachmentRow(db, id);
+    return reply.code(204).send();
+  });
 
   app.get('/api/starter-todos', async () => listStarters(db));
 

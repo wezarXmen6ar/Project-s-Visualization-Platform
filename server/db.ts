@@ -257,6 +257,33 @@ export const MIGRATIONS: string[] = [
   );
   ALTER TABLE todos ADD COLUMN source_entry_id INTEGER REFERENCES entries(id) ON DELETE SET NULL;
   `,
+  `
+  CREATE TABLE attachments (
+    id INTEGER PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    phase_id INTEGER REFERENCES phases(id) ON DELETE SET NULL,
+    entry_id INTEGER REFERENCES entries(id) ON DELETE SET NULL,
+    type_id INTEGER REFERENCES list_values(id),
+    original_name TEXT NOT NULL,
+    stored_name TEXT NOT NULL UNIQUE,
+    mime TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    document_date TEXT,
+    uploaded_at TEXT NOT NULL
+  );
+  CREATE INDEX attachments_project ON attachments(project_id);
+  INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
+    ('attachmentType', 'Meeting Minutes', 'محضر اجتماع', 0),
+    ('attachmentType', 'Approval', 'اعتماد', 1),
+    ('attachmentType', 'Change Request', 'Change Request', 2),
+    ('attachmentType', 'Business Analysis Document', 'الدراسة التحليلية', 3),
+    ('attachmentType', 'BRD', 'وثيقة متطلبات الأعمال (BRD)', 4),
+    ('attachmentType', 'Documentation', 'وثائق المشروع', 5),
+    ('attachmentType', 'Design', 'التصميم', 6),
+    ('attachmentType', 'Test Report', 'تقرير الاختبار', 7),
+    ('attachmentType', 'Contract', 'العقد', 8),
+    ('attachmentType', 'Other', 'أخرى', 9);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

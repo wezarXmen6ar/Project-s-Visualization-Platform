@@ -2,12 +2,12 @@ import type { WorkCalendar } from '../shared/calendar';
 import type { MessageKey } from '../shared/i18n/en';
 import type { Params } from '../shared/i18n/types';
 import type {
-  AssignmentInput, EntryInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput, ResourceInput,
-  ScheduleUpdateInput, StarterToDoInput, ToDoInput, ValidationIssue,
+  AssignmentInput, AttachmentUpdateInput, EntryInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput,
+  ResourceInput, ScheduleUpdateInput, StarterToDoInput, ToDoInput, ValidationIssue,
 } from '../shared/schemas';
 import type {
-  BackupStatus, EntryRecord, LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision, PortfolioResponse, ProjectRecord,
-  ResourceRecord, ScheduleSaved, StarterSuggestion, StarterToDo, ToDoRecord, WorkloadData,
+  AttachmentRecord, BackupStatus, EntryRecord, LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision, PortfolioResponse,
+  ProjectRecord, ResourceRecord, ScheduleSaved, StarterSuggestion, StarterToDo, ToDoRecord, WorkloadData,
 } from '../shared/types';
 
 export class ApiError extends Error {
@@ -114,4 +114,30 @@ export const api = {
   createEntry: (projectId: number, input: EntryInput) => request<EntryRecord>(`/api/projects/${projectId}/entries`, withBody('POST', input)),
   updateEntry: (id: number, input: EntryInput) => request<EntryRecord>(`/api/entries/${id}`, withBody('PUT', input)),
   deleteEntry: (id: number) => request<void>(`/api/entries/${id}`, { method: 'DELETE' }),
+  listAttachments: (projectId: number, filter: { phaseId?: number; typeId?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (filter.phaseId !== undefined) params.set('phaseId', String(filter.phaseId));
+    if (filter.typeId !== undefined) params.set('typeId', String(filter.typeId));
+    const qs = params.toString();
+    return request<AttachmentRecord[]>(`/api/projects/${projectId}/attachments${qs ? `?${qs}` : ''}`);
+  },
+  /** Uploads raw file bytes. `name` is sent as X-File-Name; a `Blob`'s own `type`, if any, becomes X-File-Type. */
+  uploadAttachment: (
+    projectId: number, file: Blob, name: string,
+    opts: { typeId?: number; phaseId?: number; documentDate?: string; entryId?: number } = {},
+  ) => {
+    const params = new URLSearchParams();
+    if (opts.typeId !== undefined) params.set('typeId', String(opts.typeId));
+    if (opts.phaseId !== undefined) params.set('phaseId', String(opts.phaseId));
+    if (opts.documentDate !== undefined) params.set('documentDate', opts.documentDate);
+    if (opts.entryId !== undefined) params.set('entryId', String(opts.entryId));
+    const qs = params.toString();
+    const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(name) };
+    if (file.type) headers['X-File-Type'] = file.type;
+    return request<AttachmentRecord>(`/api/projects/${projectId}/attachments${qs ? `?${qs}` : ''}`, { method: 'POST', body: file, headers });
+  },
+  updateAttachment: (id: number, input: AttachmentUpdateInput) => request<AttachmentRecord>(`/api/attachments/${id}`, withBody('PUT', input)),
+  deleteAttachment: (id: number) => request<void>(`/api/attachments/${id}`, { method: 'DELETE' }),
+  /** Not fetched through `request`: used directly as a link/iframe `href`/`src`. */
+  attachmentFileUrl: (id: number, inline = false) => `/api/attachments/${id}/file${inline ? '?inline=1' : ''}`,
 };

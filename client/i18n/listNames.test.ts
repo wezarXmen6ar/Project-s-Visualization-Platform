@@ -15,6 +15,7 @@ function lists(overrides: Partial<Lists> = {}): Lists {
       { id: 60, list: 'phase', name: 'Custom phase', order: 10, nameAr: null },
     ],
     role: [],
+    attachmentType: [],
     ...overrides,
   };
 }

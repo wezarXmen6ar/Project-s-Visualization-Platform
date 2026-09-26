@@ -86,6 +86,12 @@ export const en = {
   'error.phaseNotFound': 'Phase not found',
   'error.todoNotFound': 'To-do not found',
   'error.entryNotFound': 'Entry not found',
+  'error.attachmentNotFound': 'Attachment not found',
+  'error.unknownAttachment': 'Unknown attachment',
+  'error.unknownAttachmentType': 'Unknown attachment type',
+  'error.unknownEntry': 'Unknown entry',
+  'error.fileTooLarge': 'The file is larger than 50 MB',
+  'error.fileEmpty': 'The file is empty',
   'error.starterNotFound': 'Starter to-do not found',
   'error.chooseTechTeamMember': 'Choose someone from your tech team',
   'error.invalidYear': 'year must be a whole number between 2000 and 2100',
@@ -124,6 +130,10 @@ export const en = {
   'error.listValueInUsePeople': {
     one: '"{name}" is used by {count} person',
     other: '"{name}" is used by {count} people',
+  },
+  'error.listValueInUseAttachments': {
+    one: '"{name}" is used by {count} attachment',
+    other: '"{name}" is used by {count} attachments',
   },
   'error.phaseHasStarters': {
     one: '"{name}" has {count} starter to-do; delete them in Starter to-dos first',

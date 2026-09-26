@@ -3,7 +3,7 @@ import type { CapacityAssignment, CapacityResource } from './capacity';
 import type { PortfolioStats } from './portfolio';
 
 /** The editable dropdown lists (managed in Settings). A main project is just a name, so it is a list too. */
-export const LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department', 'phase', 'role'] as const;
+export const LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department', 'phase', 'role', 'attachmentType'] as const;
 export type ListName = (typeof LIST_NAMES)[number];
 
 export interface ListValue {
@@ -243,6 +243,25 @@ export interface EntryRecord {
 
 /** A phase reference's name in parts: the top-level phase's stored name, and a sub-phase's own name (or null). */
 export interface PhaseNameParts { phaseName: string; subPhaseName: string | null }
+
+/** A file uploaded against a project (M7): a meeting/update attachment, or a standalone project document. */
+export interface AttachmentRecord {
+  id: number;
+  projectId: number;
+  /** Phase or sub-phase, with the structured names (M6). */
+  phase: (Ref & PhaseNameParts) | null;
+  /** The meeting or update it is attached to, when it is linked to one; null for a standalone project attachment. */
+  entryId: number | null;
+  type: Ref | null;
+  /** The original file name, kept for downloads. */
+  name: string;
+  mime: string;
+  size: number;
+  documentDate: ISODate | null;
+  uploadedAt: string;
+  /** True for application/pdf and image/*, so the client can offer an inline preview. */
+  previewable: boolean;
+}
 
 /** Who "I am" is: the PM using the tool. */
 export interface Me { resourceId: number | null; name: string | null }
