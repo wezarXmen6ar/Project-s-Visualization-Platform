@@ -781,8 +781,10 @@ describe('ProjectPage: the team tab, By person view', () => {
     });
     renderAt('/manage/projects/1?tab=people');
 
+    // Sara's role is itself "Project manager", so the redundant PM tag is left off — the role text alone says it.
     const saraBlock = (await screen.findByText('Sara Ahmed')).closest('.team-person-block') as HTMLElement;
-    expect(within(saraBlock).getByText('Project manager')).toBeInTheDocument();
+    expect(within(saraBlock).getByText('Project manager', { exact: false })).toBeInTheDocument();
+    expect(within(saraBlock).queryByText('Project manager', { exact: true })).not.toBeInTheDocument();
 
     const mariamBlock = screen.getByText('Mariam Al Suwaidi').closest('.team-person-block') as HTMLElement;
     expect(within(mariamBlock).getByText('Business PM')).toBeInTheDocument();

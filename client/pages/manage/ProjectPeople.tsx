@@ -135,9 +135,13 @@ function TeamPersonBlock({ block, today, toggleDone, roles, companies, nameFor }
   const roleLabel = resource ? roleText(resource, roles, lang) : null;
 
   const tags: string[] = [];
-  if (block.isPm) tags.push(t('project.pmTag'));
-  else if (block.isBusinessPm) tags.push(t('project.businessPmTag'));
-  else if (resource?.side === 'business') tags.push(t(SIDE_KEY.business));
+  if (block.isPm) {
+    const pmTag = t('project.pmTag');
+    if (pmTag !== roleLabel) tags.push(pmTag);
+  } else if (block.isBusinessPm) {
+    const businessPmTag = t('project.businessPmTag');
+    if (businessPmTag !== roleLabel) tags.push(businessPmTag);
+  } else if (resource?.side === 'business') tags.push(t(SIDE_KEY.business));
   if (resource?.employment === 'outsourced') {
     tags.push(t('project.outsourcedTag', { company: resource.company ? companyName(resource.company, companies, lang) : '' }));
   }
@@ -148,7 +152,9 @@ function TeamPersonBlock({ block, today, toggleDone, roles, companies, nameFor }
   return (
     <div className="team-person-block">
       <div className="team-person-head">
-        <Link to={`/manage/resources/${block.id}`} dir="auto" data-user-content="">{block.name}</Link>
+        <h3 className="team-person-name">
+          <Link to={`/manage/resources/${block.id}`} dir="auto" data-user-content="">{block.name}</Link>
+        </h3>
         {roleLabel ? <span className="muted" dir="auto" data-user-content=""> · {roleLabel}</span> : null}
         {tags.length > 0 ? (
           <span className="team-tags">
@@ -157,7 +163,7 @@ function TeamPersonBlock({ block, today, toggleDone, roles, companies, nameFor }
         ) : null}
       </div>
 
-      <h4>{t('project.personAssignmentsHeading')}</h4>
+      <h4 className="team-person-subhead">{t('project.personAssignmentsHeading')}</h4>
       {block.assignments.length === 0 ? (
         <p className="muted item-empty">{t('project.noAssignmentsOnProject')}</p>
       ) : (
@@ -174,7 +180,7 @@ function TeamPersonBlock({ block, today, toggleDone, roles, companies, nameFor }
         </ul>
       )}
 
-      <h4>{t('project.personToDosHeading')}</h4>
+      <h4 className="team-person-subhead">{t('project.personToDosHeading')}</h4>
       {open.length === 0 ? (
         <p className="muted item-empty">{t('project.noOpenToDos')}</p>
       ) : (
@@ -269,7 +275,7 @@ export function ProjectPeople({ project, people, workload, todos, today, toggleD
     <section className="card">
       <div className="phase-people-head">
         <h2>{t('project.teamHeading')}</h2>
-        <div className="view-toggle" role="group" aria-label={t('project.teamHeading')}>
+        <div className="view-switch" role="group" aria-label={t('project.teamHeading')}>
           <button
             type="button"
             className="button secondary"
