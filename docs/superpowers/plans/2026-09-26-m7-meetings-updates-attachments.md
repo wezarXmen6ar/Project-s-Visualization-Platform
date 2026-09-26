@@ -57,7 +57,7 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
   | Meeting Minutes | محضر اجتماع |
   | Approval | موافقة |
   | Change Request | Change Request |
-  | Business Analysis Document | وثيقة التحليل |
+  | Business Analysis Document | الدراسة التحليلية |
   | BRD | وثيقة متطلبات الأعمال (BRD) |
   | Documentation | التوثيق |
   | Design | التصميم |
@@ -71,15 +71,15 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
 | English | Arabic |
 |---|---|
 | Meeting / Meetings | اجتماع / الاجتماعات |
-| Update / Updates | تحديث / التحديثات |
+| Update / Updates | المستجدات (an update item and the list both read المستجدات) |
 | History (tab) | السجل |
-| Add meeting / Add update | إضافة اجتماع / إضافة تحديث |
+| Add meeting / Add update | إضافة اجتماع / إضافة مستجدات |
 | Notes (meeting minutes) | محضر الاجتماع |
 | Notes (update) | التفاصيل |
 | Attendees | الحضور |
 | Date it happened | تاريخ الحدث |
 | Show in presentation | إظهار في العرض |
-| Follow-up to-dos | مهام المتابعة |
+| Follow-up to-dos | مهام للمتابعة |
 | Attachment / Attachments | مرفق / المرفقات |
 | Upload file | رفع ملف |
 | Attachment type | نوع المرفق |
@@ -280,7 +280,7 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
   ('attachmentType', 'Meeting Minutes', 'محضر اجتماع', 0),
   ('attachmentType', 'Approval', 'موافقة', 1),
   ('attachmentType', 'Change Request', 'Change Request', 2),
-  ('attachmentType', 'Business Analysis Document', 'وثيقة التحليل', 3),
+  ('attachmentType', 'Business Analysis Document', 'الدراسة التحليلية', 3),
   ('attachmentType', 'BRD', 'وثيقة متطلبات الأعمال (BRD)', 4),
   ('attachmentType', 'Documentation', 'التوثيق', 5),
   ('attachmentType', 'Design', 'التصميم', 6),

@@ -204,19 +204,19 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | Show done / Hide done | إظهار المنجزة / إخفاء المنجزة |
 | Backups | النسخ الاحتياطية |
 
-## Proposed for M7: meetings, updates and attachments (waiting for the user's approval)
+## Proposed for M7: meetings, updates and attachments (user's first review applied 2026-09-26; Approval and Documentation still open)
 | English | Arabic |
 |---|---|
 | Meeting / Meetings | اجتماع / الاجتماعات |
-| Update / Updates | تحديث / التحديثات |
+| Update / Updates | المستجدات (an update item and the list both read المستجدات) |
 | History (project tab) | السجل |
-| Add meeting / Add update | إضافة اجتماع / إضافة تحديث |
+| Add meeting / Add update | إضافة اجتماع / إضافة مستجدات |
 | Notes (meeting minutes) | محضر الاجتماع |
 | Notes (update) | التفاصيل |
 | Attendees | الحضور |
 | Date it happened | تاريخ الحدث |
 | Show in presentation | إظهار في العرض |
-| Follow-up to-dos | مهام المتابعة |
+| Follow-up to-dos | مهام للمتابعة |
 | Attachment / Attachments | مرفق / المرفقات |
 | Upload file | رفع ملف |
 | Attachment type | نوع المرفق |
@@ -226,4 +226,4 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | Group by week / by type | حسب الأسبوع / حسب النوع |
 | From the meeting on {date} | من اجتماع {date} |
 | Retry | إعادة المحاولة |
-| Attachment types: Meeting Minutes, Approval, Change Request, Business Analysis Document, BRD, Documentation, Design, Test Report, Other | محضر اجتماع، موافقة، Change Request، وثيقة التحليل، وثيقة متطلبات الأعمال (BRD)، التوثيق، التصميم، تقرير الاختبار، أخرى |
+| Attachment types: Meeting Minutes, Approval, Change Request, Business Analysis Document, BRD, Documentation, Design, Test Report, Other | محضر اجتماع، موافقة، Change Request، الدراسة التحليلية، وثيقة متطلبات الأعمال (BRD)، التوثيق، التصميم، تقرير الاختبار، أخرى |
