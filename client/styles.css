@@ -898,12 +898,26 @@ button.heat:hover { border-color: var(--border-strong); }
   font-size: var(--fs-sm);
 }
 
-/* Phone: each filter takes the full width instead of squeezing two selects onto one line, and the attachment table
- * becomes a stack of compact cards, since its many columns can never fit a 390px screen. */
+/* The "Sort by" select stands in for the sortable column headers on the phone layout, where the headers are
+ * hidden (a click target on a hidden header would be unreachable). Hidden above 640px, where the headers sort. */
+.attachments-sort-mobile { display: none; }
+
+/* Phone: each filter takes the full width instead of squeezing two selects onto one line, the attachment table
+ * becomes a stack of compact cards (its many columns can never fit a 390px screen), and the "Sort by" select
+ * replaces the now-hidden column headers as the way to change the sort order. */
 @media (max-width: 640px) {
   .attachments-filters { flex-direction: column; align-items: stretch; }
   .attachments-filters .entry-phase-filter { width: 100%; }
   .attachments-filters .entry-phase-filter select { flex: 1 1 auto; width: 100%; }
+
+  .attachments-sort-mobile {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--sp-2);
+    margin-block-end: var(--sp-3);
+  }
+  .attachments-sort-mobile label { flex: 1 1 auto; }
+  .attachments-sort-mobile select { width: 100%; }
 
   .attachment-table thead { display: none; }
   .attachment-table, .attachment-table tbody { display: block; width: 100%; }

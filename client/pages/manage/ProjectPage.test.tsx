@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StarterSuggestion, ToDoRecord } from '../../../shared/types';
-import { mockFetch, sampleProject, samplePeople, sampleToDos, sampleWorkload } from '../../testing/mockFetch';
+import { mockFetch, sampleOutsourced, sampleProject, samplePeople, sampleToDos, sampleWorkload } from '../../testing/mockFetch';
 import { ProjectPage } from './ProjectPage';
 
 function LocationSpy() {
@@ -147,7 +147,7 @@ describe('ProjectPage', () => {
       }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1?tab=people');
+    renderAt('/manage/projects/1?tab=people&view=phase');
 
     expect(await screen.findByText(/50% · Responsible/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Edit people on Requirements' }));
@@ -197,7 +197,7 @@ describe('ProjectPage', () => {
       }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1?tab=people');
+    renderAt('/manage/projects/1?tab=people&view=phase');
 
     expect(await screen.findByText('Development › Increment 1')).toBeInTheDocument();
     expect(screen.getByText(/50% · Responsible/)).toBeInTheDocument();
@@ -637,12 +637,14 @@ describe('ProjectPage tabs', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/manage/projects/1?tab=todos');
   });
 
-  it('loading at ?tab=people shows People', async () => {
+  it('loading at ?tab=people shows Project team, in the By person view by default', async () => {
     mockFetch({ ...baseRoutes(), 'GET /api/resources': () => ({ body: samplePeople() }), 'GET /api/workload': () => ({ body: sampleWorkload() }) });
     renderAt('/manage/projects/1?tab=people');
 
-    expect(await screen.findByRole('tab', { name: 'People' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Project team' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: 'Project team' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'By person' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'By phase' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('shows the Attachments tab, with no files yet', async () => {
@@ -678,12 +680,115 @@ describe('ProjectPage tabs', () => {
     const user = userEvent.setup();
     renderAt('/manage/projects/1?tab=people');
 
-    const peopleTab = await screen.findByRole('tab', { name: 'People' });
+    const peopleTab = await screen.findByRole('tab', { name: 'Project team' });
     peopleTab.focus();
     await user.keyboard('{End}');
     expect(screen.getByRole('tab', { name: 'Details' })).toHaveFocus();
     await user.keyboard('{Home}');
     expect(screen.getByRole('tab', { name: 'History' })).toHaveFocus();
+  });
+});
+
+describe('ProjectPage: the team tab, By person view', () => {
+  function teamProject() {
+    return sampleProject({
+      projectManager: { id: 70, name: 'Sara Ahmed' },
+      businessPm: { id: 80, name: 'Mariam Al Suwaidi', phone: null, email: null },
+      phases: [
+        { id: 11, name: 'Requirements', order: 0, durationDays: 2, start: '2026-09-24', end: '2026-09-25', subPhases: [] },
+        {
+          id: 12, name: 'Development', order: 1, durationDays: 3, start: '2026-09-28', end: '2026-09-30',
+          subPhases: [
+            { id: 120, name: 'Increment 3', order: 0, durationDays: 3, start: '2026-09-28', end: '2026-09-30', withPrevious: false },
+          ],
+        },
+      ],
+      assignments: [{ id: 300, phaseId: 120, resource: { id: 71, name: 'Fatima Noor' }, allocation: 60, role: 'responsible' }],
+    });
+  }
+
+  function teamToDos(): ToDoRecord[] {
+    return [
+      {
+        id: 500, projectId: 1, projectName: 'Portal', title: 'Prepare the demo script', note: null,
+        assignee: { id: 71, name: 'Fatima Noor' }, dueDate: '2026-10-05', done: false, doneDate: null, phase: null,
+        formerPhase: null, sourceEntry: { id: 300, title: 'Kickoff', effectiveDate: '2026-09-24' }, createdAt: '2026-09-20T09:00:00.000Z',
+      },
+    ];
+  }
+
+  function routes() {
+    return {
+      'GET /api/projects/1': () => ({ body: teamProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: teamToDos() }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+      'GET /api/resources': () => ({ body: samplePeople() }),
+      'GET /api/workload': () => ({ body: sampleWorkload() }),
+    };
+  }
+
+  it('shows a person\'s sub-phase assignment as "Phase › Sub-phase" with its dates and allocation', async () => {
+    mockFetch(routes());
+    renderAt('/manage/projects/1?tab=people');
+
+    expect(await screen.findByText(/Development › Increment 3 · Mon 28 Sep – Wed 30 Sep · 60%/)).toBeInTheDocument();
+  });
+
+  it('shows a to-do\'s "From the meeting on…" meta line, and ticking it done calls the to-dos API', async () => {
+    const fetchMock = mockFetch({
+      ...routes(),
+      'PUT /api/todos/500': () => ({ body: { ...teamToDos()[0], done: true, doneDate: '2026-09-26' } }),
+    });
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1?tab=people');
+
+    expect(await screen.findByText('Prepare the demo script')).toBeInTheDocument();
+    expect(screen.getByText(/From the meeting on/)).toBeInTheDocument();
+    expect(screen.getByText('Kickoff')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Done: Prepare the demo script' }));
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/todos/500' && init?.method === 'PUT');
+    expect(put).toBeTruthy();
+    expect(JSON.parse(put![1]!.body as string)).toMatchObject({ done: true });
+  });
+
+  it('shows no assignments / no open to-dos empty states for someone with neither', async () => {
+    mockFetch(routes());
+    renderAt('/manage/projects/1?tab=people');
+
+    await screen.findByText('Sara Ahmed');
+    expect(screen.getAllByText('No assignments on this project.').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No open to-dos.').length).toBeGreaterThan(0);
+  });
+
+  it('?view=phase shows the old phase-by-phase editor', async () => {
+    mockFetch(routes());
+    renderAt('/manage/projects/1?tab=people&view=phase');
+
+    expect(await screen.findByRole('button', { name: 'Edit people on Requirements' })).toBeInTheDocument();
+    expect(screen.queryByText(/Development › Increment 3 ·/)).not.toBeInTheDocument();
+  });
+
+  it('tags the tech PM, business PM, and an outsourced person with their company', async () => {
+    const outsourced = sampleOutsourced()[0]; // Omar Farid, TechNova, engaged.
+    const project = teamProject();
+    project.assignments.push({ id: 302, phaseId: 11, resource: { id: outsourced.id, name: outsourced.name }, allocation: 30, role: 'contributor' });
+    mockFetch({
+      ...routes(),
+      'GET /api/projects/1': () => ({ body: project }),
+      'GET /api/resources': () => ({ body: [...samplePeople(), outsourced] }),
+    });
+    renderAt('/manage/projects/1?tab=people');
+
+    const saraBlock = (await screen.findByText('Sara Ahmed')).closest('.team-person-block') as HTMLElement;
+    expect(within(saraBlock).getByText('Project manager')).toBeInTheDocument();
+
+    const mariamBlock = screen.getByText('Mariam Al Suwaidi').closest('.team-person-block') as HTMLElement;
+    expect(within(mariamBlock).getByText('Business PM')).toBeInTheDocument();
+
+    const omarBlock = screen.getByText('Omar Farid').closest('.team-person-block') as HTMLElement;
+    expect(within(omarBlock).getByText('Outsourced (TechNova)')).toBeInTheDocument();
   });
 });
 

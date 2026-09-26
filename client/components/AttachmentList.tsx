@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { toLocalDate } from '../../shared/calendar';
+import type { MessageKey } from '../../shared/i18n/en';
 import type { AttachmentRecord, EntryRecord } from '../../shared/types';
+import { sortAttachments, type AttachmentSortKey, type EntryFor, type SortDir } from '../pages/manage/attachmentsTable';
 import { useFormat } from '../i18n/format';
 import { useLang, useT } from '../i18n/LanguageProvider';
 import { FileIcon } from '../icons';
@@ -20,6 +22,17 @@ const DEFAULT_COLUMNS: Required<AttachmentListColumns> = {
   type: true, phase: true, documentDate: true, uploaded: true, size: true, from: true,
 };
 
+/** Every sortable column, in table order; `name` has no visibility flag since it's always shown. */
+const SORT_COLUMNS: { key: AttachmentSortKey; label: MessageKey; col: keyof AttachmentListColumns | null }[] = [
+  { key: 'name', label: 'attachments.colName', col: null },
+  { key: 'type', label: 'attachments.colType', col: 'type' },
+  { key: 'phase', label: 'attachments.colPhase', col: 'phase' },
+  { key: 'documentDate', label: 'attachments.colDocumentDate', col: 'documentDate' },
+  { key: 'uploaded', label: 'attachments.colUploaded', col: 'uploaded' },
+  { key: 'size', label: 'attachments.colSize', col: 'size' },
+  { key: 'from', label: 'attachments.colFrom', col: 'from' },
+];
+
 export interface AttachmentListProps {
   attachments: AttachmentRecord[];
   nameFor?: PhaseNameFor;
@@ -27,7 +40,7 @@ export interface AttachmentListProps {
   /** Called for the "From" column's link, when the attachment belongs to a meeting or update. Omit to hide the link. */
   onOpenEntry?: (entryId: number) => void;
   /** Looks up the entry an attachment belongs to, so the "From" link can show its title and date. */
-  entryFor?: (entryId: number) => EntryRecord | undefined;
+  entryFor?: EntryFor;
   /**
    * Edit and delete row actions; left out for a read-only list (EntryItem, the phase side panel, presentation).
    * `Preview` and `Download` are always shown (Preview only for a previewable file).
@@ -38,39 +51,79 @@ export interface AttachmentListProps {
   };
   emptyMessage?: string;
   ariaLabel?: string;
+  /**
+   * Makes every column header a sort button (only the Attachments tab uses this; EntryItem and the phase side
+   * panel stay read-only and keep their own order).
+   */
+  sortable?: {
+    sort: { key: AttachmentSortKey; dir: SortDir };
+    onSort: (key: AttachmentSortKey) => void;
+  };
 }
 
 /** A table of attachments, reused (read-only or with Edit/Delete) by the Attachments tab, EntryItem and the phase side panel. */
 export function AttachmentList({
-  attachments, nameFor, columns, onOpenEntry, entryFor, actions, emptyMessage, ariaLabel,
+  attachments, nameFor, columns, onOpenEntry, entryFor, actions, emptyMessage, ariaLabel, sortable,
 }: AttachmentListProps) {
   const t = useT();
   const { lang } = useLang();
   const { formatDate, shortDate, fileSize } = useFormat();
   const cols = { ...DEFAULT_COLUMNS, ...columns };
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const visibleSortColumns = SORT_COLUMNS.filter((c) => c.col === null || cols[c.col]);
 
   if (attachments.length === 0) {
     return <p className="muted">{emptyMessage ?? t('attachments.nothingYet')}</p>;
   }
 
+  const shown = sortable ? sortAttachments(attachments, sortable.sort.key, sortable.sort.dir, lang, nameFor, entryFor) : attachments;
+
   return (
     <>
+      {sortable ? (
+        <div className="attachments-sort-mobile">
+          <label>
+            {t('attachments.sortBy')}
+            <select
+              value={sortable.sort.key}
+              onChange={(e) => sortable.onSort(e.target.value as AttachmentSortKey)}
+            >
+              {visibleSortColumns.map((c) => <option key={c.key} value={c.key}>{t(c.label)}</option>)}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="button secondary"
+            aria-label={t('attachments.reverseSortOrder')}
+            onClick={() => sortable.onSort(sortable.sort.key)}
+          >
+            <span aria-hidden="true">{sortable.sort.dir === 'asc' ? '▲' : '▼'}</span>
+          </button>
+        </div>
+      ) : null}
       <table aria-label={ariaLabel ?? t('tabs.attachments')} className="attachment-table">
         <thead>
           <tr>
-            <th>{t('attachments.colName')}</th>
-            {cols.type ? <th>{t('attachments.colType')}</th> : null}
-            {cols.phase ? <th>{t('attachments.colPhase')}</th> : null}
-            {cols.documentDate ? <th>{t('attachments.colDocumentDate')}</th> : null}
-            {cols.uploaded ? <th>{t('attachments.colUploaded')}</th> : null}
-            {cols.size ? <th>{t('attachments.colSize')}</th> : null}
-            {cols.from ? <th>{t('attachments.colFrom')}</th> : null}
+            {visibleSortColumns.map((c) => (
+              <th
+                key={c.key}
+                aria-sort={sortable ? (sortable.sort.key === c.key ? (sortable.sort.dir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined}
+              >
+                {sortable ? (
+                  <button type="button" className="sort-button" onClick={() => sortable.onSort(c.key)}>
+                    {t(c.label)}
+                    {sortable.sort.key === c.key ? <span aria-hidden="true"> {sortable.sort.dir === 'asc' ? '▲' : '▼'}</span> : null}
+                  </button>
+                ) : (
+                  t(c.label)
+                )}
+              </th>
+            ))}
             <th />
           </tr>
         </thead>
         <tbody>
-          {attachments.map((a) => (
+          {shown.map((a) => (
             <tr key={a.id}>
               <td data-col="name">
                 <FileIcon />

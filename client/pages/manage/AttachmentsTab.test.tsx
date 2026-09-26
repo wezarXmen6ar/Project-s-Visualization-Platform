@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockFetch, sampleAttachments, sampleEntries, sampleProject } from '../../testing/mockFetch';
@@ -162,6 +162,74 @@ describe('AttachmentsTab', () => {
     render(<AttachmentsTab project={sampleProject()} attachmentTypes={TYPES} onOpenHistory={vi.fn()} />);
 
     expect(await screen.findByRole('button', { name: 'View in History' })).toBeInTheDocument();
+  });
+
+  function sortableAttachments() {
+    return [
+      {
+        id: 1, projectId: 1, phase: { id: 12, name: 'Development', phaseName: 'Development', subPhaseName: null },
+        entryId: null, type: { id: 101, name: 'Approval', nameAr: 'اعتماد' }, name: 'B.pdf', mime: 'application/pdf',
+        size: 500, documentDate: '2026-09-10', uploadedAt: '2026-09-21T09:00:00.000Z', previewable: true,
+      },
+      {
+        id: 2, projectId: 1, phase: null, entryId: null, type: null, name: 'A.pdf', mime: 'application/pdf',
+        size: 100, documentDate: null, uploadedAt: '2026-09-22T09:00:00.000Z', previewable: true,
+      },
+      {
+        id: 3, projectId: 1, phase: { id: 11, name: 'Requirements', phaseName: 'Requirements', subPhaseName: null },
+        entryId: null, type: { id: 109, name: 'Other', nameAr: 'أخرى' }, name: 'C.pdf', mime: 'application/pdf',
+        size: 300, documentDate: '2026-09-05', uploadedAt: '2026-09-20T09:00:00.000Z', previewable: true,
+      },
+    ];
+  }
+
+  function namesInOrder() {
+    return Array.from(document.querySelectorAll('td[data-col="name"] span[data-user-content]')).map((el) => el.textContent);
+  }
+
+  describe('sorting', () => {
+    it('sorts by size ascending, then descending, when the Size header is clicked', async () => {
+      mockFetch({ 'GET /api/projects/1/attachments': () => ({ body: sortableAttachments() }) });
+      const user = userEvent.setup();
+      renderTab();
+
+      await screen.findByText('B.pdf');
+      const sizeHeader = screen.getByRole('columnheader', { name: /Size/ });
+      await user.click(within(sizeHeader).getByRole('button'));
+      expect(namesInOrder()).toEqual(['A.pdf', 'C.pdf', 'B.pdf']);
+      expect(sizeHeader).toHaveAttribute('aria-sort', 'ascending');
+
+      await user.click(within(sizeHeader).getByRole('button'));
+      expect(namesInOrder()).toEqual(['B.pdf', 'C.pdf', 'A.pdf']);
+      expect(sizeHeader).toHaveAttribute('aria-sort', 'descending');
+    });
+
+    it('sorts by phase, with the attachment that has none sorting last in both directions', async () => {
+      mockFetch({ 'GET /api/projects/1/attachments': () => ({ body: sortableAttachments() }) });
+      const user = userEvent.setup();
+      renderTab();
+
+      await screen.findByText('B.pdf');
+      const phaseHeader = screen.getByRole('columnheader', { name: /Phase/ });
+      await user.click(within(phaseHeader).getByRole('button'));
+      expect(namesInOrder()).toEqual(['B.pdf', 'C.pdf', 'A.pdf']); // Development, Requirements, (none)
+
+      await user.click(within(phaseHeader).getByRole('button'));
+      expect(namesInOrder()).toEqual(['C.pdf', 'B.pdf', 'A.pdf']); // Requirements, Development, (none)
+    });
+
+    it('offers a "Sort by" select for the phone layout, which sorts the same way as the headers', async () => {
+      mockFetch({ 'GET /api/projects/1/attachments': () => ({ body: sortableAttachments() }) });
+      const user = userEvent.setup();
+      renderTab();
+
+      await screen.findByText('B.pdf');
+      await user.selectOptions(screen.getByLabelText('Sort by'), 'Size');
+      expect(namesInOrder()).toEqual(['A.pdf', 'C.pdf', 'B.pdf']);
+
+      await user.click(screen.getByRole('button', { name: 'Reverse sort order' }));
+      expect(namesInOrder()).toEqual(['B.pdf', 'C.pdf', 'A.pdf']);
+    });
   });
 
   it('renders the tab in Arabic', async () => {

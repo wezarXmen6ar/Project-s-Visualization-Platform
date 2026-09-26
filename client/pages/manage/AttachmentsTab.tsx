@@ -9,6 +9,7 @@ import { useLang, useT } from '../../i18n/LanguageProvider';
 import { listName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { phaseChoices, type PhaseNameFor } from '../../todos';
+import type { AttachmentSortKey, SortDir } from './attachmentsTable';
 
 interface AttachmentsTabProps {
   project: ProjectRecord;
@@ -26,6 +27,9 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
   const { lang } = useLang();
   const [typeFilter, setTypeFilter] = useState<number | null>(null);
   const [phaseFilter, setPhaseFilter] = useState<number | null>(null);
+  const [sort, setSort] = useState<{ key: AttachmentSortKey; dir: SortDir }>({ key: 'uploaded', dir: 'desc' });
+  const toggleSort = (key: AttachmentSortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   const loaded = useAsync(
@@ -210,6 +214,7 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
         entryFor={entryFor}
         actions={{ onEdit: startEditing, onDelete: (a) => void deleteAttachment(a) }}
         ariaLabel={t('tabs.attachments')}
+        sortable={{ sort, onSort: toggleSort }}
       />
     </section>
   );

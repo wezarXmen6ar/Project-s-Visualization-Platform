@@ -171,6 +171,10 @@ export function ProjectPage() {
           project={p}
           people={people}
           workload={workload}
+          todos={todos}
+          today={today}
+          toggleDone={(x) => void toggleDone(x)}
+          nameFor={nameFor}
           onSaved={(updated) => {
             setSaved(updated);
             reloadWorkload();

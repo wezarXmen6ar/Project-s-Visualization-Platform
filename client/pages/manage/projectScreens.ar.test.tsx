@@ -143,8 +143,9 @@ describe('the project screens in Arabic', () => {
     expect(subPhaseName).toHaveAttribute('dir', 'auto');
     expect(subPhaseName.closest('td')).toHaveTextContent('↲ Increment 1');
 
-    // People: the phase's Arabic name, and the allocation line with the Arabic role.
+    // People: the "By phase" view, the phase's Arabic name, and the allocation line with the Arabic role.
     await user.click(screen.getByRole('tab', { name: 'فريق العمل' }));
+    await user.click(await screen.findByRole('button', { name: 'حسب المرحلة' }));
     expect(await screen.findByText('60% · مسؤول', { exact: false })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'تعديل الأشخاص في التطوير › Increment 1' })).toBeInTheDocument();
 

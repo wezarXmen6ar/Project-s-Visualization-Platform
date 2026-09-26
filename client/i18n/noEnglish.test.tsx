@@ -388,8 +388,12 @@ describe('no English left in the Arabic pages', () => {
     await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
     await user.click(screen.getByRole('tab', { name: 'فريق العمل' }));
+    await screen.findByText(SARA);
+    expectNoEnglish('the project page on the Project team tab, By person view');
+
+    await user.click(screen.getByRole('button', { name: 'حسب المرحلة' }));
     await screen.findByText('60% · مسؤول', { exact: false });
-    expectNoEnglish('the project page on the People tab');
+    expectNoEnglish('the project page on the Project team tab, By phase view');
 
     await user.click(screen.getByRole('button', { name: `تعديل الأشخاص في التطوير › ${INCREMENT}` }));
     expectNoEnglish('the project page with the people editor open');

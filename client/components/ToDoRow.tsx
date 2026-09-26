@@ -13,13 +13,15 @@ interface ToDoRowProps {
   onToggle: (t: ToDoRecord) => void;
   /** Maps a top-level phase's stored name to its display name (e.g. its Arabic name). */
   nameFor?: PhaseNameFor;
+  /** Off where the list is already scoped to one assignee (e.g. a person's own block), so their name isn't repeated. */
+  showAssignee?: boolean;
 }
 
 /**
  * A single read-only to-do: the checkbox, the title, the project link (when `showProject`), and the muted line
  * (assignee, due label, phase). Shared by the To-dos page, My next steps and a person's To-dos card.
  */
-export function ToDoRow({ todo, today, showProject, onToggle, nameFor }: ToDoRowProps) {
+export function ToDoRow({ todo, today, showProject, onToggle, nameFor, showAssignee }: ToDoRowProps) {
   const t = useT();
   return (
     <li className={`todo${todo.done ? ' done' : ''}`}>
@@ -31,7 +33,7 @@ export function ToDoRow({ todo, today, showProject, onToggle, nameFor }: ToDoRow
             <Link to={`/manage/projects/${todo.projectId}`} dir="auto" data-user-content="">{todo.projectName}</Link>
           </div>
         ) : null}
-        <ToDoMetaLine todo={todo} today={today} nameFor={nameFor} />
+        <ToDoMetaLine todo={todo} today={today} nameFor={nameFor} showAssignee={showAssignee} />
       </div>
     </li>
   );
