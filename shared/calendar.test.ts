@@ -31,7 +31,8 @@ describe('date helpers', () => {
       process.env.TZ = 'Asia/Dubai'; // UAE, UTC+4
     });
     afterAll(() => {
-      process.env.TZ = prevTZ;
+      if (prevTZ === undefined) delete process.env.TZ;
+      else process.env.TZ = prevTZ;
     });
 
     it('takes the UAE calendar date, not the UTC one, for a timestamp at 22:00 UTC (2am the next day locally)', () => {
