@@ -53,11 +53,11 @@ client/   React + Vite
 - The data model covers all four from the start.
 - This spec is the umbrella design. The first implementation plan covers **sub-project 1 only**. Sub-projects 2–4 each get a short follow-up spec that refines the relevant section here.
 - **Arabic first (user decision, 2026-09-26).** The app is used mostly in Arabic. From M6, every milestone ships every piece of new text in both Arabic and English, and each checkpoint includes an Arabic review by the user. See §8.
-- **Delivery principles (roadmap review, 2026-09-25).** The build runs as milestones M1–M16 (the roadmap table lives in the M1–M2 plan). Each one:
+- **Delivery principles (roadmap review, 2026-09-25).** The build runs as milestones M1–M18 (the roadmap table lives in the M1–M2 plan). Each one:
   - ends with something new to try on **both** sides where it makes sense, a management screen and what stakeholders see, and extends the **demo portfolio** so the new feature has real-looking data to test;
   - records history completely from the moment a feature exists. Every date change is an `Event` with its cause, delay days, responsibility and the dates before and after (from M8). History that was never recorded can't be rebuilt later for playback or the charts;
   - lets its own items be **recorded with a past date** (record-history mode), with no decision prompts for past-dated items, rather than leaving all of record-history to one late milestone;
-  - grows the stakeholder charts. **Why did the end date move?** and **Where did the time go?** first appear in M8, with late finishes and holidays, and each later milestone adds its own cause: holds in M9, change requests in M11, and waiting for requirement information in M12.
+  - grows the stakeholder charts. **Why did the end date move?** and **Where did the time go?** first appear in M8, with late finishes and holidays, and each later milestone adds its own cause: holds in M10, change requests in M12, and waiting for requirement information in M13.
 
 ## 2. Data model (APPROVED)
 
@@ -88,10 +88,10 @@ client/   React + Vite
 - `Project`: the fields listed in §3.2, plus status (**proposed**, planned, active, on hold, done, cancelled) and a reference to its main project. *Proposed* projects come from the sandbox and are left out of capacity checks and the real portfolio until promoted to *Planned*.
 - `MainProject`: name. Can be created inline.
 - `ScopeItem`: project, kind (scope, out-of-scope, problem, objective), text, order, `addedByChangeRequestId` (nullable), date added.
-- `Phase`: project, name, order, planned start and end, duration in working days, actual start and end, % complete, `parentId` (sub-phases are optional on **any** phase and one level deep), weight. **Sub-phases arrive in M5 (M4 review, 2026-09-25)**, moved forward because nothing else they need comes later. They break a phase into named pieces (such as a development phase's 20 increments), each with its own working days inside its parent. **Sub-phases may run at the same time** (user decision, 2026-09-25): by default a new sub-phase starts after the previous one, and it can be set to start with another instead. It is not expected to be used often, but the flexibility is there. The parent phase spans from its first sub-phase's start to its last sub-phase's end. **On a Gantt chart (M5 review, 2026-09-25), a phase with sub-phases stays one bar, divided into its sub-phases.** Thin dividers separate the pieces, and each piece carries its name where it fits. Only sub-phases that run at the same time as another drop onto an extra row directly under the phase, and only as many rows as the overlap needs. Hovering over a sub-phase (or tapping it on a phone) shows its details: its name as "Phase › Sub-phase", its dates, its working days and the people on it. From M8, each phase and sub-phase also fills from the left in a darker shade of its colour as its % complete grows, and the details show the percentage. People can be assigned to a sub-phase as well as to a whole phase, so a person's page and the workload panel say exactly what they are on ("Case Management › Development › Increment 7 – Payment gateway"). Sub-phase weights, the development % rule and requirement fields on development sub-phases come in M11.
+- `Phase`: project, name, order, planned start and end, duration in working days, actual start and end, % complete, `parentId` (sub-phases are optional on **any** phase and one level deep), weight. **Sub-phases arrive in M5 (M4 review, 2026-09-25)**, moved forward because nothing else they need comes later. They break a phase into named pieces (such as a development phase's 20 increments), each with its own working days inside its parent. **Sub-phases may run at the same time** (user decision, 2026-09-25): by default a new sub-phase starts after the previous one, and it can be set to start with another instead. It is not expected to be used often, but the flexibility is there. The parent phase spans from its first sub-phase's start to its last sub-phase's end. **On a Gantt chart (M5 review, 2026-09-25), a phase with sub-phases stays one bar, divided into its sub-phases.** Thin dividers separate the pieces, and each piece carries its name where it fits. Only sub-phases that run at the same time as another drop onto an extra row directly under the phase, and only as many rows as the overlap needs. Hovering over a sub-phase (or tapping it on a phone) shows its details: its name as "Phase › Sub-phase", its dates, its working days and the people on it. From M8, each phase and sub-phase also fills from the left in a darker shade of its colour as its % complete grows, and the details show the percentage. People can be assigned to a sub-phase as well as to a whole phase, so a person's page and the workload panel say exactly what they are on ("Case Management › Development › Increment 7 – Payment gateway"). Sub-phase weights, the development % rule and requirement fields on development sub-phases come in M12.
 - **Phases can be edited after a project is created from M5.** Adding sub-phases to an existing project needs this. You can add, remove, reorder and resize phases and sub-phases. Before Baseline 1 exists this simply changes the plan. From M8, a change to a project that has started is recorded as an `Event`, with its cause.
 - **Phase colour (post-M1-demo feedback, 2026-09-24):** not a field on `Phase`. Every Gantt bar is coloured from a **fixed palette keyed by the phase's name** (normalised: trimmed, case-insensitive) — "Requirements" is always the same colour, "Development" is always another, "UAT" another, and so on — shared across every project and every screen (project page, wizard live preview, portfolio, focus view). A set of standard phase names (Requirements, Analysis, Design, Development plan, Development, Testing/QA, UAT, Security testing, Deployment, Launch — with Go-live as an alias of Launch) is mapped to a 10-colour palette up front, neighbouring lifecycle phases getting clearly different hues; a phase named something else still gets a colour, deterministically derived from its name so the same custom name always lands on the same colour everywhere, without needing a name registry. A project's own `colour` (§3.2 Step 1) plays no part in this — it identifies the project elsewhere (lists, tags), not its phase bars.
-- **Requirement fields** (M11, on sub-phases under development): source (original or added later), date received, linked change request, linked scope item, readiness (incomplete or ready), start-at-risk flag and reason.
+- **Requirement fields** (M12, on sub-phases under development): source (original or added later), date received, linked change request, linked scope item, readiness (incomplete or ready), start-at-risk flag and reason.
 - `RequirementEvidence`: requirement, then **either** an attachment **or** an entry (a meeting), plus a confirmation date. A requirement can have several pieces of evidence. Readiness counts from the earliest one.
 - `Assignment`: phase, resource, allocation %, role (responsible or contributor).
 
@@ -105,9 +105,9 @@ client/   React + Vite
 - **Responsibility** (on change requests, requirements, holds, slip causes, waiting periods, and the delay days of each `Event`): one or more of **Technical team · Business user · Decision makers · External** (list editable in Settings), plus Calendar (automatic, for holidays only). When several parties share responsibility, delay days are split evenly by default and the split can be adjusted. Defaults: change request, requirement and waiting period → Business user; hold → Decision makers; holiday → Calendar; late-phase cause → chosen in the prompt.
 - `Milestone`: either a ⭐ flag on a phase or requirement end, with a stakeholder-friendly name, or a standalone milestone (date and name, no duration). A flagged milestone's date follows the plan automatically.
 - `ChangeRequest`: project, requested by, description, extra days by role, status (proposed, approved, rejected), approval attachment.
-- `Baseline`: a numbered snapshot of all phase dates. **Baseline 1 is created when a project is saved, from M8.** Projects that already exist then get theirs from their plan as it stands, and past projects get theirs from the original plan entered in record-history mode. A new baseline is created for each approved change request (M11).
+- `Baseline`: a numbered snapshot of all phase dates. **Baseline 1 is created when a project is saved, from M8.** Projects that already exist then get theirs from their plan as it stands, and past projects get theirs from the original plan entered in record-history mode. A new baseline is created for each approved change request (M12).
 - `ProjectLink`: finish-to-start dependency between phases in different projects.
-- **Follow-on projects (M9):** `Project.followsProjectId` points at the project this one continues, for example a new phase of a launched project. See §3.10.
+- **Follow-on projects (M10):** `Project.followsProjectId` points at the project this one continues, for example a new phase of a launched project. See §3.10.
 
 **Past and future projects**
 - *Planned* projects have no actuals. They count in "scheduled this year" and take part in overload checks.
@@ -159,7 +159,7 @@ Saving creates Baseline 1.
 - Header: status, pace, baseline end vs current end.
 - Buttons: Add to-do, Add meeting, Add update, Upload attachment, Record hold, Change request, Update progress, **Create follow-on project**.
 - **My next steps (M5):** a card with your three most urgent open to-dos on this project. It was first called "Next up"; the user asked for the dashboard's wording (2026-09-26).
-- **Project family (M9):** when a project follows another or has follow-ons, a strip shows the chain, e.g. "Case Management (launched Mar 2026) → Case Management Phase 2 (planned)".
+- **Project family (M10):** when a project follows another or has follow-ons, a strip shows the chain, e.g. "Case Management (launched Mar 2026) → Case Management Phase 2 (planned)".
 - **Gantt chart as the centrepiece.** Clicking a bar opens a **slide-in side panel** with a chronological, collapsible timeline (grouped by week or type) of the phase's entries, to-dos and attachments.
 - Tabs: Timeline, Attachments (filter by type or phase), To-dos, **Requirements**, Change requests, Baselines.
 - **M7 decisions (user, 2026-09-26):**
@@ -183,13 +183,13 @@ Saving creates Baseline 1.
 - Work in progress on a requirement with no approved change request is flagged as **"unapproved work in progress"**.
 - Summary line on the Requirements tab: original count and days vs added-later count and days (+%).
 - The Gantt chart marks requirements added later with an orange edge and tag.
-- **Requirements from meetings (M11, user 2026-09-26):** a meeting can record the **requirements raised** in it. Each one keeps the meeting as its source and the meeting's date as its date received, and the meeting lists the requirements it raised.
-- **Requirements bank (M11, user 2026-09-26):** a requirement that comes in during the project goes first into the project's **requirements bank** (بنك المتطلبات), whether it is within scope or out of scope, so it can be scheduled later, sent for approval, or turned into a change request. From the bank it is later **scheduled** into the plan (a development sub-phase, or an existing one), or declined and kept for the record. Each banked requirement is classed:
+- **Requirements from meetings (M12, user 2026-09-26):** a meeting can record the **requirements raised** in it. Each one keeps the meeting as its source and the meeting's date as its date received, and the meeting lists the requirements it raised.
+- **Requirements bank (M12, user 2026-09-26):** a requirement that comes in during the project goes first into the project's **requirements bank** (بنك المتطلبات), whether it is within scope or out of scope, so it can be scheduled later, sent for approval, or turned into a change request. From the bank it is later **scheduled** into the plan (a development sub-phase, or an existing one), or declined and kept for the record. Each banked requirement is classed:
   - **Within scope:** it details something already agreed. Scheduling it needs no approval.
   - **Out of scope:** new work. It can be scheduled only with a change request (one click drafts one); until the change request is approved it counts as unapproved work.
   - **Not decided yet:** recorded now and classed later.
-- **The bank's first version (user, 2026-09-26; stays in M11):** add a requirement from a meeting (linked back, the meeting's date as its date received) or directly in the bank; class it (within scope / out of scope / not decided) and track its status (**In the bank, Waiting for approval, Approved, Scheduled, Declined**), with filters and sorting on both; schedule it onto a phase or sub-phase, or create a new sub-phase for it (out of scope only after its change request is approved); and the two Gantt marks above.
-- **Three looks on the Gantt chart (M11, user 2026-09-26):** original requirements look as they do today; a requirement **added later within scope** has its own mark (for example a blue edge and tag, "added later"); a requirement **out of scope, added with a change request** has a different mark (the orange edge and a CR tag, "change request"). The hover details and the legend name each one, so stakeholders can see which work came in later and why.
+- **The bank's first version (user, 2026-09-26; stays in M12):** add a requirement from a meeting (linked back, the meeting's date as its date received) or directly in the bank; class it (within scope / out of scope / not decided) and track its status (**In the bank, Waiting for approval, Approved, Scheduled, Declined**), with filters and sorting on both; schedule it onto a phase or sub-phase, or create a new sub-phase for it (out of scope only after its change request is approved); and the two Gantt marks above.
+- **Three looks on the Gantt chart (M12, user 2026-09-26):** original requirements look as they do today; a requirement **added later within scope** has its own mark (for example a blue edge and tag, "added later"); a requirement **out of scope, added with a change request** has a different mark (the orange edge and a CR tag, "change request"). The hover details and the legend name each one, so stakeholders can see which work came in later and why.
 
 ### 3.6 Requirement readiness
 - Status is **Incomplete** (the default) or **Ready**.
@@ -204,7 +204,7 @@ Saving creates Baseline 1.
 - A simple table with add and edit, filtered by side and role.
 - **Projects column, sorting and a "Working on" filter (M4 review, 2026-09-25).** The People table has a **Projects** column listing the projects each person is on: a phase they are assigned to, or a project they manage (tech or business PM). Only projects where that work has not finished yet are listed (a phase counts until its planned end; a PM role until the project's last phase ends). A person with nothing current keeps the project they finished most recently, shown muted with "finished", so they still group with that team. Nothing at all shows "—". **Every column header is clickable to sort**, and clicking again reverses the order; the Projects column sorts by the project names, so people on the same project sit together. A **Working on** filter picks one project and shows everyone on it, including people who are also on other projects.
 - A **workload heatmap** of people by weeks (Monday to Sunday), coloured by how much of each week is booked. Booked % = each assignment's allocation × the working days it covers that week ÷ the week's working days. Available % = capacity reduced by leave days. A week is overbooked when booked is more than available. Clicking a cell shows the conflict and opens the decision prompt.
-- **Decision prompt (M4):** Split the time, Reassign work (with each person's load that week shown), or Accept the risk (with an optional reason); each is recorded as a dated event. Pause a project and Delay a phase are shown but switch on later: Delay a phase with progress and phase shifts (M8), and Pause a project with holds (M9). An accepted overbooking stays visible in its own style and no longer counts in the dashboard warning.
+- **Decision prompt (M4):** Split the time, Reassign work (with each person's load that week shown), or Accept the risk (with an optional reason); each is recorded as a dated event. Pause a project and Delay a phase are shown but switch on later: Delay a phase with progress and phase shifts (M8), and Pause a project with holds (M10). An accepted overbooking stays visible in its own style and no longer counts in the dashboard warning.
 - Personal **leave** (dates and an optional note) is kept per person on their page; leave days reduce what they can give that week.
 - **Days / Weeks switch (M4 second review, 2026-09-25).** In review, the one-column-per-week layout read as one column per day, and the thin strip of day slices was too small to see. So Fatima's full week of leave still looked like a single day. The heatmap now has a **Days | Weeks** switch above it. **Days** is the default, and the choice is remembered on this device.
   - **Days view:**
@@ -239,7 +239,7 @@ Saving creates Baseline 1.
 ### 3.9 Settings
 Weekend days, holidays, attachment types, roles, dropdown lists (main projects, project types, goals, business users, **phases**), waiting-clock thresholds, **"I am"**, and **starter to-dos per phase**. Renaming a phase in the list renames it on every project's phases; a phase name any project uses cannot be deleted.
 
-### 3.10 Follow-on projects (M9)
+### 3.10 Follow-on projects (M10)
 - **Create follow-on project** on a project page opens the new-project wizard pre-filled from the original:
   - classification, department, requester and beneficiary;
   - both project managers;
@@ -256,7 +256,7 @@ Weekend days, holidays, attachment types, roles, dropdown lists (main projects, 
   - Its **open to-dos** can be moved across.
 - **Start after the original:** optionally, the follow-on's first phase is linked to the original's last phase as a finish-to-start `ProjectLink`, so it moves if the launch slips, and the portfolio draws the arrow.
 - **Stakeholders:** the focus view shows the project-family strip, so the story reads across phases.
-- **Sandbox:** in the sandbox (M15), "Save as proposed project" can also mark the new project as a follow-on.
+- **Sandbox:** in the sandbox (M16), "Save as proposed project" can also mark the new project as a follow-on.
 
 ## 4. Presentation screens (APPROVED)
 
@@ -336,11 +336,11 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
 ### 5.4 Testing
 - **Engines** (calendar, scheduler, capacity, baselines, timeline): thorough Vitest unit tests using realistic scenarios, for example a hold during Eid while a change request is approved.
 - **API:** integration tests against a temporary SQLite database.
-- **End-to-end** (Playwright, a small number, set up in M9 when the first full flow exists): create a project → record a hold → the portfolio shows the arrow. Playback is added to the flow in M14.
+- **End-to-end** (Playwright, a small number, set up in M10 when the first full flow exists): create a project → record a hold → the portfolio shows the arrow. Playback is added to the flow in M15.
 - **Built-in demo portfolio**, with holds, change requests, waiting requirements and a completed historical project, used for tests and for rehearsing presentations.
 
-## 7. Layout backlog (collected from the user's reviews, worked through in M10)
-The user sends layout comments as they notice them. They are kept here, and M10 (layout pass) works through them. Functional readability problems, such as overlapping text, are fixed straight away in the milestone where they are found, not left for M10.
+## 7. Layout backlog (collected from the user's reviews, worked through in M11)
+The user sends layout comments as they notice them. They are kept here, and M11 (layout pass) works through them. Functional readability problems, such as overlapping text, are fixed straight away in the milestone where they are found, not left for M11.
 1. **Use the page width (2026-09-25).** Pages stack full-width cards one under another (for example the dashboard: My next steps, then Timeline, then Projects), so you keep scrolling while most of the screen is empty. Arrange cards side by side in a grid, for example a larger box beside a smaller one, each sized by how much it holds. This applies to almost every page.
 2. **Gantt on a phone (2026-09-25, found in review).** The phase-name column takes about half of a phone's width, so the bars get squeezed into the rest. On narrow screens, the name column should shrink (or the names move onto the bars) so the timeline gets most of the width.
 3. **Smaller to-do cards (2026-09-26).** The project page's "My next steps" card, and the to-do cards generally, take up far more room than three short lines need. Make them compact, for example a narrow box beside the timeline instead of a full-width card above it.
@@ -367,10 +367,18 @@ The user sends layout comments as they notice them. They are kept here, and M10 
 - Automatic resource levelling. Every schedule shift is a human decision.
 - Team capacity views for stakeholders.
 
-## 9. Later: vendor companies and contracts (M17, nice to have, user 2026-09-26)
+## 9. Later: vendor companies and contracts (M18, nice to have, user 2026-09-26)
 Many of the user's own team are contracted through companies. A later, low-priority milestone gives each **company** its own page:
 - the people from that company, our team and outsourced, current and past;
 - **our contract with the company**: dates, the contract file, and its key dates (reusing M7's key dates);
 - **money**: what we pay the company per year, and each person's monthly salary from that company;
 - the **surplus**: the yearly amount paid minus the people's yearly salaries, so the user sees budget that isn't being used.
 This information is confidential: never on the presentation side, and not in exports.
+
+## 10. Team statistics (M9, user 2026-09-26)
+For a chosen quarter or year, per person, with a sortable comparison table ("who finished the most", "best on-time rate"):
+- **Everyone:** to-dos assigned, finished, the % finished on time (done on or before the due date), and how many are late now. To-dos from meetings and to-dos created directly both count.
+- **Tech people (developers, QA and others):** the phases and sub-phases they worked on, their working days, and the % finished on time, from M8's confirmed done dates.
+- **Project managers:** projects managed (active and finished), their projects' to-dos (open, done, late), meetings held, and the % of their projects finishing on time.
+- **Fair rates:** only delays caused by the technical team count against a person's on-time rate. Delays caused by the business user, decision makers, external parties or the calendar (holidays, holds) are shown separately ("2 late, not their cause"), using the causes recorded in M8.
+- **Admin only:** visible only to the admin (today, the single manage-mode user; when logins arrive, the admin role). Never on the presentation side, and not in stakeholder exports.

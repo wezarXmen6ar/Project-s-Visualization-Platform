@@ -31,7 +31,7 @@
 | Project | مشروع | |
 | Main project | المشروع الرئيسي | |
 | Standalone | مشروع مستقل | |
-| Follow-on project | مرحلة تالية من المشروع | M9 (user, 2026-09-26) |
+| Follow-on project | مرحلة تالية من المشروع | M10 (user, 2026-09-26) |
 | Jira key | Jira key | **EN**, the whole term (user) |
 | Priority: High, Medium, Low | الأولوية: عالية، متوسطة، منخفضة | |
 | Categorisation: Strategic, Operational | التصنيف: استراتيجي، تشغيلي | |
@@ -48,8 +48,8 @@
 | Business project manager | مدير مشروع مالك العملية | user |
 | Change Request | Change Request (CR) | **EN** by the user's choice: the team says it in English |
 | Baseline | خط الأساس | an established PMO term in Arabic |
-| Hold | إيقاف مؤقت | M9 |
-| Milestone | Milestone | **EN** (user); M13 |
+| Hold | إيقاف مؤقت | M10 |
+| Milestone | Milestone | **EN** (user); M14 |
 
 ## Phases and schedule
 | English | Arabic | Note |
@@ -274,6 +274,6 @@ Rule (user): a work account is **أحقية** (plural **الأحقيات**) ever
 | Renewed | تم التجديد | proposed |
 | Remind {n} days before | التذكير قبل {n} يوماً | proposed |
 | Lives in: In the UAE / Abroad | مقيم: داخل الدولة / خارج الدولة | proposed |
-| Requirements bank (M11) | بنك المتطلبات | proposed (user's word) |
+| Requirements bank (M12) | بنك المتطلبات | proposed (user's word) |
 
 Rule (user, 2026-09-26): "Our team" is **فريق القطاع الجنائي**, never فريقنا.
