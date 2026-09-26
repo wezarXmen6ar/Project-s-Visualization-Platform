@@ -100,7 +100,16 @@ h3 { font-size: var(--fs-base); font-weight: 600; margin: 0; }
 /* ---------------------------------------------------------------------- *
  * Page shell
  * ---------------------------------------------------------------------- */
-.page { max-width: 1200px; margin: 0 auto; padding: var(--sp-6) var(--sp-4) var(--sp-7); }
+.page {
+  /* .page is a flex item of .app-shell (flex-direction: column). Cross-axis stretch alone still lets a
+   * wide descendant (e.g. a table with no scroll wrapper) drag this item's own width past the viewport,
+   * so it's pinned explicitly to the container's width and allowed to shrink below its content's size. */
+  width: 100%;
+  min-width: 0;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-4) var(--sp-7);
+}
 .page.page-wide { max-width: min(1600px, 100%); }
 
 .page-header {
@@ -670,6 +679,11 @@ input[type='checkbox'] { width: 1.05rem; height: 1.05rem; padding: 0; accent-col
 
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-2); }
 .card-head h2 { margin: 0; }
+
+/* Wraps a plain <table> so a wide one (many columns, long names) scrolls horizontally inside its own
+ * card on a narrow screen, instead of forcing the card — and the whole page — wider than the viewport. */
+.table-scroll { overflow-x: auto; margin: 0 calc(var(--sp-2) * -1); padding: 0 var(--sp-2); }
+.table-scroll > table { width: 100%; }
 
 .heatmap-scroll { overflow-x: auto; margin: 0 calc(var(--sp-2) * -1); padding: 0 var(--sp-2); }
 .heatmap { border-collapse: separate; border-spacing: 3px; width: auto; font-size: var(--fs-sm); }

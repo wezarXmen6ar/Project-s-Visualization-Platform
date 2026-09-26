@@ -86,6 +86,7 @@ export function ProjectDetailsTab({ project: p, nameFor }: ProjectDetailsTabProp
 
       <section className="card">
         <h2>{t('project.phases')}</h2>
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -126,6 +127,7 @@ export function ProjectDetailsTab({ project: p, nameFor }: ProjectDetailsTabProp
             ))}
           </tbody>
         </table>
+        </div>
       </section>
     </>
   );

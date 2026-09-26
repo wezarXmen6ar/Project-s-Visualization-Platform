@@ -299,6 +299,7 @@ export function ResourcesPage() {
         {people.data && all.length > 0 && shown.length === 0 ? <p className="muted">{t('resources.noMatches')}</p> : null}
 
         {shown.length > 0 ? (
+          <div className="table-scroll">
           <table aria-label={t('resources.people')}>
             <thead>
               <tr>
@@ -346,6 +347,7 @@ export function ResourcesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         ) : null}
       </section>
 
@@ -380,6 +382,7 @@ export function ResourcesPage() {
         {engagedOutsourced.length > 0 && outsourcedShown.length === 0 ? <p className="muted">{t('resources.noMatches')}</p> : null}
 
         {outsourcedShown.length > 0 ? (
+          <div className="table-scroll">
           <table aria-label={t('resources.outsourced')}>
             <thead>
               <tr>
@@ -417,11 +420,13 @@ export function ResourcesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         ) : null}
 
         {pastOutsourced.length > 0 ? (
           <details className="past-outsourced">
             <summary>{t('resources.pastOutsourced', { count: pastOutsourced.length })}</summary>
+            <div className="table-scroll">
             <table aria-label={t('resources.pastOutsourced', { count: pastOutsourced.length })}>
               <thead>
                 <tr>
@@ -443,6 +448,7 @@ export function ResourcesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </details>
         ) : null}
       </section>

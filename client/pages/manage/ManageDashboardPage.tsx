@@ -110,6 +110,7 @@ export function ManageDashboardPage() {
           </section>
 
           <section className="card">
+            <div className="table-scroll">
             <table>
               <thead>
                 <tr>
@@ -135,6 +136,7 @@ export function ManageDashboardPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </section>
         </>
       ) : null}
