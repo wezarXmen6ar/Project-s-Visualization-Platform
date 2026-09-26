@@ -300,6 +300,17 @@ The goal is to stop stakeholders from assuming the technical team is late: show 
 - **Periodic stakeholder report:** a monthly or quarterly PDF in one click (Arabic by default): what finished, what moved and why (with the summary sentences), what is waiting on stakeholders, and upcoming milestones.
 - **Phase ownership (M8):** each phase is **Technical, Business or Joint** (defaults: requirements sign-off and UAT are Business). Business-owned phases have a distinct outline on every Gantt chart and in the legend, and a late finish of a business-owned phase defaults its responsibility to the business user in the late-finish prompt.
 
+### 4.4b Project summary (ملخص المشروع) (user, 2026-09-26)
+A one-page view of the most important facts about one project, for a manager who wants a quick look. It is the first view of a project on the presentation side (read-only), and a card at the top of the project page in manage mode. It grows with the milestones:
+- **M8 (first version):**
+  - **Key dates:** date requested (a new optional project field, تاريخ الطلب), plan created (when the project was saved in the app), first phase started (actual), and expected finish next to the originally planned finish, with the difference in working days.
+  - **Status:** on track or late, and by how many days, with the latest recorded cause.
+  - **Progress:** the whole plan's % complete and the development phase's %.
+  - **Key documents:** attachments marked with a star as key documents (⭐ مستند رئيسي), e.g. the BRD, the contract, the UAT sign-off, each with preview and download. Any attachment can be starred on the Attachments tab.
+- **M9:** change requests (approved, waiting, with the days each added) and requirements added later.
+- **M13:** ⭐ milestones (next and passed, with any movement), the health colour, the plain-language summary sentence, and a **one-page PDF** of the summary to open or print.
+- Private items (to-dos, people's names on the presentation side, key dates of contracts) follow the usual rules: the presentation-side summary shows only what the presentation side may show.
+
 ### 4.5 Export and presenter mode
 - **Export to PDF:** portfolio Gantt chart, Where did the time go?, and focus view.
 - **Presenter mode:** full screen, large text, no internal details (routine updates and unflagged entries are hidden).
