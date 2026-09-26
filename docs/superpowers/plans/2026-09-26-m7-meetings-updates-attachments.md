@@ -43,6 +43,9 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
   - Each tech-team person is **Our team** or **Outsourced**, and an outsourced person has a company, a project, and start and end dates.
   - Resources shows them in their own section while engaged, and moves them to a collapsed "Past outsourced" list afterwards. They're never deleted.
   - They **can be assigned to phases, but are not in the workload heatmap** (the user's choice).
+- **Accounts** (added 2026-09-26, user): each person's work accounts (network, email, VPN, Jira…) have an expiry date and their own reminder lead (default 30 days), because renewal takes weeks. They join the documents in the dashboard reminder.
+- **Residence** (added 2026-09-26, user): a tech-team person lives in the UAE or abroad. Information only.
+- **Company for our team** (added 2026-09-26, user): our own team members can be contracted through a company too. The Company field is optional for our team and required for outsourced people.
 - **Person documents** (added 2026-09-26):
   - Each person has their own documents, with types NDA, Police clearance, UAE ID, Passport, Company contract, Information Security Approval and Other.
   - Each document has an **optional expiry date**. The person's page and the dashboard warn 30 days ahead and mark expired ones in red.
@@ -578,7 +581,7 @@ ALTER TABLE resources ADD COLUMN engagement_end TEXT;
 
 ---
 
-### Task 8: Each person's documents, with expiry reminders
+### Task 8: Each person's documents and accounts, with expiry reminders, and where they live
 
 **Why (user, 2026-09-26):** each person has important documents: an NDA, a police clearance, their UAE ID, passport, company contract, or an information security approval. When needed, they can't be found.
 
@@ -640,6 +643,47 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
   - It has a link, **See documents**, that goes to the person page for one document, or to a small list for several: the notice expands to show each person and document with links.
 - **Settings** gets a **Person document types** list, bilingual.
 
+**Accounts and residence (added 2026-09-26, user):** people's work accounts expire every few months, and renewal takes weeks, so the user needs a warning early enough to apply. Whether a team member lives in the UAE or abroad is information only.
+
+**Also in migration 16:**
+```sql
+ALTER TABLE resources ADD COLUMN residence TEXT CHECK (residence IN ('uae', 'abroad'));
+CREATE TABLE person_accounts (
+  id INTEGER PRIMARY KEY,
+  resource_id INTEGER NOT NULL REFERENCES resources(id),
+  type_id INTEGER REFERENCES list_values(id),
+  expiry_date TEXT NOT NULL,
+  remind_days INTEGER NOT NULL DEFAULT 30 CHECK (remind_days BETWEEN 1 AND 365),
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX person_accounts_resource ON person_accounts(resource_id);
+INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
+  ('accountType', 'Network account', 'أحقية الشبكة', 0),
+  ('accountType', 'Email', 'البريد الإلكتروني', 1),
+  ('accountType', 'VPN', 'VPN', 2),
+  ('accountType', 'Jira', 'Jira', 3),
+  ('accountType', 'Other', 'أخرى', 4);
+```
+
+**Accounts:**
+- **Routes:** `GET/POST /api/resources/:id/accounts`, `PUT/DELETE /api/person-accounts/:id`. The expiring route becomes `GET /api/people/expiring?withinDays=30`, returning documents **and** accounts. An account is included when today is on or after its expiry date minus its own `remind_days`, so a 45-day renewal warns 45 days ahead.
+- **States:** *expired* (red) when the expiry date is before today; *renew now* (amber) from `expiry − remind_days`; otherwise fine.
+- **The person page, an "Accounts" card (الأحقيات):** type, expiry date (with the weekday), "renew within {n} days" / "جدّد خلال {n} يوماً" or "expired {n} days ago" / "انتهى منذ {n} أيام" (Arabic plurals), the reminder lead ("remind 30 days before" / "التذكير قبل 30 يوماً"), and the note. **+ Add account** takes a type, an expiry date, the reminder lead (default 30 days) and a note. **Renewed** on a row asks for the new expiry date and keeps the old one in the note ("Renewed on {date}, was {old date}"). Edit and Delete.
+- **The dashboard notice** covers documents and accounts together: one item reads "Fatima Noor's network account expires in 20 days — apply for renewal" / "تنتهي أحقية الشبكة لفاطمة نور خلال 20 يوماً — قدّم طلب التجديد"; several read "4 documents and accounts need attention" / "4 وثائق وأحقيات تحتاج إلى متابعة", and expand into a list.
+- **Deleting a person** is refused while they have accounts, as for documents (`error.reasonHasAccounts`). **Settings** gets an **Account types** list.
+
+**Residence:**
+- A tech-team person (our team or outsourced) has an optional **Lives in: In the UAE / Abroad** (مقيم في: داخل الدولة / خارج الدولة), a radio pair in the person form with "not set" as the default.
+- It shows on the person page and as a small tag in the People table and the Outsourced section ("Abroad" / "خارج الدولة"), with a filter. It changes nothing else.
+
+**Extra tests for accounts and residence:**
+- an account with `remind_days` 45 expiring in 40 days is returned by `/api/people/expiring`, and one with 30 days expiring in 40 days is not;
+- **Renewed** sends the new date and the note keeps the old one;
+- deleting a person with an account answers 409 `error.reasonHasAccounts`;
+- the residence is saved, shown on the person page and filtered in the People table;
+- Arabic renders and the no-English guard cover the Accounts card and the residence field.
+
 - [ ] **Step 1: Write the failing tests:**
   - uploading a passport with an expiry date returns 201;
   - `expiring?withinDays=30`, with today fixed, returns the expired and the soon ones but not a later one;
@@ -651,7 +695,7 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
 - [ ] **Step 2:** Run the tests and confirm they FAIL.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
-- [ ] **Step 5:** Commit with `feat: each person's documents with expiry reminders on their page and the dashboard`.
+- [ ] **Step 5:** Commit with `feat: each person's documents and accounts with expiry and renewal reminders, and where they live`.
 
 ---
 
@@ -759,6 +803,11 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
   - **Fatima Noor:** a Passport expiring **2026-10-20** (expires soon), and an NDA with no expiry.
   - **Omar Farid:** a Company contract expiring 2027-03-31, and a Police clearance that **expired 2026-09-01**.
   - Hassan Ali: a UAE ID expiring 2028-05-01.
+- **Accounts and residence:**
+  - **Fatima Noor:** a Network account expiring **2026-10-16**, remind 30 days before (renew now), and she lives in the UAE.
+  - **Hassan Ali:** a VPN account expiring 2026-12-20, remind 45 days before (not yet), and he lives abroad.
+  - **Omar Farid:** lives abroad.
+- **Company for our team:** Hassan Ali is on our team, contracted through TechNova Solutions.
   - The files are tiny generated PDFs, as for the attachments.
 - **Key dates:**
   - **E-Services Mobile App:** a **Contract** file "E-Services contract.pdf" with three key dates linked to it: Contract end 2027-06-30, License expiry **2026-10-15** (soon), and Development end 2027-03-31.
@@ -772,7 +821,8 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
   - the highlighted entries total 4;
   - Omar Farid is outsourced, engaged and absent from `workloadData`, and Lena Park is past;
   - `expiring?withinDays=30` (today 2026-09-26) returns Fatima's passport and Omar's police clearance;
-  - `key-dates/upcoming?withinDays=30` returns E-Services' license expiry and Case Management's support end.
+  - `key-dates/upcoming?withinDays=30` returns E-Services' license expiry and Case Management's support end;
+  - `people/expiring?withinDays=30` also returns Fatima's network account, but not Hassan's VPN account.
 - [ ] **Step 2:** Run the test and confirm it FAILS.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
@@ -795,7 +845,8 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
    - Omar isn't on the heatmap, but he is on Increment 4;
    - add an outsourced person with a new company.
 7b. **Person documents:**
-   - **Fatima Noor's page** shows her passport in amber (expires soon). Upload a UAE ID with an expiry, preview it, then delete it.
+   - **Fatima Noor's page** shows her passport in amber (expires soon), her network account in amber (renew now) and "In the UAE". Upload a UAE ID with an expiry, preview it, then delete it. Mark the network account **Renewed** with a new date.
+   - **Hassan Ali** is on our team with TechNova as his company, and tagged Abroad.
    - The **dashboard** shows the expiring-documents notice: Fatima's passport and Omar's expired police clearance.
 7c. **Key dates:**
    - **E-Services → Details** shows the Key dates card: the license expiry in amber, the contract and development ends, each linked to the contract PDF.

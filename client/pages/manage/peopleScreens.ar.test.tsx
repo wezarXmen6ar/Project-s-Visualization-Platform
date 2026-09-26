@@ -52,7 +52,7 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
     });
     arabic('/manage/resources', '/manage/resources', <ResourcesPage />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'الموارد' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'فريق العمل' })).toBeInTheDocument();
     const views = screen.getByRole('group', { name: 'عرض عبء العمل حسب' });
     expect(within(views).getByRole('button', { name: 'أيام' })).toHaveAttribute('aria-pressed', 'true');
     expect(within(views).getByRole('button', { name: 'أسابيع' })).toHaveAttribute('aria-pressed', 'false');
@@ -103,7 +103,7 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
     const user = userEvent.setup();
     arabic('/manage/resources/new', '/manage/resources/new', <PersonPage />);
 
-    // "فريقنا" (our team, the default): Company is offered with its hint, and no engagement fields yet.
+    // "فريق القطاع الجنائي" (our team, the default): Company is offered with its hint, and no engagement fields yet.
     expect(await screen.findByLabelText('الشركة')).toBeInTheDocument();
     expect(screen.getByText('الشركة التي يعمل من خلالها، إن وُجدت.')).toBeInTheDocument();
     expect(screen.queryByLabelText('المشروع')).toBeNull();
@@ -220,7 +220,7 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
     arabic('/manage/resources/72', '/manage/resources/:id', <PersonPage />);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Rami Saleh' })).toHaveAttribute('dir', 'auto');
-    expect(screen.getByRole('link', { name: 'الموارد' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'فريق العمل' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'الفريق التقني' })).toBeChecked();
     expect(screen.getByLabelText('الدور')).toHaveDisplayValue('مطوّر');
     expect(screen.getByLabelText('التخصص')).toHaveDisplayValue('الواجهة الخلفية');

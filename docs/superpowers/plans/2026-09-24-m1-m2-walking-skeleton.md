@@ -54,6 +54,7 @@ Every milestone ends with something the user can run and try in the browser. Aft
 | M14 | Playback | Play single project and portfolio, pop-ups with documents, auto-pause |
 | M15 | What-if sandbox | Stacked hypothetical changes, hypothetical projects, anonymous resource picking, conflicts, price tag panel, save as proposed |
 | M16 | Polish for presenting | PDF export, presenter mode |
+| M17 | Vendor companies and contracts (nice to have) | A page per company: its people, our contract with it and the contract file, yearly amount paid, monthly salaries, and the budget surplus. Confidential. |
 
 ## File Structure (after M1–M2)
 

@@ -72,6 +72,11 @@ client/   React + Vite
 - Each document has an optional expiry date. The person's page and the dashboard warn 30 days before it expires, and mark expired documents.
 - Person documents are private: they never appear on the presentation side.
 
+**Accounts, residence and company (M7, user 2026-09-26):**
+- Each person's **work accounts** (network, email, VPN, Jira and others, an editable list) have an expiry date and a reminder lead (default 30 days, set per account) because renewal can take weeks. The person page and the dashboard remind the user when it is time to apply for renewal, and mark expired accounts.
+- A tech-team person **lives in the UAE or abroad**. Information only.
+- **Our own team members can be contracted through a company** (optional); outsourced people must have one.
+
 **Key dates (M7, user 2026-09-26):**
 - A project keeps its **key dates**: contract end, license expiry, development end, warranty end, support end, and others. The types are an editable list.
 - Uploading a **Contract** asks for its key dates (the end date first, then any more). A key date can also be added without a file.
@@ -360,3 +365,11 @@ The user sends layout comments as they notice them. They are kept here, and M10 
 - Jira integration. The Jira key is a reference field only.
 - Automatic resource levelling. Every schedule shift is a human decision.
 - Team capacity views for stakeholders.
+
+## 9. Later: vendor companies and contracts (M17, nice to have, user 2026-09-26)
+Many of the user's own team are contracted through companies. A later, low-priority milestone gives each **company** its own page:
+- the people from that company, our team and outsourced, current and past;
+- **our contract with the company**: dates, the contract file, and its key dates (reusing M7's key dates);
+- **money**: what we pay the company per year, and each person's monthly salary from that company;
+- the **surplus**: the yearly amount paid minus the people's yearly salaries, so the user sees budget that isn't being used.
+This information is confidential: never on the presentation side, and not in exports.

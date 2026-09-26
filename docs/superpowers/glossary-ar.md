@@ -19,7 +19,7 @@
 | Dashboard | لوحة المعلومات | |
 | Portfolio | محفظة المشاريع | |
 | Focus view | عرض المشروع | |
-| Resources | الموارد | a PMO term; the page lists people |
+| Resources | فريق العمل | user, 2026-09-26 (was الموارد) |
 | Settings | الإعدادات | |
 | To-dos | المهام | a to-do is a مهمة; no clash, because sub-phases are "مراحل فرعية" |
 | My next steps | خطواتي القادمة | on the dashboard and the project page (user, 2026-09-26) |
@@ -243,7 +243,7 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | Upload document | رفع وثيقة | approved |
 | Expiry date | تاريخ الانتهاء | approved |
 | Expired / Expires in {n} days | منتهية / تنتهي خلال {n} يوماً (Arabic plurals) | approved |
-| Our team / Outsourced | فريقنا / متعاقد خارجي | approved |
+| Our team / Outsourced | فريق القطاع الجنائي / متعاقد خارجي | approved |
 | Outsourced (section) / Past outsourced | المتعاقدون الخارجيون / المتعاقدون السابقون | approved |
 | Company / Companies | الشركة / الشركات | approved |
 | Engagement start / end | بداية التعاقد / نهاية التعاقد | approved |
@@ -260,3 +260,20 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | Warranty end | انتهاء الضمان | proposed |
 | Support end | انتهاء الدعم الفني | proposed |
 | In {n} days / Passed {n} days ago | خلال {n} يوماً / مضى عليه {n} أيام (Arabic plurals) | proposed |
+
+## M7: accounts and residence (proposed, 2026-09-26)
+Rule (user): a work account is **أحقية** (plural **الأحقيات**) everywhere; never حساب/حسابات.
+| English | Arabic | Note |
+|---|---|---|
+| Accounts | الأحقيات | user |
+| Account type | نوع الأحقية | proposed |
+| Add account | إضافة أحقية | proposed |
+| Network account | أحقية الشبكة | proposed |
+| Renew within {n} days | جدّد خلال {n} يوماً | proposed |
+| Apply for renewal | قدّم طلب التجديد | proposed |
+| Renewed | تم التجديد | proposed |
+| Remind {n} days before | التذكير قبل {n} يوماً | proposed |
+| Lives in: In the UAE / Abroad | مقيم: داخل الدولة / خارج الدولة | proposed |
+| Requirements bank (M11) | بنك المتطلبات | proposed (user's word) |
+
+Rule (user, 2026-09-26): "Our team" is **فريق القطاع الجنائي**, never فريقنا.

@@ -108,7 +108,7 @@ export const ar: Record<MessageKey, Message> = {
   'error.notTechTeam': '{name} من جهة مالك العملية، والتكليف متاح لأعضاء الفريق التقني فقط',
   'error.personInactive': '{name} غير نشط',
   'error.personEngagementEnded': 'انتهى تعاقد {name}',
-  'error.pmMustBeStaff': 'يجب أن يكون مدير المشروع من فريقنا',
+  'error.pmMustBeStaff': 'يجب أن يكون مدير المشروع من فريق القطاع الجنائي',
   'error.unknownCompany': 'الشركة غير معروفة',
   'error.unknownEngagementProject': 'المشروع غير معروف',
   'error.unknownMainProject': 'المشروع الرئيسي غير معروف',
@@ -193,7 +193,7 @@ export const ar: Record<MessageKey, Message> = {
   'nav.start': 'البداية',
   'nav.projects': 'المشاريع',
   'nav.todos': 'المهام',
-  'nav.resources': 'الموارد',
+  'nav.resources': 'فريق العمل',
   'nav.settings': 'الإعدادات',
 
   // The project page's tabs.
@@ -670,7 +670,7 @@ export const ar: Record<MessageKey, Message> = {
   'person.techHint': 'لا يُكلَّف بالمراحل ولا يظهر في خريطة عبء العمل إلا أعضاء الفريق التقني النشطون.',
   'person.businessHint': 'يمكن اختيار جهات الاتصال لدى مالك العملية لإدارة المشروع من جانب مالك العملية، ولا تُحتسب في عبء العمل.',
   'person.employmentLegend': 'التوظيف',
-  'person.ourTeam': 'فريقنا',
+  'person.ourTeam': 'فريق القطاع الجنائي',
   'person.outsourced': 'متعاقد خارجي',
   'person.company': 'الشركة',
   'person.companyHint': 'الشركة التي يعمل من خلالها، إن وُجدت.',
