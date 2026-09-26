@@ -303,6 +303,15 @@ The goal is to stop stakeholders from assuming the technical team is late: show 
 - **Periodic stakeholder report:** a monthly or quarterly PDF in one click (Arabic by default): what finished, what moved and why (with the summary sentences), what is waiting on stakeholders, and upcoming milestones.
 - **Phase ownership (M8):** each phase is **Technical, Business or Joint** (defaults: requirements sign-off and UAT are Business). Business-owned phases have a distinct outline on every Gantt chart and in the legend, and a late finish of a business-owned phase defaults its responsibility to the business user in the late-finish prompt.
 
+### 4.4c Requirements first (user, 2026-09-26)
+Presentations focus on **development: its sub-phases and the requirements being built**. Most confusion in meetings is about which requirements were added later and whether the technical team is late, so every presentation screen keeps summaries short and puts the development picture first.
+- **Development board (focus view, M13; data from M9):** the development sub-phases in three columns, **Developed**, **In development now** and **Next**, each card showing its dates, % and, in one line, its requirements.
+- **Readiness at a glance:** each development sub-phase shows whether **all its requirements are ready** or it is **waiting for requirements** (with days waiting and who it is waiting on).
+- **Scope origin on every requirement and sub-phase:** **Original scope**, **Added later (within scope)**, **Added by change request** (approved), or **Not approved yet**, with the same marks and colours as the Gantt chart and a legend. Counts in one line: "18 original · 4 added later · 3 by change request · 2 not approved".
+- **"If everything pending is approved" (optional):** a toggle on the focus-view Gantt chart that overlays, as ghost bars, the timeline if every requirement still waiting for approval were approved and scheduled, with the resulting end date and "+N working days". Off by default; clearly labelled as a projection. It uses the real scheduling rules, like the sandbox, and never changes the plan.
+- **Short everywhere:** the project summary, the plain-language sentence and the status report keep to the essentials; details are one click away.
+- **Status report slides:** a **Development** slide (the board, readiness and scope origin) becomes the centre of each project's slides, right after Summary (from M9 in its first form, finished in M13), and the optional "if everything pending is approved" chart can be included as its own slide.
+
 ### 4.4b Project summary (ملخص المشروع) (user, 2026-09-26)
 A one-page view of the most important facts about one project, for a manager who wants a quick look. It is the first view of a project on the presentation side (read-only), and a card at the top of the project page in manage mode. It grows with the milestones:
 - **M8 (first version):**
