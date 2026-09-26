@@ -77,6 +77,21 @@ describe('ResourcesPage', () => {
     expect(await names()).toEqual(['Fatima Noor', 'Rami Saleh']);
   });
 
+  it('shows an Abroad tag and filters the People table by residence', async () => {
+    const withResidence = samplePeople().map((p) => (p.id === 72 ? { ...p, residence: 'abroad' as const } : p));
+    mockFetch({ ...routes, 'GET /api/resources': () => ({ body: withResidence }) });
+    const user = userEvent.setup();
+    renderPage();
+    const table = within(await peopleTable());
+    const rami = table.getByRole('link', { name: 'Rami Saleh' }).closest('tr')!;
+    expect(within(rami).getByText('Abroad')).toBeInTheDocument();
+    const fatima = table.getByRole('link', { name: 'Fatima Noor' }).closest('tr')!;
+    expect(within(fatima).queryByText('Abroad')).toBeNull();
+
+    await user.selectOptions(screen.getByLabelText('Residence'), 'Abroad');
+    expect(await names()).toEqual(['Rami Saleh']);
+  });
+
   it('invites adding people when there are none', async () => {
     mockFetch({ ...routes, 'GET /api/resources': () => ({ body: [] }) });
     renderPage();

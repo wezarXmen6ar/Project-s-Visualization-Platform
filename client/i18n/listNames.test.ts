@@ -17,6 +17,8 @@ function lists(overrides: Partial<Lists> = {}): Lists {
     role: [],
     attachmentType: [],
     company: [],
+    personDocumentType: [],
+    accountType: [],
     ...overrides,
   };
 }

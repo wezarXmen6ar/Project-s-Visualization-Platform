@@ -4,7 +4,7 @@ import type { MessageKey } from '../../shared/i18n/en';
 import { translate } from '../../shared/i18n/translate';
 import type { Params, ReasonParam } from '../../shared/i18n/types';
 import type { LeaveData, ResourceData, ValidationIssue } from '../../shared/schemas';
-import type { Employment, LeaveRecord, PersonProject, ResourceRecord, Side, Specialisation } from '../../shared/types';
+import type { Employment, LeaveRecord, PersonProject, ResourceRecord, Residence, Side, Specialisation } from '../../shared/types';
 import { transaction } from '../db';
 import { getListValue } from '../lists/repo';
 import { getMe, setMe } from '../settings';
@@ -24,6 +24,7 @@ interface ResourceRow {
   engagement_project_id: number | null;
   engagement_start: string | null;
   engagement_end: string | null;
+  residence: Residence | null;
 }
 
 interface LeaveRow {
@@ -37,13 +38,13 @@ interface LeaveRow {
 /** Columns written from ResourceData, in the same order as resourceValues(). */
 const COLUMNS = [
   'name', 'side', 'employment', 'role_id', 'specialisation', 'email', 'phone', 'capacity', 'active', 'company_id',
-  'engagement_project_id', 'engagement_start', 'engagement_end',
+  'engagement_project_id', 'engagement_start', 'engagement_end', 'residence',
 ];
 
 function resourceValues(r: ResourceData) {
   return [
     r.name, r.side, r.employment, r.roleId, r.specialisation, r.email, r.phone, r.capacity, r.active ? 1 : 0,
-    r.companyId, r.engagementProjectId, r.engagementStart, r.engagementEnd,
+    r.companyId, r.engagementProjectId, r.engagementStart, r.engagementEnd, r.residence,
   ];
 }
 
@@ -66,6 +67,16 @@ const USAGE: { sql: string; key: MessageKey; sideChange: boolean }[] = [
   {
     sql: 'SELECT COUNT(*) AS n FROM todos WHERE assignee_id = ?',
     key: 'error.reasonHasTodos',
+    sideChange: false,
+  },
+  {
+    sql: 'SELECT COUNT(*) AS n FROM person_documents WHERE resource_id = ?',
+    key: 'error.reasonHasDocuments',
+    sideChange: false,
+  },
+  {
+    sql: 'SELECT COUNT(*) AS n FROM person_accounts WHERE resource_id = ?',
+    key: 'error.reasonHasAccounts',
     sideChange: false,
   },
 ];
@@ -184,6 +195,7 @@ function toResource(
     engagementStart: row.engagement_start,
     engagementEnd: row.engagement_end,
     engagement: row.employment === 'outsourced' ? engagementStatus(row.engagement_start, row.engagement_end, today) : null,
+    residence: row.side === 'tech' ? row.residence : null,
     leave,
     projects,
   };

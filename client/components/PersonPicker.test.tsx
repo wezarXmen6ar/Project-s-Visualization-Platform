@@ -10,13 +10,13 @@ import { PersonPicker } from './PersonPicker';
 const inactive: ResourceRecord = {
   id: 81, name: 'Old Contact', side: 'business', employment: 'staff', role: null, specialisation: null, email: null, phone: null,
   capacity: 100, active: false, leave: [], projects: [], company: null, engagementProject: null, engagementStart: null,
-  engagementEnd: null, engagement: null,
+  engagementEnd: null, engagement: null, residence: null,
 };
 
 const outsourced: ResourceRecord = {
   id: 90, name: 'Omar Farid', side: 'tech', employment: 'outsourced', role: null, specialisation: null, email: null, phone: null,
   capacity: 100, active: true, leave: [], projects: [], company: { id: 200, name: 'TechNova' }, engagementProject: null,
-  engagementStart: null, engagementEnd: null, engagement: 'engaged',
+  engagementStart: null, engagementEnd: null, engagement: 'engaged', residence: null,
 };
 
 function Harness({

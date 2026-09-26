@@ -14,6 +14,7 @@ import { phaseName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { useLists } from '../../useLists';
 import { useWorkload } from '../../useWorkload';
+import { ExpiringDocumentsNotice } from './ExpiringDocumentsNotice';
 import { isAccepted } from './heatmap';
 import { MyNextSteps } from './MyNextSteps';
 
@@ -71,6 +72,8 @@ export function ManageDashboardPage() {
           <Link to="/manage/resources">{t('dashboard.seeWorkload')}</Link>
         </div>
       ) : null}
+
+      <ExpiringDocumentsNotice today={today} />
 
       <MyNextSteps />
 

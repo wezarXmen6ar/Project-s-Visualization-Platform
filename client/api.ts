@@ -2,12 +2,13 @@ import type { WorkCalendar } from '../shared/calendar';
 import type { MessageKey } from '../shared/i18n/en';
 import type { Params } from '../shared/i18n/types';
 import type {
-  AssignmentInput, AttachmentUpdateInput, EntryInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput,
-  ResourceInput, ScheduleUpdateInput, StarterToDoInput, ToDoInput, ValidationIssue,
+  AssignmentInput, AttachmentUpdateInput, EntryInput, LeaveInput, NewProjectInput, OverloadDecisionInput, PersonAccountInput,
+  PersonDocumentUpdateInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput, StarterToDoInput, ToDoInput, ValidationIssue,
 } from '../shared/schemas';
 import type {
-  AttachmentRecord, BackupStatus, EntryRecord, LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision, PortfolioResponse,
-  ProjectRecord, ResourceRecord, ScheduleSaved, StarterSuggestion, StarterToDo, ToDoRecord, WorkloadData,
+  AttachmentRecord, BackupStatus, EntryRecord, ExpiringItem, LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision,
+  PersonAccountRecord, PersonDocumentRecord, PortfolioResponse, ProjectRecord, ResourceRecord, ScheduleSaved, StarterSuggestion,
+  StarterToDo, ToDoRecord, WorkloadData,
 } from '../shared/types';
 
 export class ApiError extends Error {
@@ -175,4 +176,67 @@ export const api = {
   deleteAttachment: (id: number) => request<void>(`/api/attachments/${id}`, { method: 'DELETE' }),
   /** Not fetched through `request`: used directly as a link/iframe `href`/`src`. */
   attachmentFileUrl: (id: number, inline = false) => `/api/attachments/${id}/file${inline ? '?inline=1' : ''}`,
+
+  listPersonDocuments: (resourceId: number) => request<PersonDocumentRecord[]>(`/api/resources/${resourceId}/documents`),
+  /**
+   * Uploads raw file bytes with `XMLHttpRequest`, so `onProgress` can report upload progress. `name` is sent as
+   * X-File-Name (percent-encoded, so an Arabic name round-trips); a `Blob`'s own `type`, if any, becomes X-File-Type.
+   */
+  uploadPersonDocument: (
+    resourceId: number, file: Blob, name: string,
+    opts: { typeId?: number; expiryDate?: string; note?: string } = {},
+    onProgress?: (loaded: number, total: number) => void,
+  ) => {
+    const params = new URLSearchParams();
+    if (opts.typeId !== undefined) params.set('typeId', String(opts.typeId));
+    if (opts.expiryDate !== undefined) params.set('expiryDate', opts.expiryDate);
+    if (opts.note !== undefined) params.set('note', opts.note);
+    const qs = params.toString();
+    return new Promise<PersonDocumentRecord>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `/api/resources/${resourceId}/documents${qs ? `?${qs}` : ''}`);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('X-File-Name', encodeURIComponent(name));
+      if (file.type) xhr.setRequestHeader('X-File-Type', file.type);
+      if (xhr.upload && onProgress) {
+        xhr.upload.onprogress = (e) => onProgress(e.loaded, e.total);
+      }
+      xhr.onload = () => {
+        let body: { error?: string; issues?: ValidationIssue[]; code?: MessageKey; params?: Params } = {};
+        try {
+          body = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+        } catch {
+          body = {};
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body as unknown as PersonDocumentRecord);
+          return;
+        }
+        const hasServerMessage = body.error !== undefined;
+        reject(new ApiError(
+          body.error ?? `Request failed (${xhr.status})`,
+          xhr.status,
+          body.issues ?? [],
+          hasServerMessage ? body.code : 'common.requestFailed',
+          hasServerMessage ? body.params : { status: xhr.status },
+        ));
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(file);
+    });
+  },
+  updatePersonDocument: (id: number, input: PersonDocumentUpdateInput) =>
+    request<PersonDocumentRecord>(`/api/person-documents/${id}`, withBody('PUT', input)),
+  deletePersonDocument: (id: number) => request<void>(`/api/person-documents/${id}`, { method: 'DELETE' }),
+  /** Not fetched through `request`: used directly as a link/iframe `href`/`src`. */
+  personDocumentFileUrl: (id: number, inline = false) => `/api/person-documents/${id}/file${inline ? '?inline=1' : ''}`,
+
+  listPersonAccounts: (resourceId: number) => request<PersonAccountRecord[]>(`/api/resources/${resourceId}/accounts`),
+  addPersonAccount: (resourceId: number, input: PersonAccountInput) =>
+    request<PersonAccountRecord>(`/api/resources/${resourceId}/accounts`, withBody('POST', input)),
+  updatePersonAccount: (id: number, input: PersonAccountInput) =>
+    request<PersonAccountRecord>(`/api/person-accounts/${id}`, withBody('PUT', input)),
+  deletePersonAccount: (id: number) => request<void>(`/api/person-accounts/${id}`, { method: 'DELETE' }),
+
+  listExpiring: (withinDays = 30) => request<ExpiringItem[]>(`/api/people/expiring?withinDays=${withinDays}`),
 };

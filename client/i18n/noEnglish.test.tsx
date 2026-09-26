@@ -5,7 +5,8 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Lang } from '../../shared/i18n/types';
 import type {
-  AttachmentRecord, EntryRecord, Lists, Me, ProjectRecord, ResourceRecord, StarterToDo, ToDoRecord, WorkloadData,
+  AttachmentRecord, EntryRecord, ExpiringItem, Lists, Me, PersonAccountRecord, PersonDocumentRecord, ProjectRecord, ResourceRecord,
+  StarterToDo, ToDoRecord, WorkloadData,
 } from '../../shared/types';
 import { App } from '../App';
 import { ProjectPage } from '../pages/manage/ProjectPage';
@@ -39,6 +40,7 @@ const ALLOWED: RegExp[] = [
   /\bQA\b/g,
   /\bUAT\b/g,
   /\bBRD\b/g,
+  /\bVPN\b/g, // the seeded account type, kept in English in both languages (server/db.ts)
   /\bYYYY(?:-MM-DD)?\b/g, // a date-format hint
   /#[0-9a-fA-F]{3,8}\b/g, // the colour hex placeholder
   /\.(pdf|docx?|xlsx?|pptx?|txt|csv|zip|png|jpe?g|gif|mp4|mp3)\b/gi, // a file name's own extension
@@ -143,13 +145,14 @@ function arabicPeople(): ResourceRecord[] {
     id: 90, name: OMAR, side: 'tech', employment: 'outsourced', role: null, specialisation: null, email: null, phone: null,
     capacity: 100, active: true, leave: [], projects: [], company: { id: 200, name: 'TechNova', nameAr: 'تكنوفا' },
     engagementProject: { id: 91, name: OTHER_PROJECT }, engagementStart: '2026-09-01', engagementEnd: '2026-12-31', engagement: 'engaged',
+    residence: null,
   };
   // Upcoming: today (fixed below at 2026-10-07) is still before their start, so the Outsourced section shows the
   // "starts {date}" note the guard must find in Arabic only.
   const upcoming: ResourceRecord = {
     id: 92, name: NADIA, side: 'tech', employment: 'outsourced', role: null, specialisation: null, email: null, phone: null,
     capacity: 100, active: true, leave: [], projects: [], company: { id: 200, name: 'TechNova', nameAr: 'تكنوفا' },
-    engagementProject: null, engagementStart: '2026-11-01', engagementEnd: null, engagement: 'upcoming',
+    engagementProject: null, engagementStart: '2026-11-01', engagementEnd: null, engagement: 'upcoming', residence: null,
   };
   return [...staff, outsourced, upcoming];
 }
@@ -269,6 +272,35 @@ function arabicWorkload(): WorkloadData {
 const me: Me = { resourceId: 70, name: SARA };
 const starters: StarterToDo[] = [{ id: 1, phaseListId: 55, title: 'كتابة حالات الاختبار', order: 0 }];
 
+/** Rami's own documents and accounts (M7 Task 8), and the dashboard's expiring-items feed, all in Arabic. */
+function arabicPersonDocuments(): PersonDocumentRecord[] {
+  return [
+    {
+      id: 500, resourceId: 72, personName: RAMI, type: { id: 300, name: 'Passport', nameAr: 'جواز السفر' },
+      name: 'جواز السفر.pdf', mime: 'application/pdf', size: 200_000, expiryDate: '2026-10-19', note: null,
+      uploadedAt: '2026-09-20T09:00:00.000Z', previewable: true, state: 'soon',
+    },
+  ];
+}
+
+function arabicPersonAccounts(): PersonAccountRecord[] {
+  return [
+    {
+      id: 600, resourceId: 72, personName: RAMI, type: { id: 310, name: 'Network account', nameAr: 'أحقية الشبكة' },
+      expiryDate: '2026-10-27', remindDays: 30, note: null, createdAt: '2026-09-01T09:00:00.000Z', state: 'soon',
+    },
+  ];
+}
+
+function arabicExpiring(): ExpiringItem[] {
+  return [
+    {
+      kind: 'document', id: 500, person: { id: 71, name: FATIMA }, type: { id: 300, name: 'Passport', nameAr: 'جواز السفر' },
+      name: 'جواز السفر.pdf', expiryDate: '2026-10-19', state: 'soon',
+    },
+  ];
+}
+
 function arabicRoutes(): Record<string, MockHandler> {
   const project = arabicProject();
   const todos = arabicToDos();
@@ -293,6 +325,9 @@ function arabicRoutes(): Record<string, MockHandler> {
       body: [{ phaseId: 11, phaseName: 'Requirements gathering', title: 'حصر الجهات المعنية' }],
     }),
     'GET /api/backups': () => ({ body: { latest: '2026-10-05', count: 3 } }),
+    'GET /api/resources/72/documents': () => ({ body: arabicPersonDocuments() }),
+    'GET /api/resources/72/accounts': () => ({ body: arabicPersonAccounts() }),
+    'GET /api/people/expiring?withinDays=30': () => ({ body: arabicExpiring() }),
     'GET /api/portfolio?year=2026': () => ({
       body: { year: 2026, today: '2026-10-07', stats: { active: 1, finishedThisYear: 2, startingThisYear: 3 }, projects: [project] },
     }),
@@ -366,6 +401,7 @@ describe('no English left in the Arabic pages', () => {
     expect(await screen.findByText('متابعة العقد المتأخر')).toBeInTheDocument();
     await screen.findAllByRole('link', { name: PROJECT });
     await screen.findByRole('link', { name: 'عرض عبء العمل' });
+    await screen.findByText('ينتهي جواز السفر لفاطمة نور خلال 12 يوماً');
     await settled();
     expectNoEnglish('the dashboard');
   });
@@ -528,6 +564,8 @@ describe('no English left in the Arabic pages', () => {
     renderApp('/manage/resources/72');
     await screen.findByRole('heading', { level: 1, name: RAMI });
     await screen.findByRole('heading', { name: 'يعمل حالياً على' });
+    await screen.findByText('جواز السفر.pdf');
+    await screen.findByText('أحقية الشبكة');
     await settled();
     expectNoEnglish('the person page');
   });

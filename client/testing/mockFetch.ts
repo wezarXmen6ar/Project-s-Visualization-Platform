@@ -88,6 +88,14 @@ const DEFAULT_NAMES_AR: Record<string, string> = {
   'Test Report': 'تقرير الاختبار',
   Contract: 'العقد',
   Other: 'أخرى',
+  NDA: 'وثيقة عدم الإفصاح',
+  'Police clearance': 'شهادة بحث الحالة الجنائية',
+  'UAE ID': 'الهوية الإماراتية',
+  Passport: 'جواز السفر',
+  'Company contract': 'عقد الشركة',
+  'Information Security Approval': 'موافقة أمن المعلومات',
+  'Network account': 'أحقية الشبكة',
+  Email: 'البريد الإلكتروني',
 };
 
 export function sampleLists(): Lists {
@@ -117,6 +125,11 @@ export function sampleLists(): Lists {
       'Test Report', 'Contract', 'Other',
     ].map((name, i) => ({ id: 100 + i, list: 'attachmentType' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
     company: [{ id: 200, list: 'company', name: 'TechNova', order: 0, nameAr: null }],
+    personDocumentType: [
+      'NDA', 'Police clearance', 'UAE ID', 'Passport', 'Company contract', 'Information Security Approval', 'Other',
+    ].map((name, i) => ({ id: 300 + i, list: 'personDocumentType' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
+    accountType: ['Network account', 'Email', 'VPN', 'Jira', 'Other']
+      .map((name, i) => ({ id: 310 + i, list: 'accountType' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
   };
 }
 
@@ -124,6 +137,7 @@ export function samplePeople(): ResourceRecord[] {
   const person = (p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name' | 'side'>): ResourceRecord => ({
     role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], projects: [],
     employment: 'staff', company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engagement: null,
+    residence: null,
     ...p,
   });
   return [
@@ -145,7 +159,7 @@ export function sampleOutsourced(): ResourceRecord[] {
   const person = (p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name' | 'engagement'>): ResourceRecord => ({
     side: 'tech', role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], projects: [],
     employment: 'outsourced', company: { id: 200, name: 'TechNova' }, engagementProject: null, engagementStart: null,
-    engagementEnd: null, ...p,
+    engagementEnd: null, residence: null, ...p,
   });
   return [
     person({

@@ -710,6 +710,107 @@ export const en = {
     one: 'Last backup: {date} · {count} kept in the backups folder.',
     other: 'Last backup: {date} · {count} kept in the backups folder.',
   },
+
+  // Person documents (M7 Task 8): a person's own files (NDA, passport, etc.), with expiry reminders. Never on /present.
+  'error.unknownPersonDocumentType': 'Unknown document type',
+  'error.personDocumentNotFound': 'Document not found',
+  'error.reasonHasDocuments': {
+    one: 'they have {count} document',
+    other: 'they have {count} documents',
+  },
+  'error.listValueInUseDocuments': {
+    one: '"{name}" is used by {count} document',
+    other: '"{name}" is used by {count} documents',
+  },
+  'settings.personDocumentTypes': 'Person document types',
+  'settings.personDocumentType': 'Person document type',
+  'personDocs.title': 'Documents',
+  'personDocs.uploadDocument': 'Upload document',
+  'personDocs.colType': 'Type',
+  'personDocs.colName': 'File name',
+  'personDocs.colExpiry': 'Expiry',
+  'personDocs.colUploaded': 'Uploaded',
+  'personDocs.noneYet': 'No documents yet.',
+  'personDocs.noType': 'No type',
+  'personDocs.expiryField': 'Expiry date (optional)',
+  'personDocs.noteField': 'Note',
+  'personDocs.expired': 'Expired',
+  'personDocs.expiresIn': {
+    one: 'Expires in 1 day',
+    other: 'Expires in {count} days',
+  },
+  'personDocs.confirmDelete': 'Delete this document? It is moved to the deleted-files folder and removed from their page.',
+  'personDocs.editAria': 'Edit {name}',
+  'personDocs.deleteAria': 'Delete {name}',
+
+  // Accounts (M7 Task 8): a person's work accounts (network, email, VPN, Jira…), each with its own reminder lead.
+  'error.unknownAccountType': 'Unknown account type',
+  'error.personAccountNotFound': 'Account not found',
+  'error.reasonHasAccounts': {
+    one: 'they have {count} account',
+    other: 'they have {count} accounts',
+  },
+  'error.listValueInUseAccounts': {
+    one: '"{name}" is used by {count} account',
+    other: '"{name}" is used by {count} accounts',
+  },
+  'validation.remindDaysNumber': 'The reminder lead must be a number',
+  'validation.remindDaysWholeNumber': 'The reminder lead must be a whole number of days',
+  'validation.remindDaysRange': 'The reminder lead must be between 1 and 365 days',
+  'settings.accountTypes': 'Account types',
+  'settings.accountType': 'Account type',
+  'personAccounts.title': 'Accounts',
+  'personAccounts.addAccount': 'Add account',
+  'personAccounts.colType': 'Type',
+  'personAccounts.colExpiry': 'Expiry',
+  'personAccounts.colReminder': 'Reminder',
+  'personAccounts.colNote': 'Note',
+  'personAccounts.noneYet': 'No accounts yet.',
+  'personAccounts.expiryField': 'Expiry date',
+  'personAccounts.remindDaysField': 'Remind (days before)',
+  'personAccounts.noteField': 'Note',
+  'personAccounts.remindBefore': {
+    one: 'Remind 1 day before',
+    other: 'Remind {count} days before',
+  },
+  'personAccounts.renewWithin': {
+    one: 'Renew within 1 day',
+    other: 'Renew within {count} days',
+  },
+  'personAccounts.expiredAgo': {
+    one: 'Expired 1 day ago',
+    other: 'Expired {count} days ago',
+  },
+  'personAccounts.renewed': 'Renewed',
+  'personAccounts.renewedNewExpiry': 'New expiry date',
+  'personAccounts.renewedNote': 'Renewed on {date}, was {old}',
+  'personAccounts.editAria': 'Edit account {type}',
+  'personAccounts.deleteAria': 'Delete account {type}',
+  'personAccounts.confirmDelete': 'Delete this account?',
+
+  // Residence (M7 Task 8): a tech-team person's own choice of where they live (our team or outsourced). Information only.
+  'person.residenceLegend': 'Lives in',
+  'person.residenceUae': 'In the UAE',
+  'person.residenceAbroad': 'Abroad',
+  'resources.colResidence': 'Residence',
+  'resources.anyResidence': 'Anywhere',
+
+  // The dashboard's documents-and-accounts notice (M7 Task 8).
+  'dashboard.expiringOneDocument': {
+    one: "{name}'s {type} expires in 1 day",
+    other: "{name}'s {type} expires in {count} days",
+  },
+  'dashboard.expiringOneDocumentExpired': "{name}'s {type} has expired",
+  'dashboard.expiringOneAccount': {
+    one: "{name}'s {type} expires in 1 day — apply for renewal",
+    other: "{name}'s {type} expires in {count} days — apply for renewal",
+  },
+  'dashboard.expiringOneAccountExpired': "{name}'s {type} has expired — apply for renewal",
+  'dashboard.expiringMany': {
+    one: '1 document or account needs attention',
+    other: '{count} documents and accounts need attention',
+  },
+  'dashboard.seeDocuments': 'See documents',
 } satisfies Record<string, Message>;
 
 export type MessageKey = keyof typeof en;

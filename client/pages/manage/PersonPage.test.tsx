@@ -50,6 +50,15 @@ function fakeServer(calendar: WorkCalendar = { weekendDays: [0, 6], holidays: []
     'GET /api/todos?assigneeId=71': () => ({ body: [] }),
     'GET /api/todos?assigneeId=72': () => ({ body: [] }),
     'GET /api/todos?assigneeId=80': () => ({ body: [] }),
+    'GET /api/resources/70/documents': () => ({ body: [] }),
+    'GET /api/resources/70/accounts': () => ({ body: [] }),
+    'GET /api/resources/71/documents': () => ({ body: [] }),
+    'GET /api/resources/71/accounts': () => ({ body: [] }),
+    'GET /api/resources/72/documents': () => ({ body: [] }),
+    'GET /api/resources/72/accounts': () => ({ body: [] }),
+    'GET /api/resources/80/documents': () => ({ body: [] }),
+    'GET /api/resources/99/documents': () => ({ body: [] }),
+    'GET /api/resources/99/accounts': () => ({ body: [] }),
   };
 }
 
@@ -190,6 +199,29 @@ describe('PersonPage', () => {
     expect(await screen.findByText('Resources list')).toBeInTheDocument();
     const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/resources/72' && init?.method === 'PUT');
     expect(JSON.parse(put![1]!.body as string)).toMatchObject({ name: 'Rami Saleh', capacity: 100, active: false, roleId: 63 });
+  });
+
+  it('shows the Documents and Accounts cards for a tech person, and only Documents for a business contact', async () => {
+    mockFetch(fakeServer());
+    renderAt('/manage/resources/72');
+    expect(await screen.findByRole('heading', { name: 'Documents' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Accounts' })).toBeInTheDocument();
+  });
+
+  it('sets, shows and saves residence for a tech person, defaulting to Not set', async () => {
+    const fetchMock = mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderAt('/manage/resources/72');
+    await screen.findByLabelText('Name');
+    const radios = screen.getAllByRole('radio', { name: 'Not set' });
+    const residenceNotSet = radios[radios.length - 1];
+    expect(residenceNotSet).toBeChecked();
+
+    await user.click(screen.getByRole('radio', { name: 'Abroad' }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await screen.findByText('Resources list');
+    const put = fetchMock.mock.calls.find(([url, init]) => url === '/api/resources/72' && init?.method === 'PUT');
+    expect(JSON.parse(put![1]!.body as string)).toMatchObject({ residence: 'abroad' });
   });
 
   it('explains why someone in use cannot be deleted', async () => {

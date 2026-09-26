@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { countWorkingDays, DEFAULT_CALENDAR, todayLocal, type WorkCalendar } from '../../../shared/calendar';
 import { resourceInputSchema, toIssues, type ResourceInput } from '../../../shared/schemas';
-import type { Employment, ListValue, ResourceRecord, Side, Specialisation, ToDoRecord } from '../../../shared/types';
+import type { Employment, ListValue, ResourceRecord, Residence, Side, Specialisation, ToDoRecord } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
 import { OptionPicker } from '../../components/OptionPicker';
@@ -15,6 +15,8 @@ import { byUrgency, toDoToInput, type PhaseNameFor } from '../../todos';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
 import { SIDE_KEY, SPECIALISATION_KEY } from './labels';
+import { PersonAccounts } from './PersonAccounts';
+import { PersonDocuments } from './PersonDocuments';
 import { PersonWork } from './PersonWork';
 
 /** A person's open to-dos across every project. */
@@ -54,11 +56,12 @@ interface PersonDraft {
   engagementProjectId: number | null;
   engagementStart: string;
   engagementEnd: string;
+  residence: Residence | null;
 }
 
 const EMPTY_PERSON: PersonDraft = {
   name: '', side: 'tech', employment: 'staff', roleId: null, specialisation: null, capacity: 100, email: '', phone: '',
-  active: true, companyId: null, engagementProjectId: null, engagementStart: '', engagementEnd: '',
+  active: true, companyId: null, engagementProjectId: null, engagementStart: '', engagementEnd: '', residence: null,
 };
 
 function draftFrom(p: ResourceRecord): PersonDraft {
@@ -76,6 +79,7 @@ function draftFrom(p: ResourceRecord): PersonDraft {
     engagementProjectId: p.engagementProject?.id ?? null,
     engagementStart: p.engagementStart ?? '',
     engagementEnd: p.engagementEnd ?? '',
+    residence: p.residence,
   };
 }
 
@@ -292,6 +296,23 @@ export function PersonPage() {
               </label>
             </fieldset>
           ) : null}
+          {draft.side === 'tech' ? (
+            <fieldset className="check-group side-choice">
+              <legend>{t('person.residenceLegend')}</legend>
+              <label className="check">
+                <input type="radio" name="residence" checked={draft.residence === null} onChange={() => patch({ residence: null })} />
+                {t('common.notSet')}
+              </label>
+              <label className="check">
+                <input type="radio" name="residence" checked={draft.residence === 'uae'} onChange={() => patch({ residence: 'uae' })} />
+                {t('person.residenceUae')}
+              </label>
+              <label className="check">
+                <input type="radio" name="residence" checked={draft.residence === 'abroad'} onChange={() => patch({ residence: 'abroad' })} />
+                {t('person.residenceAbroad')}
+              </label>
+            </fieldset>
+          ) : null}
           <div className="form-grid">
             <label>
               {t('person.name')}
@@ -421,6 +442,14 @@ export function PersonPage() {
 
       {existing && existing.side !== 'tech' ? (
         <PersonToDos todos={todos} today={todayLocal()} onToggle={(x) => void toggleToDo(x)} errors={todoErrors} nameFor={nameFor} />
+      ) : null}
+
+      {existing ? (
+        <PersonDocuments resourceId={existing.id} documentTypes={lists.data?.personDocumentType ?? []} today={todayLocal()} />
+      ) : null}
+
+      {existing && existing.side === 'tech' ? (
+        <PersonAccounts resourceId={existing.id} accountTypes={lists.data?.accountType ?? []} today={todayLocal()} />
       ) : null}
     </main>
   );

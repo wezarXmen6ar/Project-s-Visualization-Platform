@@ -7,6 +7,7 @@ function person(p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name'>
   return {
     side: 'tech', employment: 'staff', role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true,
     leave: [], projects: [], company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engagement: null,
+    residence: null,
     ...p,
   };
 }

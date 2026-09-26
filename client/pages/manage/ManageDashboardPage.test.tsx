@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Me, ToDoRecord } from '../../../shared/types';
+import type { ExpiringItem, Me, ToDoRecord } from '../../../shared/types';
 import { mockFetch, overbookedWorkload, sampleProject, sampleWorkload, type MockHandler } from '../../testing/mockFetch';
 import { ManageDashboardPage } from './ManageDashboardPage';
 
@@ -78,6 +78,57 @@ describe('ManageDashboardPage', () => {
     renderPage();
     expect(await screen.findByRole('link', { name: 'Portal' })).toBeInTheDocument();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  describe('the expiring documents and accounts notice', () => {
+    it('shows a single expiring document and links to the person page', async () => {
+      const items: ExpiringItem[] = [
+        { kind: 'document', id: 1, person: { id: 71, name: 'Fatima Noor' }, type: { id: 300, name: 'Passport', nameAr: 'جواز السفر' }, name: 'passport.pdf', expiryDate: '2026-10-19', state: 'soon' },
+      ];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+      mockFetch(baseRoutes({ 'GET /api/people/expiring?withinDays=30': () => ({ body: items }) }));
+      renderPage();
+      const notice = await screen.findByText("Fatima Noor's passport expires in 12 days");
+      expect(notice.closest('.notice')).toHaveAttribute('role', 'status');
+      expect(screen.getByRole('link', { name: 'See documents' })).toHaveAttribute('href', '/manage/resources/71');
+    });
+
+    it('shows a single expiring account with the renewal call to action', async () => {
+      const items: ExpiringItem[] = [
+        { kind: 'account', id: 2, person: { id: 71, name: 'Fatima Noor' }, type: { id: 310, name: 'Network account', nameAr: 'أحقية الشبكة' }, name: null, expiryDate: '2026-10-27', state: 'soon' },
+      ];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+      mockFetch(baseRoutes({ 'GET /api/people/expiring?withinDays=30': () => ({ body: items }) }));
+      renderPage();
+      await screen.findByText("Fatima Noor's network account expires in 20 days — apply for renewal");
+    });
+
+    it('shows the plural form and expands into a list of every person and document/account', async () => {
+      const items: ExpiringItem[] = [
+        { kind: 'document', id: 1, person: { id: 71, name: 'Fatima Noor' }, type: { id: 300, name: 'Passport', nameAr: 'جواز السفر' }, name: 'passport.pdf', expiryDate: '2026-10-19', state: 'soon' },
+        { kind: 'document', id: 3, person: { id: 72, name: 'Rami Saleh' }, type: null, name: 'nda.pdf', expiryDate: '2026-09-20', state: 'expired' },
+        { kind: 'account', id: 2, person: { id: 71, name: 'Fatima Noor' }, type: { id: 310, name: 'Network account', nameAr: 'أحقية الشبكة' }, name: null, expiryDate: '2026-10-27', state: 'soon' },
+        { kind: 'account', id: 4, person: { id: 70, name: 'Sara Ahmed' }, type: { id: 311, name: 'Email', nameAr: 'البريد الإلكتروني' }, name: null, expiryDate: '2026-10-15', state: 'soon' },
+      ];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+      mockFetch(baseRoutes({ 'GET /api/people/expiring?withinDays=30': () => ({ body: items }) }));
+      renderPage();
+      expect(await screen.findByText('4 documents and accounts need attention')).toBeInTheDocument();
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'See documents' }));
+      expect(await screen.findAllByRole('link', { name: 'Fatima Noor' })).toHaveLength(2);
+      expect(screen.getByRole('link', { name: 'Rami Saleh' })).toBeInTheDocument();
+    });
+
+    it('shows no notice when nothing is expiring', async () => {
+      mockFetch(baseRoutes({ 'GET /api/people/expiring?withinDays=30': () => ({ body: [] }) }));
+      renderPage();
+      await screen.findByRole('link', { name: 'Portal' });
+      expect(screen.queryByText(/documents? and accounts/)).toBeNull();
+    });
   });
 
   describe('My next steps', () => {

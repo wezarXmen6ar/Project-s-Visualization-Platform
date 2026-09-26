@@ -300,6 +300,47 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX entry_guests_entry ON entry_guests(entry_id);
   `,
+  `
+  CREATE TABLE person_documents (
+    id INTEGER PRIMARY KEY,
+    resource_id INTEGER NOT NULL REFERENCES resources(id),
+    type_id INTEGER REFERENCES list_values(id),
+    original_name TEXT NOT NULL,
+    stored_name TEXT NOT NULL UNIQUE,
+    mime TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    expiry_date TEXT,
+    note TEXT,
+    uploaded_at TEXT NOT NULL
+  );
+  CREATE INDEX person_documents_resource ON person_documents(resource_id);
+  INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
+    ('personDocumentType', 'NDA', 'وثيقة عدم الإفصاح', 0),
+    ('personDocumentType', 'Police clearance', 'شهادة بحث الحالة الجنائية', 1),
+    ('personDocumentType', 'UAE ID', 'الهوية الإماراتية', 2),
+    ('personDocumentType', 'Passport', 'جواز السفر', 3),
+    ('personDocumentType', 'Company contract', 'عقد الشركة', 4),
+    ('personDocumentType', 'Information Security Approval', 'موافقة أمن المعلومات', 5),
+    ('personDocumentType', 'Other', 'أخرى', 6);
+
+  ALTER TABLE resources ADD COLUMN residence TEXT CHECK (residence IN ('uae', 'abroad'));
+  CREATE TABLE person_accounts (
+    id INTEGER PRIMARY KEY,
+    resource_id INTEGER NOT NULL REFERENCES resources(id),
+    type_id INTEGER REFERENCES list_values(id),
+    expiry_date TEXT NOT NULL,
+    remind_days INTEGER NOT NULL DEFAULT 30 CHECK (remind_days BETWEEN 1 AND 365),
+    note TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX person_accounts_resource ON person_accounts(resource_id);
+  INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
+    ('accountType', 'Network account', 'أحقية الشبكة', 0),
+    ('accountType', 'Email', 'البريد الإلكتروني', 1),
+    ('accountType', 'VPN', 'VPN', 2),
+    ('accountType', 'Jira', 'Jira', 3),
+    ('accountType', 'Other', 'أخرى', 4);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

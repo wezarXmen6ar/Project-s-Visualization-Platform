@@ -3,7 +3,10 @@ import { dayOfWeek, isISODate } from './calendar';
 import type { MessageKey } from './i18n/en';
 import { isMessageKey, translate } from './i18n/translate';
 import type { Params } from './i18n/types';
-import { ASSIGNMENT_ROLES, CATEGORIES, EMPLOYMENTS, ENTRY_TYPES, OVERLOAD_DECISIONS, PRIORITIES, SCOPE_KINDS, SIDES, SPECIALISATIONS } from './types';
+import {
+  ASSIGNMENT_ROLES, CATEGORIES, EMPLOYMENTS, ENTRY_TYPES, OVERLOAD_DECISIONS, PRIORITIES, RESIDENCES, SCOPE_KINDS, SIDES,
+  SPECIALISATIONS,
+} from './types';
 
 export const isoDate = z.string().refine(isISODate, 'validation.invalidDate');
 
@@ -248,10 +251,18 @@ export const resourceInputSchema = z
     engagementProjectId: optionalId,
     engagementStart: isoDate.nullish().transform((v) => v ?? null),
     engagementEnd: isoDate.nullish().transform((v) => v ?? null),
+    /** Tech side only (our team or outsourced); information only. "Not set" is the default. */
+    residence: z
+      .enum(RESIDENCES)
+      .nullish()
+      .transform((v) => v ?? null),
   })
   // Business contacts have no role or specialisation, are not counted in workload, and only tech-team people can
-  // be outsourced.
-  .transform((r) => (r.side === 'business' ? { ...r, roleId: null, specialisation: null, capacity: 100, employment: 'staff' as const } : r))
+  // be outsourced; residence is tech-side only too.
+  .transform((r) =>
+    r.side === 'business'
+      ? { ...r, roleId: null, specialisation: null, capacity: 100, employment: 'staff' as const, residence: null }
+      : r)
   // A staff member's company (if any) is who they're contracted through, not a project engagement, so it's kept
   // for the tech team (business contacts never have one) while the engagement fields stay outsourced-only.
   .transform((r) =>
@@ -366,6 +377,39 @@ export const attachmentUploadQuerySchema = z.object({
 });
 export type AttachmentUploadQueryInput = z.input<typeof attachmentUploadQuerySchema>;
 export type AttachmentUploadQuery = z.output<typeof attachmentUploadQuerySchema>;
+
+/** PUT /api/person-documents/:id: metadata only. `expiryDate` blank/omitted clears it. */
+export const personDocumentUpdateSchema = z.object({
+  typeId: optionalId,
+  expiryDate: isoDate.nullish().transform((v) => v ?? null),
+  note: optionalText(2000),
+});
+export type PersonDocumentUpdateInput = z.input<typeof personDocumentUpdateSchema>;
+export type PersonDocumentUpdateData = z.output<typeof personDocumentUpdateSchema>;
+
+/** POST /api/resources/:id/documents's querystring: same fields as `personDocumentUpdateSchema`, as strings. */
+export const personDocumentUploadQuerySchema = z.object({
+  typeId: optionalIdQuery,
+  expiryDate: z.preprocess((v) => (v === '' ? undefined : v), isoDate.nullish().transform((v) => v ?? null)),
+  note: z.preprocess((v) => (v === '' ? undefined : v), optionalText(2000)),
+});
+export type PersonDocumentUploadQueryInput = z.input<typeof personDocumentUploadQuerySchema>;
+export type PersonDocumentUploadQuery = z.output<typeof personDocumentUploadQuerySchema>;
+
+/** POST/PUT for a person's work account. */
+export const personAccountInputSchema = z.object({
+  typeId: optionalId,
+  expiryDate: isoDate,
+  remindDays: z
+    .number({ invalid_type_error: 'validation.remindDaysNumber' })
+    .int('validation.remindDaysWholeNumber')
+    .min(1, 'validation.remindDaysRange')
+    .max(365, 'validation.remindDaysRange')
+    .default(30),
+  note: optionalText(2000),
+});
+export type PersonAccountInput = z.input<typeof personAccountInputSchema>;
+export type PersonAccountData = z.output<typeof personAccountInputSchema>;
 
 export const starterToDoInputSchema = z.object({
   phaseListId: z.number().int().positive(),

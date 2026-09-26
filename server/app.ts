@@ -7,8 +7,9 @@ import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
   assignmentsUpdateSchema, attachmentUpdateSchema, attachmentUploadQuerySchema, entryInputSchema, leaveInputSchema, listValueInputSchema,
-  meInputSchema, newProjectSchema, overloadDecisionSchema, projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema,
-  starterAcceptSchema, starterTitleSchema, starterToDoInputSchema, toDoInputSchema, toIssues,
+  meInputSchema, newProjectSchema, overloadDecisionSchema, personAccountInputSchema, personDocumentUpdateSchema,
+  personDocumentUploadQuerySchema, projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, starterAcceptSchema, starterTitleSchema,
+  starterToDoInputSchema, toDoInputSchema, toIssues,
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import { backupStatus } from './backup';
@@ -28,6 +29,14 @@ import { checkRefs, createProject, getProject, listProjects, updateProjectDetail
 import {
   addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, listResources, updateResourceChecked,
 } from './resources/repo';
+import {
+  checkPersonAccountRefs, createPersonAccount, deletePersonAccountRow, getPersonAccount, listPersonAccounts, updatePersonAccount,
+} from './people/accounts';
+import {
+  checkPersonDocumentRefs, createPersonDocument, deletePersonDocumentRow, getPersonDocument, getPersonDocumentFile,
+  listPersonDocuments, updatePersonDocument,
+} from './people/documents';
+import { listExpiring } from './people/expiring';
 import { getCalendar, getMe, setMe } from './settings';
 import { acceptStarters, addStarter, deleteStarter, listStarters, renameStarter, starterSuggestions } from './starters/repo';
 import { checkToDo, createToDo, deleteToDo, getToDo, listToDos, updateToDo } from './todos/repo';
@@ -48,7 +57,8 @@ export interface AppOptions {
 /** A plain error body from one of this route's own message keys (not from a repo result, which already carries one). */
 function err(key: 'error.unknownList' | 'error.personNotFound' | 'error.leaveNotFound' | 'error.projectNotFound' |
   'error.phaseNotFound' | 'error.todoNotFound' | 'error.starterNotFound' | 'error.chooseTechTeamMember' | 'error.invalidYear' |
-  'error.entryNotFound' | 'error.attachmentNotFound' | 'error.fileEmpty' | 'error.badFileName') {
+  'error.entryNotFound' | 'error.attachmentNotFound' | 'error.fileEmpty' | 'error.badFileName' |
+  'error.personDocumentNotFound' | 'error.personAccountNotFound') {
   return { error: translate('en', key), code: key };
 }
 
@@ -63,6 +73,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   const attachmentsDir = opts.attachmentsDir ?? 'attachments';
   const uploadLimitBytes = opts.uploadLimitBytes ?? DEFAULT_UPLOAD_LIMIT_BYTES;
   const projectAttachmentsDir = (projectId: number) => join(attachmentsDir, String(projectId));
+  const personDocumentsDir = (resourceId: number) => join(attachmentsDir, 'people', String(resourceId));
   const deletedAttachmentsDir = join(attachmentsDir, '_deleted');
   const app = Fastify();
 
@@ -145,6 +156,140 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.delete<{ Params: { id: string } }>('/api/leave/:id', async (req, reply) =>
     deleteLeave(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send(err('error.leaveNotFound')));
+
+  app.get<{ Params: { id: string } }>('/api/resources/:id/documents', async (req, reply) => {
+    const resourceId = Number(req.params.id);
+    if (!db.prepare('SELECT id FROM resources WHERE id = ?').get(resourceId)) return reply.code(404).send(err('error.personNotFound'));
+    return listPersonDocuments(db, resourceId, today());
+  });
+
+  app.post<{ Params: { id: string }; Querystring: { typeId?: string; expiryDate?: string; note?: string } }>(
+    '/api/resources/:id/documents',
+    async (req, reply) => {
+      const resourceId = Number(req.params.id);
+      if (!db.prepare('SELECT id FROM resources WHERE id = ?').get(resourceId)) return reply.code(404).send(err('error.personNotFound'));
+
+      const body = req.body;
+      if (!Buffer.isBuffer(body) || body.length === 0) return reply.code(400).send(err('error.fileEmpty'));
+
+      const rawName = req.headers['x-file-name'];
+      let originalName: string;
+      try {
+        originalName = rawName ? decodeURIComponent(String(rawName)) : 'file';
+      } catch {
+        return reply.code(400).send(err('error.badFileName'));
+      }
+      const rawType = req.headers['x-file-type'];
+      const mime = typeof rawType === 'string' && rawType.length <= 100 && /^[\w.+-]+\/[\w.+-]+$/.test(rawType)
+        ? rawType.toLowerCase()
+        : guessMime(originalName);
+
+      const parsedQuery = personDocumentUploadQuerySchema.safeParse(req.query);
+      if (!parsedQuery.success) return reply.code(400).send({ error: 'Invalid document', issues: toIssues(parsedQuery.error) });
+      const { typeId, expiryDate, note } = parsedQuery.data;
+
+      const issues = checkPersonDocumentRefs(db, { typeId });
+      if (issues.length > 0) return reply.code(400).send({ error: 'Invalid document', issues });
+
+      const dir = personDocumentsDir(resourceId);
+      const storedName = makeStoredName(originalName);
+      writeAttachmentFile(dir, storedName, body);
+      try {
+        const created = createPersonDocument(
+          db, resourceId,
+          { typeId, originalName, storedName, mime, size: body.length, expiryDate: expiryDate as ISODate | null, note },
+          new Date().toISOString(), today(),
+        );
+        return reply.code(201).send(created);
+      } catch (error) {
+        try {
+          removeAttachmentFile(dir, storedName);
+        } catch {
+          // Best effort: the insert already failed, so surface that error rather than a cleanup failure.
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: { id: string }; Querystring: { inline?: string } }>('/api/person-documents/:id/file', async (req, reply) => {
+    const file = getPersonDocumentFile(db, Number(req.params.id));
+    if (!file) return reply.code(404).send(err('error.personDocumentNotFound'));
+    let data: Buffer;
+    try {
+      data = readAttachmentFile(personDocumentsDir(file.resourceId), file.storedName);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      return reply.code(404).send(err('error.personDocumentNotFound'));
+    }
+    const inline = req.query.inline === '1' && isPreviewable(file.mime);
+    const encoded = encodeFilenameStar(file.originalName);
+    reply.header('X-Content-Type-Options', 'nosniff');
+    const sandbox = file.mime.toLowerCase() === 'application/pdf' ? '' : '; sandbox';
+    reply.header('Content-Security-Policy', `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'${sandbox}`);
+    reply.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encoded}`);
+    reply.type(file.mime);
+    return reply.send(data);
+  });
+
+  app.put<{ Params: { id: string } }>('/api/person-documents/:id', async (req, reply) => {
+    const id = Number(req.params.id);
+    const existing = getPersonDocument(db, id, today());
+    if (!existing) return reply.code(404).send(err('error.personDocumentNotFound'));
+    const parsed = personDocumentUpdateSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid document', issues: toIssues(parsed.error) });
+    const issues = checkPersonDocumentRefs(db, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid document', issues });
+    return updatePersonDocument(db, id, parsed.data, today());
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/person-documents/:id', async (req, reply) => {
+    const id = Number(req.params.id);
+    const file = getPersonDocumentFile(db, id);
+    if (!file) return reply.code(404).send(err('error.personDocumentNotFound'));
+    try {
+      moveAttachmentFileToDeleted(personDocumentsDir(file.resourceId), file.storedName, deletedAttachmentsDir);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    deletePersonDocumentRow(db, id);
+    return reply.code(204).send();
+  });
+
+  app.get<{ Params: { id: string } }>('/api/resources/:id/accounts', async (req, reply) => {
+    const resourceId = Number(req.params.id);
+    if (!db.prepare('SELECT id FROM resources WHERE id = ?').get(resourceId)) return reply.code(404).send(err('error.personNotFound'));
+    return listPersonAccounts(db, resourceId, today());
+  });
+
+  app.post<{ Params: { id: string } }>('/api/resources/:id/accounts', async (req, reply) => {
+    const resourceId = Number(req.params.id);
+    if (!db.prepare('SELECT id FROM resources WHERE id = ?').get(resourceId)) return reply.code(404).send(err('error.personNotFound'));
+    const parsed = personAccountInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid account', issues: toIssues(parsed.error) });
+    const issues = checkPersonAccountRefs(db, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid account', issues });
+    return reply.code(201).send(createPersonAccount(db, resourceId, parsed.data, new Date().toISOString(), today()));
+  });
+
+  app.put<{ Params: { id: string } }>('/api/person-accounts/:id', async (req, reply) => {
+    const id = Number(req.params.id);
+    const existing = getPersonAccount(db, id, today());
+    if (!existing) return reply.code(404).send(err('error.personAccountNotFound'));
+    const parsed = personAccountInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid account', issues: toIssues(parsed.error) });
+    const issues = checkPersonAccountRefs(db, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid account', issues });
+    return updatePersonAccount(db, id, parsed.data, today());
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/person-accounts/:id', async (req, reply) =>
+    deletePersonAccountRow(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send(err('error.personAccountNotFound')));
+
+  app.get<{ Querystring: { withinDays?: string } }>('/api/people/expiring', async (req) => {
+    const withinDays = Number(req.query.withinDays);
+    return listExpiring(db, today(), Number.isInteger(withinDays) && withinDays > 0 ? withinDays : 30);
+  });
 
   app.get('/api/projects', async () => listProjects(db));
 

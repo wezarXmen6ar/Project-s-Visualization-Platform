@@ -35,6 +35,7 @@ describe('resources API', () => {
       id: expect.any(Number), name: 'Fatima Noor', side: 'tech', employment: 'staff', role: { id: roles.Developer, name: 'Developer' },
       specialisation: 'front-end', email: 'fatima@example.com', phone: null, capacity: 80, active: true, leave: [],
       projects: [], company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engagement: null,
+      residence: null,
     });
   });
 

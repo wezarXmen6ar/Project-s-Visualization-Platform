@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { addDays, todayLocal } from '../../../shared/calendar';
 import { computeDailyLoad, computeWorkload, weekStartOf } from '../../../shared/capacity';
 import type { MessageKey } from '../../../shared/i18n/en';
-import type { ResourceRecord, Side } from '../../../shared/types';
+import type { Residence, ResourceRecord, Side } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
@@ -56,6 +56,12 @@ const COLUMNS: { key: SortKey; label: MessageKey }[] = [
   { key: 'status', label: 'resources.colStatus' },
 ];
 
+/** The tag shown for a tech-side person living abroad; those in the UAE (or not set) get no tag. */
+function ResidenceTag({ residence }: { residence: ResourceRecord['residence'] }) {
+  const t = useT();
+  return residence === 'abroad' ? <span className="tag">{t('person.residenceAbroad')}</span> : null;
+}
+
 const OUTSOURCED_COLUMNS: { key: OutsourcedSortKey; label: MessageKey }[] = [
   { key: 'name', label: 'resources.colName' },
   { key: 'company', label: 'resources.colCompany' },
@@ -98,6 +104,7 @@ export function ResourcesPage() {
   const [roleId, setRoleId] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<number | null>(null);
   const [peopleCompanyId, setPeopleCompanyId] = useState<number | null>(null);
+  const [residenceFilter, setResidenceFilter] = useState<Residence | 'all'>('all');
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [outsourcedProjectId, setOutsourcedProjectId] = useState<number | null>(null);
@@ -138,7 +145,8 @@ export function ResourcesPage() {
       (side === 'all' || p.side === side) &&
       (roleId === null || p.role?.id === roleId) &&
       (projectId === null || workingOn(p, projectId)) &&
-      (peopleCompanyId === null || p.company?.id === peopleCompanyId),
+      (peopleCompanyId === null || p.company?.id === peopleCompanyId) &&
+      (residenceFilter === 'all' || p.residence === residenceFilter),
   );
   const roles = lists.data?.role ?? [];
   const companies = lists.data?.company ?? [];
@@ -292,6 +300,14 @@ export function ResourcesPage() {
               ))}
             </select>
           </label>
+          <label>
+            {t('resources.colResidence')}
+            <select value={residenceFilter} onChange={(e) => setResidenceFilter(e.target.value as Residence | 'all')}>
+              <option value="all">{t('resources.anyResidence')}</option>
+              <option value="uae">{t('person.residenceUae')}</option>
+              <option value="abroad">{t('person.residenceAbroad')}</option>
+            </select>
+          </label>
         </div>
 
         {!people.data && !people.error ? <p className="muted">{t('common.loading')}</p> : null}
@@ -316,7 +332,10 @@ export function ResourcesPage() {
             <tbody>
               {shown.map((p) => (
                 <tr key={p.id}>
-                  <td><Link to={`/manage/resources/${p.id}`} dir="auto" data-user-content="">{p.name}</Link></td>
+                  <td>
+                    <Link to={`/manage/resources/${p.id}`} dir="auto" data-user-content="">{p.name}</Link>
+                    {' '}<ResidenceTag residence={p.residence} />
+                  </td>
                   <td>{t(SIDE_KEY[p.side])}</td>
                   <td>
                     {p.role ? roleName(p.role, roles, lang) : '—'}
@@ -401,6 +420,7 @@ export function ResourcesPage() {
                 <tr key={p.id}>
                   <td>
                     <Link to={`/manage/resources/${p.id}`} dir="auto" data-user-content="">{p.name}</Link>
+                    {' '}<ResidenceTag residence={p.residence} />
                     {p.engagement === 'upcoming' && p.engagementStart ? (
                       <span className="muted"> · {t('resources.startsOn', { date: formatDate(lang, p.engagementStart) })}</span>
                     ) : null}

@@ -1,9 +1,13 @@
 import type { EngagementStatus, ISODate, WorkCalendar } from './calendar';
 import type { CapacityAssignment, CapacityResource } from './capacity';
+import type { ExpiryState } from './expiry';
 import type { PortfolioStats } from './portfolio';
 
 /** The editable dropdown lists (managed in Settings). A main project is just a name, so it is a list too. */
-export const LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department', 'phase', 'role', 'attachmentType', 'company'] as const;
+export const LIST_NAMES = [
+  'mainProject', 'projectType', 'goal', 'department', 'phase', 'role', 'attachmentType', 'company', 'personDocumentType',
+  'accountType',
+] as const;
 export type ListName = (typeof LIST_NAMES)[number];
 
 export interface ListValue {
@@ -55,6 +59,10 @@ export type Specialisation = (typeof SPECIALISATIONS)[number];
 export const EMPLOYMENTS = ['staff', 'outsourced'] as const;
 export type Employment = (typeof EMPLOYMENTS)[number];
 
+/** Whether a tech-side person (our team or outsourced) lives in the UAE or abroad. Information only. */
+export const RESIDENCES = ['uae', 'abroad'] as const;
+export type Residence = (typeof RESIDENCES)[number];
+
 export interface LeaveRecord {
   id: number;
   start: ISODate;
@@ -98,6 +106,8 @@ export interface ResourceRecord {
   engagementEnd: ISODate | null;
   /** Outsourced only: upcoming, engaged or past, per `engagementStatus`. Null for staff. */
   engagement: EngagementStatus | null;
+  /** Tech side only (our team or outsourced); business contacts don't get this field. Null when not set. */
+  residence: Residence | null;
   /** Ordered by start date. */
   leave: LeaveRecord[];
   /** Ordered by name. Empty when they have no current or past link to any project. */
@@ -292,6 +302,54 @@ export interface StarterToDo { id: number; phaseListId: number; title: string; o
 
 /** A starter item offered for one of a project's top-level phases. */
 export interface StarterSuggestion { phaseId: number; phaseName: string; title: string }
+
+/** One of a person's uploaded documents (M7 Task 8): an NDA, a police clearance, a passport, etc. Never shown on /present. */
+export interface PersonDocumentRecord {
+  id: number;
+  resourceId: number;
+  personName: string;
+  type: Ref | null;
+  /** The original file name, kept for downloads. */
+  name: string;
+  mime: string;
+  size: number;
+  expiryDate: ISODate | null;
+  note: string | null;
+  uploadedAt: string;
+  /** True for a PDF or a raster image (not SVG), so the client can offer an inline preview. */
+  previewable: boolean;
+  /** Against the fixed 30-day window; null when there is no expiry date. */
+  state: ExpiryState | null;
+}
+
+/** One of a person's work accounts (M7 Task 8): network, email, VPN, Jira… Never shown on /present. */
+export interface PersonAccountRecord {
+  id: number;
+  resourceId: number;
+  personName: string;
+  type: Ref | null;
+  expiryDate: ISODate;
+  /** How many days ahead of expiry the reminder starts; default 30. */
+  remindDays: number;
+  note: string | null;
+  createdAt: string;
+  /** Against this account's own `remindDays`. */
+  state: ExpiryState;
+}
+
+export type ExpiringKind = 'document' | 'account';
+
+/** One row from GET /api/people/expiring: a document or an account close to (or past) its expiry. */
+export interface ExpiringItem {
+  kind: ExpiringKind;
+  id: number;
+  person: { id: number; name: string };
+  type: Ref | null;
+  /** The document's file name; null for an account. */
+  name: string | null;
+  expiryDate: ISODate;
+  state: ExpiryState;
+}
 
 export interface PortfolioResponse {
   year: number;
