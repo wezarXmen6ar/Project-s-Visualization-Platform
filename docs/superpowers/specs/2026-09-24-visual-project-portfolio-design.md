@@ -315,6 +315,13 @@ A one-page view of the most important facts about one project, for a manager who
 - Private items (to-dos, people's names on the presentation side, key dates of contracts) follow the usual rules: the presentation-side summary shows only what the presentation side may show.
 
 ### 4.5 Export and presenter mode
+- **Status report as slides (تقرير حالة المشاريع) (user, 2026-09-26):** choose one project, several projects, or a whole department, and export one landscape PDF laid out as slides, in Arabic (right to left) or English. With several projects it opens with a **cover** slide and an **overview** slide (the chosen projects on one Gantt chart, each with its status). Each project then gets its own slides:
+  - **Summary:** the project summary (key dates, expected vs original finish, on track or late, overall and development %, key documents).
+  - **Timeline:** the Gantt chart with the original plan as dashed outlines, milestones and requirement arrival markers.
+  - **Why it moved:** the "Why did the end date move?" step chart with the plain-language summary sentence, and that project's "Waiting on you" items.
+  - **Highlights:** recent meetings and updates marked "show in presentation", and change requests (approved and waiting).
+  - Built in steps: **M8** gives the first version (cover, Summary and Timeline slides, one or several projects); **M9** adds change requests to Highlights; **M13** adds Why it moved, the overview slide and the finished styling.
+  - Made with the browser's own print-to-PDF from a print-ready slide page (no new dependency). Only what the presentation side may show is included.
 - **Export to PDF:** portfolio Gantt chart, Where did the time go?, and focus view.
 - **Presenter mode:** full screen, large text, no internal details (routine updates and unflagged entries are hidden).
 - **Not included:** a team capacity view for stakeholders. Capacity stays on the project management side.
