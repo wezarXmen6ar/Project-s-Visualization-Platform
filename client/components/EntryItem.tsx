@@ -1,0 +1,123 @@
+import { useState } from 'react';
+import { Link } from 'react-router';
+import type { EntryRecord, ToDoRecord } from '../../shared/types';
+import { MeetingIcon, UpdateIcon } from '../icons';
+import { useFormat } from '../i18n/format';
+import { useT } from '../i18n/LanguageProvider';
+import { phaseRefLabel, type PhaseNameFor } from '../todos';
+
+const NOTE_LINES = 3;
+
+interface EntryItemProps {
+  entry: EntryRecord;
+  /** Maps a top-level phase's stored name to its display name (e.g. its Arabic name). */
+  nameFor?: PhaseNameFor;
+  /** The to-dos this entry's `followUpToDoIds` point to, in the same order. */
+  followUps?: ToDoRecord[];
+  onToggleFollowUp?: (todo: ToDoRecord) => void;
+  /**
+   * Edit and delete controls, and the follow-ups' done checkbox, are shown only when this is given. Left out for a
+   * read-only list, e.g. the phase side panel (M7 Task 6) or the presentation view.
+   */
+  actions?: {
+    onEdit: () => void;
+    onDelete: () => void;
+  };
+}
+
+/** One meeting or update in the History tab's list: its icon, title, date, phase, attendees, notes and follow-ups. */
+export function EntryItem({ entry, nameFor, followUps = [], onToggleFollowUp, actions }: EntryItemProps) {
+  const t = useT();
+  const { formatDate } = useFormat();
+  const [expanded, setExpanded] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const bodyLines = entry.body.split('\n');
+  const isLong = bodyLines.length > NOTE_LINES;
+  const shownBody = expanded || !isLong ? entry.body : bodyLines.slice(0, NOTE_LINES).join('\n');
+
+  return (
+    <li className="entry-item">
+      <div className="entry-item-head">
+        {entry.type === 'meeting' ? <MeetingIcon /> : <UpdateIcon />}
+        <div className="entry-item-title-block">
+          <span className="entry-item-title" dir="auto" data-user-content="">{entry.title}</span>
+          {entry.highlight ? <span className="badge">{t('history.shownBadge')}</span> : null}
+          <div className="entry-item-meta">
+            <span>{formatDate(entry.effectiveDate)}</span>
+            {entry.phase ? <span> · {phaseRefLabel(entry.phase, nameFor)}</span> : null}
+          </div>
+          {entry.type === 'meeting' && entry.attendees.length > 0 ? (
+            <div className="entry-item-meta">
+              {t('history.attendeesLabel')}:{' '}
+              {entry.attendees.map((a, i) => (
+                <span key={a.id}>
+                  {i > 0 ? ', ' : ''}
+                  <Link to={`/manage/resources/${a.id}`} dir="auto" data-user-content="">{a.name}</Link>
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        {actions ? (
+          confirming ? (
+            <div className="option-add-actions">
+              <span>{t(entry.type === 'meeting' ? 'history.confirmDeleteMeeting' : 'history.confirmDeleteUpdate')}</span>
+              <button type="button" className="button danger" onClick={() => { setConfirming(false); actions.onDelete(); }}>
+                {t('common.delete')}
+              </button>
+              <button type="button" className="button secondary" onClick={() => setConfirming(false)}>{t('common.keep')}</button>
+            </div>
+          ) : (
+            <div className="option-add-actions">
+              <button
+                type="button"
+                className="button secondary"
+                aria-label={t('history.editAria', { title: entry.title })}
+                onClick={actions.onEdit}
+              >
+                {t('common.edit')}
+              </button>
+              <button
+                type="button"
+                className="button secondary"
+                aria-label={t('history.deleteAria', { title: entry.title })}
+                onClick={() => setConfirming(true)}
+              >
+                {t('common.delete')}
+              </button>
+            </div>
+          )
+        ) : null}
+      </div>
+
+      {entry.body ? (
+        <>
+          <p className="entry-item-body" dir="auto" data-user-content="">{shownBody}</p>
+          {isLong ? (
+            <button type="button" className="button-link" onClick={() => setExpanded((v) => !v)}>
+              {expanded ? t('history.showLess') : t('history.showMore')}
+            </button>
+          ) : null}
+        </>
+      ) : null}
+
+      {followUps.length > 0 ? (
+        <ul className="entry-followups">
+          {followUps.map((f) => (
+            <li key={f.id}>
+              <input
+                type="checkbox"
+                aria-label={t('todo.doneAria', { title: f.title })}
+                checked={f.done}
+                disabled={!actions}
+                onChange={() => onToggleFollowUp?.(f)}
+              />
+              <span dir="auto" data-user-content="">{f.title}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}

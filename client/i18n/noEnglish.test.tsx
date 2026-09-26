@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Lang } from '../../shared/i18n/types';
 import type {
-  Lists, Me, ProjectRecord, ResourceRecord, StarterToDo, ToDoRecord, WorkloadData,
+  EntryRecord, Lists, Me, ProjectRecord, ResourceRecord, StarterToDo, ToDoRecord, WorkloadData,
 } from '../../shared/types';
 import { App } from '../App';
 import { ProjectPage } from '../pages/manage/ProjectPage';
@@ -192,6 +192,19 @@ function arabicToDos(): ToDoRecord[] {
   });
 }
 
+function arabicEntries(): EntryRecord[] {
+  return [
+    {
+      id: 300, projectId: 1, type: 'meeting', effectiveDate: '2026-09-24', createdAt: '2026-09-20T09:00:00.000Z',
+      title: 'اجتماع الانطلاق', highlight: true,
+      body: 'السطر الأول.\nالسطر الثاني.\nالسطر الثالث.\nالسطر الرابع.',
+      phase: { id: 120, name: `Development › ${INCREMENT}`, phaseName: 'Development', subPhaseName: INCREMENT },
+      attendees: [{ id: 70, name: SARA }, { id: 71, name: FATIMA }],
+      attachmentIds: [], followUpToDoIds: [200],
+    },
+  ];
+}
+
 function arabicWorkload(): WorkloadData {
   return {
     calendar: { weekendDays: [0, 6], holidays: [] },
@@ -233,6 +246,7 @@ function arabicRoutes(): Record<string, MockHandler> {
     'GET /api/workload': () => ({ body: arabicWorkload() }),
     'GET /api/todos?done=include': () => ({ body: todos }),
     'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
+    'GET /api/projects/1/entries': () => ({ body: arabicEntries() }),
     'GET /api/todos?assigneeId=70': () => ({ body: todos.filter((t) => t.assignee?.id === 70) }),
     'GET /api/todos?assigneeId=72': () => ({ body: [{ ...todos[1], assignee: { id: 72, name: RAMI } }] }),
     'GET /api/starter-todos': () => ({ body: starters }),
@@ -323,7 +337,16 @@ describe('no English left in the Arabic pages', () => {
     await screen.findByRole('heading', { level: 1, name: PROJECT });
     await screen.findByRole('tab', { name: 'السجل' });
     await settled();
+    await screen.findByText('اجتماع الانطلاق');
     expectNoEnglish('the project page');
+
+    await user.click(screen.getByRole('button', { name: 'تعديل اجتماع الانطلاق' }));
+    expectNoEnglish('the project page with the History tab, an entry open for edit');
+    await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+
+    await user.click(screen.getByRole('button', { name: 'إضافة اجتماع' }));
+    expectNoEnglish('the project page with the History tab, the add-meeting form open');
+    await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
     await user.click(screen.getByRole('tab', { name: 'الأشخاص' }));
     await screen.findByText('60% · مسؤول', { exact: false });

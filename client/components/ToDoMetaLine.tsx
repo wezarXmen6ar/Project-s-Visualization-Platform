@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import type { ISODate } from '../../shared/calendar';
 import type { ToDoRecord } from '../../shared/types';
 import { useLang, useT } from '../i18n/LanguageProvider';
+import { dayDate } from '../overloads';
 import { dueLabel, formerPhaseLabel, isOverdue, phaseRefLabel, type PhaseNameFor } from '../todos';
 
 interface ToDoMetaLineProps {
@@ -48,6 +49,12 @@ export function ToDoMetaLine({ todo, today, showAssignee = true, nameFor }: ToDo
         ))}
       </div>
       {former ? <div className="todo-meta">{former}</div> : null}
+      {todo.sourceEntry ? (
+        <div className="todo-meta">
+          {t('todo.fromMeetingPrefix', { date: dayDate(todo.sourceEntry.effectiveDate, lang) })}
+          <span dir="auto" data-user-content="">{todo.sourceEntry.title}</span>
+        </div>
+      ) : null}
     </>
   );
 }

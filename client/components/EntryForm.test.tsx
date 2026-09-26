@@ -1,0 +1,128 @@
+// @vitest-environment jsdom
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { EntryData } from '../../shared/schemas';
+import type { Me } from '../../shared/types';
+import { samplePeople, sampleProject } from '../testing/mockFetch';
+import { LanguageProvider } from '../i18n/LanguageProvider';
+import { EntryForm } from './EntryForm';
+
+const me: Me = { resourceId: 70, name: 'Sara Ahmed' };
+
+function project() {
+  return sampleProject({
+    projectManager: { id: 70, name: 'Sara Ahmed' },
+    assignments: [{ id: 300, phaseId: 120, resource: { id: 72, name: 'Rami Saleh' }, allocation: 50, role: 'responsible' }],
+  });
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('EntryForm', () => {
+  it('a new meeting form saves attendees and follow-ups', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(
+      <EntryForm project={project()} me={me} people={samplePeople()} type="meeting" onSave={onSave} onCancel={vi.fn()} />,
+    );
+
+    await user.type(screen.getByLabelText('Title'), 'Kickoff');
+    await user.click(screen.getByRole('button', { name: 'Sara Ahmed' }));
+    await user.click(screen.getByRole('button', { name: 'Fatima Noor' }));
+    expect(screen.getByRole('button', { name: 'Remove Sara Ahmed' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '+ Add follow-up' }));
+    const followUpTitles = screen.getAllByLabelText('Title');
+    await user.type(followUpTitles[1], 'Book the room');
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const input: EntryData = onSave.mock.calls[0][0];
+    expect(input.type).toBe('meeting');
+    expect(input.title).toBe('Kickoff');
+    expect(input.effectiveDate).toBe('2026-10-07');
+    expect(input.attendeeIds.sort()).toEqual([70, 71]);
+    expect(input.followUps).toEqual([{ title: 'Book the room', assigneeId: 70, dueDate: null }]);
+  });
+
+  it('an update form has no attendees field and no follow-ups', () => {
+    render(
+      <EntryForm project={project()} me={me} people={samplePeople()} type="update" onSave={vi.fn()} onCancel={vi.fn()} />,
+    );
+    expect(screen.queryByLabelText('Attendees')).not.toBeInTheDocument();
+    expect(screen.queryByText('+ Add follow-up')).not.toBeInTheDocument();
+    expect(screen.getByText('Notes')).toBeInTheDocument();
+  });
+
+  it('shows "Write a title" and does not save when the title is empty', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <EntryForm project={project()} me={me} people={samplePeople()} type="update" onSave={onSave} onCancel={vi.fn()} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Write a title')).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('editing an existing meeting pre-fills its fields and keeps the follow-up section hidden', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(
+      <EntryForm
+        project={project()}
+        me={me}
+        people={samplePeople()}
+        type="meeting"
+        initial={{
+          id: 300, projectId: 1, type: 'meeting', effectiveDate: '2026-09-24', createdAt: '2026-09-20T09:00:00.000Z',
+          title: 'Kickoff', body: '', highlight: false, phase: null,
+          attendees: [{ id: 70, name: 'Sara Ahmed' }], attachmentIds: [], followUpToDoIds: [],
+        }}
+        onSave={onSave}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Title')).toHaveValue('Kickoff');
+    expect(screen.queryByText('+ Add follow-up')).not.toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('Title'));
+    await user.type(screen.getByLabelText('Title'), 'Kickoff (rescheduled)');
+    await user.click(screen.getByLabelText('Show in presentation'));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    const input: EntryData = onSave.mock.calls[0][0];
+    expect(input.title).toBe('Kickoff (rescheduled)');
+    expect(input.highlight).toBe(true);
+    expect(input.attendeeIds).toEqual([70]);
+  });
+
+  it('Cancel does not save', async () => {
+    const onCancel = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <EntryForm project={project()} me={me} people={samplePeople()} type="update" onSave={vi.fn()} onCancel={onCancel} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a meeting form in Arabic', async () => {
+    render(
+      <LanguageProvider lang="ar">
+        <EntryForm project={project()} me={me} people={samplePeople()} type="meeting" onSave={vi.fn()} onCancel={vi.fn()} />
+      </LanguageProvider>,
+    );
+    expect(screen.getByText('الحضور')).toBeInTheDocument();
+    expect(screen.getByText('محضر الاجتماع')).toBeInTheDocument();
+    expect(screen.getByText('إظهار في العرض')).toBeInTheDocument();
+    expect(screen.getByText('مهام للمتابعة')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ إضافة مهمة للمتابعة' })).toBeInTheDocument();
+  });
+});

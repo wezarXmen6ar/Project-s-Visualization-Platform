@@ -17,6 +17,7 @@ import { useLists } from '../../useLists';
 import { useMe } from '../../useMe';
 import { useResources } from '../../useResources';
 import { useWorkload } from '../../useWorkload';
+import { HistoryTab } from './HistoryTab';
 import { NextUp } from './NextUp';
 import { ProjectDetailsTab } from './ProjectDetailsTab';
 import { ProjectPeople } from './ProjectPeople';
@@ -104,7 +105,20 @@ export function ProjectPage() {
 
   const openToDoCount = todos.filter((x) => !x.done).length;
   const tabs: ProjectTab[] = [
-    { key: 'history', label: t('tabs.history'), content: <section className="card"><p>{t('tabs.comingNextStep')}</p></section> },
+    {
+      key: 'history',
+      label: t('tabs.history'),
+      content: (
+        <HistoryTab
+          project={p}
+          me={me ?? { resourceId: null, name: null }}
+          people={people}
+          todos={todos}
+          toggleDone={(x) => void toggleDone(x)}
+          nameFor={nameFor}
+        />
+      ),
+    },
     {
       key: 'todos',
       label: openToDoCount > 0 ? t('tabs.todosCount', { count: openToDoCount }) : t('tabs.todos'),

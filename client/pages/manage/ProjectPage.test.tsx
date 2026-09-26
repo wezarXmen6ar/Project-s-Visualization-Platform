@@ -613,17 +613,18 @@ describe('ProjectPage tabs', () => {
       'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
       'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
       'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+      'GET /api/projects/1/entries': () => ({ body: [] }),
     };
   }
 
-  it('selects History by default, showing the coming-soon placeholder', async () => {
+  it('selects History by default, showing the empty state', async () => {
     mockFetch(baseRoutes());
     renderAt('/manage/projects/1');
 
     const historyTab = await screen.findByRole('tab', { name: 'History' });
     expect(historyTab).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'To-dos' })).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByText('Coming in the next step')).toBeInTheDocument();
+    expect(await screen.findByText('No meetings or updates yet.')).toBeInTheDocument();
   });
 
   it('clicking To-dos shows the to-dos card and puts tab=todos in the URL', async () => {
