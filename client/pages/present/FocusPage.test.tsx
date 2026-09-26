@@ -23,7 +23,8 @@ describe('FocusPage', () => {
     expect(await screen.findByRole('heading', { name: 'Portal' })).toBeInTheDocument();
     expect(screen.getByTestId('gantt-row-11')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Portfolio/ })).toHaveAttribute('href', '/present?year=2026');
-    expect(screen.queryByRole('button')).toBeNull();
+    // A clickable Gantt piece is a "button" (it opens the read-only side panel), but nothing else on the page is.
+    expect(screen.getAllByRole('button').every((b) => b.closest('svg.gantt'))).toBe(true);
   });
 
   it('shows sub-phases inside their phase bar with details on hover, read-only and without names', async () => {
@@ -62,7 +63,7 @@ describe('FocusPage', () => {
     expect(screen.queryByText(/Fatima Noor/)).toBeNull();
     expect(document.body.textContent).not.toContain('Fatima Noor');
 
-    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getAllByRole('button').every((b) => b.closest('svg.gantt'))).toBe(true);
     expect(screen.getAllByRole('link')).toHaveLength(1);
   });
 
@@ -113,7 +114,7 @@ describe('FocusPage', () => {
     const buttons = within(panel).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent);
     expect(buttons).toEqual(['Close', 'Preview Minutes.pdf']);
     expect(within(panel).getByRole('link', { name: 'Download Minutes.pdf' })).toBeInTheDocument();
-    // Outside the panel the page still has no buttons.
-    expect(screen.getAllByRole('button').every((b) => panel.contains(b))).toBe(true);
+    // Outside the panel, the only "buttons" are the clickable Gantt pieces.
+    expect(screen.getAllByRole('button').every((b) => panel.contains(b) || b.closest('svg.gantt'))).toBe(true);
   });
 });

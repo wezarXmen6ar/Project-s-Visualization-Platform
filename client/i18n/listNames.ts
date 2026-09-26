@@ -26,8 +26,20 @@ export function phaseName(name: string, lists: Lists, lang: Lang): string {
 /** `phaseName`, given just the Phases list's values (e.g. the options of a phase dropdown). */
 export function phaseNameFrom(name: string, phases: Named[], lang: Lang): string {
   if (lang !== 'ar') return name;
-  const match = phases.find((p) => p.name.localeCompare(name, undefined, { sensitivity: 'base' }) === 0);
+  const match = findPhaseListValue(name, phases);
   return match ? listName(match, lang) : name;
+}
+
+function findPhaseListValue(name: string, phases: Named[]): Named | undefined {
+  return phases.find((p) => p.name.localeCompare(name, undefined, { sensitivity: 'base' }) === 0);
+}
+
+/**
+ * True when a top-level phase's stored name is not one of the Phases list's values — the user typed it freely, so
+ * it's user content (gets `dir="auto"` and `data-user-content`) rather than app-translated text.
+ */
+export function isCustomPhaseName(name: string, phases: Named[]): boolean {
+  return findPhaseListValue(name, phases) === undefined;
 }
 
 /**

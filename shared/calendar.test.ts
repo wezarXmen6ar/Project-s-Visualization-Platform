@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   DEFAULT_CALENDAR, addDays, addWorkingDays, countWorkingDays, dayOfWeek, daysBetween,
-  isISODate, isWorkingDay, nextWorkingDay, type WorkCalendar,
+  isISODate, isWorkingDay, nextWorkingDay, toLocalDate, type WorkCalendar,
 } from './calendar';
 
 const cal = DEFAULT_CALENDAR; // Sat + Sun weekend
@@ -23,6 +23,25 @@ describe('date helpers', () => {
   });
   it('knows the weekday', () => {
     expect(dayOfWeek('2026-09-24')).toBe(4); // Thursday
+  });
+
+  describe('toLocalDate', () => {
+    const prevTZ = process.env.TZ;
+    beforeAll(() => {
+      process.env.TZ = 'Asia/Dubai'; // UAE, UTC+4
+    });
+    afterAll(() => {
+      process.env.TZ = prevTZ;
+    });
+
+    it('takes the UAE calendar date, not the UTC one, for a timestamp at 22:00 UTC (2am the next day locally)', () => {
+      // 2026-09-24T22:00:00.000Z is 2026-09-25 02:00 in the UAE: naive `.slice(0, 10)` would say the 24th.
+      expect(toLocalDate('2026-09-24T22:00:00.000Z')).toBe('2026-09-25');
+    });
+
+    it('keeps the same day when the UTC time is still the same day locally', () => {
+      expect(toLocalDate('2026-09-24T09:00:00.000Z')).toBe('2026-09-24');
+    });
   });
 });
 

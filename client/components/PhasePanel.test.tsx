@@ -174,6 +174,25 @@ describe('PhasePanel', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
+  it('does not close on Escape while a form is open, so typed text is not lost', async () => {
+    mockFetch(routes());
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    renderPanel(managePanel(onClose));
+    const panel = screen.getByRole('dialog');
+    await user.click(within(panel).getByRole('button', { name: 'Add meeting' }));
+    const title = within(panel).getByLabelText('Title');
+    await user.type(title, 'Kickoff');
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(within(panel).getByLabelText('Title')).toHaveValue('Kickoff');
+
+    // With no form open, Escape still closes the panel.
+    await user.click(within(panel).getByRole('button', { name: 'Cancel' }));
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('in read-only mode shows only highlighted entries with their files, and no to-dos, names or editing buttons', async () => {
     const minutes: AttachmentRecord = { ...file, id: 701, entryId: 501, phase: null, name: 'Minutes.pdf' };
     mockFetch(routes(
@@ -217,5 +236,44 @@ describe('PhasePanel', () => {
     const rule = css.match(/\.phase-panel\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(rule).toMatch(/inset-inline-end:\s*0/);
     expect(rule).not.toMatch(/(^|[\s;])(left|right):/);
+  });
+
+  it('marks a custom top-level phase name as user content in the heading, but not a translated list name', async () => {
+    mockFetch(routes());
+    const { rerender } = renderPanel(
+      <PhasePanel
+        project={project}
+        phaseId={12}
+        mode="present"
+        calendar={DEFAULT_CALENDAR}
+        onClose={() => {}}
+        nameFor={(n) => (n === 'Development' ? 'التطوير' : n)}
+        isCustomName={() => false}
+      />,
+      'ar',
+    );
+    let heading = screen.getByRole('heading', { level: 2 });
+    expect(heading.querySelector('[data-user-content]')).toBeNull();
+
+    rerender(
+      <LanguageProvider lang="ar">
+        <MemoryRouter>
+          <PhasePanel
+            project={project}
+            phaseId={12}
+            mode="present"
+            calendar={DEFAULT_CALENDAR}
+            onClose={() => {}}
+            nameFor={(n) => n}
+            isCustomName={() => true}
+          />
+        </MemoryRouter>
+      </LanguageProvider>,
+    );
+    heading = screen.getByRole('heading', { level: 2 });
+    const userContent = heading.querySelector('[data-user-content]');
+    expect(userContent).not.toBeNull();
+    expect(userContent).toHaveAttribute('dir', 'auto');
+    expect(userContent).toHaveTextContent('Development');
   });
 });

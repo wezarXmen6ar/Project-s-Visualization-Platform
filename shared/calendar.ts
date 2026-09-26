@@ -38,6 +38,15 @@ export function todayLocal(): ISODate {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/** The local calendar date of a full ISO timestamp (e.g. a `createdAt`/`uploadedAt`), not its UTC date — UAE is
+ * UTC+4, so a timestamp stored past 20:00 UTC already falls on the next day locally. */
+export function toLocalDate(iso: string): ISODate {
+  const d = new Date(iso);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 export function addDays(d: ISODate, n: number): ISODate {
   const date = toDate(d);
   date.setUTCDate(date.getUTCDate() + n);

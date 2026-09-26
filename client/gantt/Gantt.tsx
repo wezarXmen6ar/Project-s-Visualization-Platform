@@ -1,4 +1,7 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent } from 'react';
+import {
+  useEffect, useId, useLayoutEffect, useRef, useState,
+  type FocusEvent as ReactFocusEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent,
+} from 'react';
 import { addDays, countWorkingDays, DEFAULT_CALENDAR, isWorkingDay, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
 import type { Lang } from '../../shared/i18n/types';
 import { useLang } from '../i18n/LanguageProvider';
@@ -56,11 +59,12 @@ export interface GanttProps {
   today?: ISODate;
   onRowClick?: (rowId: string) => void;
   /**
-   * Opens a phase or sub-phase: called with a piece's `phaseId` when its bar, segment or lane bar (or the phase's name
-   * label) is clicked or tapped, or Enter or Space is pressed on it. Given, a tap on a no-hover device calls this
-   * instead of pinning the details card. Hover and focus still show the card.
+   * Opens a phase or sub-phase: called with a piece's `phaseId` (and, so focus can return to it, the activated
+   * element itself — the event's `currentTarget`) when its bar, segment or lane bar (or the phase's name label) is
+   * clicked or tapped, or Enter or Space is pressed on it. Given, a tap on a no-hover device calls this instead of
+   * pinning the details card. Hover and focus still show the card.
    */
-  onPieceOpen?: (phaseId: number) => void;
+  onPieceOpen?: (phaseId: number, el?: Element) => void;
   /** The working calendar, used to place work-week lines when `detail="weeks"`. Falls back to `DEFAULT_CALENDAR`. */
   calendar?: WorkCalendar;
   /** 'weeks' adds a third header row with work-week day numbers and faint week lines. Default 'months'. */
@@ -285,14 +289,21 @@ export function Gantt({
    * `onPieceOpen`, makes the piece open that phase on click, tap, Enter or Space.
    */
   function pieceProps(key: string, pieceDetail: GanttDetail | undefined, logicalBox: PieceBox, phaseId?: number) {
-    const open = onPieceOpen && phaseId !== undefined ? () => onPieceOpen(phaseId) : undefined;
+    // Takes the triggering event so `onPieceOpen` gets the activated element itself (its `currentTarget`) — more
+    // reliable than `document.activeElement` for returning focus afterwards, since Safari doesn't focus an SVG
+    // element on mousedown.
+    const open =
+      onPieceOpen && phaseId !== undefined
+        ? (e: { currentTarget: EventTarget & Element }) => onPieceOpen(phaseId, e.currentTarget)
+        : undefined;
     const openProps: Record<string, unknown> = open
       ? {
           'data-phase-id': phaseId,
+          role: 'button',
           onKeyDown: (e: ReactKeyboardEvent<Element>) => {
             if (e.key !== 'Enter' && e.key !== ' ') return;
             e.preventDefault();
-            open();
+            open(e);
           },
         }
       : {};
@@ -315,15 +326,27 @@ export function Gantt({
         setActive((a) => (a?.key === key ? a : make(x, false)));
       },
       onMouseLeave: () => setActive((a) => (a?.key === key && !a.pinned ? null : a)),
-      onFocus: () => setActive((a) => (a?.key === key ? a : make(drawn.x + drawn.w / 2, false))),
+      // Only a *keyboard* focus should pop the card open again once it's been closed (e.g. by opening the panel and
+      // returning focus here) — a plain `:focus` also fires for a programmatic, mouse-driven focus(). `:focus-visible`
+      // isn't in every environment (jsdom may throw on it), so an unsupported selector keeps the old behaviour.
+      onFocus: (e: ReactFocusEvent<Element>) => {
+        let visible = true;
+        try {
+          visible = e.currentTarget.matches(':focus-visible');
+        } catch {
+          visible = true;
+        }
+        if (!visible) return;
+        setActive((a) => (a?.key === key ? a : make(drawn.x + drawn.w / 2, false)));
+      },
       onBlur: () => setActive((a) => (a?.key === key ? null : a)),
     };
     if (open) {
       // Opening the phase replaces pinning: on a touch device the tap's emulated hover card is closed, since the
       // panel shows the same details at its top.
-      props.onClick = () => {
+      props.onClick = (e: MouseEvent) => {
         if (noHoverDevice) setActive(null);
-        open();
+        open(e);
       };
       return { ...props, ...openProps };
     }

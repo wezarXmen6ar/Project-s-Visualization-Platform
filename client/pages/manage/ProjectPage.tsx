@@ -12,7 +12,7 @@ import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useFormat } from '../../i18n/format';
 import { useLang, useT } from '../../i18n/LanguageProvider';
-import { phaseName } from '../../i18n/listNames';
+import { isCustomPhaseName, phaseName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { useLists } from '../../useLists';
 import { useMe } from '../../useMe';
@@ -101,6 +101,7 @@ export function ProjectPage() {
   const span = projectSpan(p.phases);
   const cal = calendar.data ?? DEFAULT_CALENDAR;
   const nameFor = (name: string) => phaseName(name, lists, lang);
+  const isCustomName = (name: string) => isCustomPhaseName(name, lists.phase);
   const rows = phaseRows(p, { people: p.assignments, calendar: cal, nameFor, lang });
 
   function clearStarterParam() {
@@ -257,6 +258,7 @@ export function ProjectPage() {
           mode="manage"
           calendar={cal}
           nameFor={nameFor}
+          isCustomName={isCustomName}
           onClose={phasePanel.close}
           me={me ?? { resourceId: null, name: null }}
           people={people}

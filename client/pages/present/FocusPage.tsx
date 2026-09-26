@@ -9,7 +9,7 @@ import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useLang, useT } from '../../i18n/LanguageProvider';
 import { formatDate } from '../../i18n/format';
-import { phaseName } from '../../i18n/listNames';
+import { isCustomPhaseName, phaseName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { useLists } from '../../useLists';
 
@@ -38,6 +38,7 @@ export function FocusPage() {
   const p = project.data;
   const span = projectSpan(p.phases);
   const nameFor = (name: string) => phaseName(name, lists, lang);
+  const isCustomName = (name: string) => isCustomPhaseName(name, lists.phase);
   // No people: the presentation side shows no names.
   const rows = phaseRows(p, { calendar: cal, lang, nameFor });
   const backYear = span ? span.start.slice(0, 4) : today.slice(0, 4);
@@ -75,6 +76,7 @@ export function FocusPage() {
           mode="present"
           calendar={cal}
           nameFor={nameFor}
+          isCustomName={isCustomName}
           onClose={phasePanel.close}
         />
       ) : null}

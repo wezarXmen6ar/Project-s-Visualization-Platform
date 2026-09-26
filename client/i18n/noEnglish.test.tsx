@@ -41,6 +41,7 @@ const ALLOWED: RegExp[] = [
   /\bBRD\b/g,
   /\bYYYY(?:-MM-DD)?\b/g, // a date-format hint
   /#[0-9a-fA-F]{3,8}\b/g, // the colour hex placeholder
+  /\.(pdf|docx?|xlsx?|pptx?|txt|csv|zip|png|jpe?g|gif|mp4|mp3)\b/gi, // a file name's own extension
 ];
 
 /** A Latin-letter word. The brief's minimum is a run of two; single words are caught too, since "Save" alone is a leftover. */

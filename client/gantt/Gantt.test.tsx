@@ -291,25 +291,30 @@ describe('Gantt', () => {
       const onPieceOpen = vi.fn();
       const user = userEvent.setup();
       render(<Gantt rows={openRows} range={octoberRange} width={1200} onPieceOpen={onPieceOpen} />);
-      await user.click(screen.getByTestId('gantt-segment-21'));
-      expect(onPieceOpen).toHaveBeenLastCalledWith(21);
-      await user.click(screen.getByTestId('gantt-bar-12').querySelector('rect.gantt-bar')!);
-      expect(onPieceOpen).toHaveBeenLastCalledWith(12);
-      await user.click(screen.getByTestId('gantt-bar-22').querySelector('rect')!);
-      expect(onPieceOpen).toHaveBeenLastCalledWith(22);
+      const segment = screen.getByTestId('gantt-segment-21');
+      await user.click(segment);
+      expect(onPieceOpen.mock.calls.at(-1)).toEqual([21, segment]);
+      const phaseBar = screen.getByTestId('gantt-bar-12').querySelector('rect.gantt-bar')!;
+      await user.click(phaseBar);
+      expect(onPieceOpen.mock.calls.at(-1)).toEqual([12, phaseBar]);
+      const laneBar = screen.getByTestId('gantt-bar-22').querySelector('rect')!;
+      await user.click(laneBar);
+      expect(onPieceOpen.mock.calls.at(-1)).toEqual([22, laneBar]);
       expect(onPieceOpen).toHaveBeenCalledTimes(3);
     });
 
-    it('calls it on Enter or Space on a focused piece', async () => {
+    it('calls it on Enter or Space on a focused piece, with the focused element as the second argument', async () => {
       const onPieceOpen = vi.fn();
       const user = userEvent.setup();
       render(<Gantt rows={openRows} range={octoberRange} width={1200} onPieceOpen={onPieceOpen} />);
-      act(() => screen.getByTestId('gantt-segment-21').focus());
+      const segment = screen.getByTestId('gantt-segment-21');
+      act(() => segment.focus());
       await user.keyboard('{Enter}');
-      expect(onPieceOpen).toHaveBeenLastCalledWith(21);
-      act(() => (screen.getByTestId('gantt-bar-22').querySelector('rect') as unknown as HTMLElement).focus());
+      expect(onPieceOpen.mock.calls.at(-1)).toEqual([21, segment]);
+      const laneBar = screen.getByTestId('gantt-bar-22').querySelector('rect') as unknown as HTMLElement;
+      act(() => laneBar.focus());
       await user.keyboard(' ');
-      expect(onPieceOpen).toHaveBeenLastCalledWith(22);
+      expect(onPieceOpen.mock.calls.at(-1)).toEqual([22, laneBar]);
     });
 
     it("keeps the name label's hover card, and a click on the label opens the phase", async () => {
@@ -320,7 +325,7 @@ describe('Gantt', () => {
       await user.hover(label);
       expect(screen.getByRole('tooltip')).toHaveTextContent('15 working days');
       await user.click(label);
-      expect(onPieceOpen).toHaveBeenCalledWith(12);
+      expect(onPieceOpen.mock.calls.at(-1)).toEqual([12, label]);
     });
 
     it('on a no-hover (touch) device, a tap opens the phase instead of pinning the card', async () => {
@@ -328,9 +333,21 @@ describe('Gantt', () => {
       const onPieceOpen = vi.fn();
       const user = userEvent.setup();
       render(<Gantt rows={openRows} range={octoberRange} width={1200} onPieceOpen={onPieceOpen} />);
-      await user.click(screen.getByTestId('gantt-bar-22').querySelector('rect')!);
-      expect(onPieceOpen).toHaveBeenCalledWith(22);
+      const laneBar = screen.getByTestId('gantt-bar-22').querySelector('rect')!;
+      await user.click(laneBar);
+      expect(onPieceOpen.mock.calls.at(-1)).toEqual([22, laneBar]);
       expect(screen.queryByRole('tooltip')).toBeNull();
+    });
+
+    it('gives a clickable piece role="button", only when onPieceOpen is given', () => {
+      const onPieceOpen = vi.fn();
+      const { rerender } = render(<Gantt rows={openRows} range={octoberRange} width={1200} onPieceOpen={onPieceOpen} />);
+      expect(screen.getByTestId('gantt-segment-21')).toHaveAttribute('role', 'button');
+      expect(screen.getByTestId('gantt-bar-12').querySelector('rect.gantt-bar')).toHaveAttribute('role', 'button');
+
+      rerender(<Gantt rows={openRows} range={octoberRange} width={1200} />);
+      expect(screen.getByTestId('gantt-segment-21')).not.toHaveAttribute('role');
+      expect(screen.getByTestId('gantt-bar-12').querySelector('rect.gantt-bar')).not.toHaveAttribute('role');
     });
 
     it('without onPieceOpen, a click does nothing and does not throw', async () => {

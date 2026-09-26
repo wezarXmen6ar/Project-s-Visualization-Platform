@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
+import { toLocalDate } from '../../shared/calendar';
 import type { AttachmentRecord, EntryRecord } from '../../shared/types';
-import { api } from '../api';
 import { useFormat } from '../i18n/format';
 import { useLang, useT } from '../i18n/LanguageProvider';
 import { FileIcon } from '../icons';
 import { phaseRefLabel, type PhaseNameFor } from '../todos';
-import { FilePreview } from './FilePreview';
+import { FileActions } from './FileActions';
 
 export interface AttachmentListColumns {
   type?: boolean;
@@ -48,8 +48,6 @@ export function AttachmentList({
   const { lang } = useLang();
   const { formatDate, shortDate, fileSize } = useFormat();
   const cols = { ...DEFAULT_COLUMNS, ...columns };
-  const [previewing, setPreviewing] = useState<AttachmentRecord | null>(null);
-  const triggerRef = useRef<HTMLElement | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
   if (attachments.length === 0) {
@@ -85,7 +83,7 @@ export function AttachmentList({
               {cols.documentDate ? (
                 <td data-col="date">{a.documentDate ? formatDate(a.documentDate) : t('common.notSet')}</td>
               ) : null}
-              {cols.uploaded ? <td data-col="uploaded">{formatDate(a.uploadedAt.slice(0, 10))}</td> : null}
+              {cols.uploaded ? <td data-col="uploaded">{formatDate(toLocalDate(a.uploadedAt))}</td> : null}
               {cols.size ? <td data-col="size">{fileSize(a.size)}</td> : null}
               {cols.from ? (
                 <td data-col="from">
@@ -110,31 +108,7 @@ export function AttachmentList({
                 </td>
               ) : null}
               <td data-col="actions" className="option-add-actions">
-                {a.previewable ? (
-                  <button
-                    type="button"
-                    className="button secondary"
-                    dir="auto"
-                    data-user-content=""
-                    aria-label={t('attachments.previewAria', { name: a.name })}
-                    onClick={(e) => {
-                      triggerRef.current = e.currentTarget;
-                      setPreviewing(a);
-                    }}
-                  >
-                    {t('common.preview')}
-                  </button>
-                ) : null}
-                <a
-                  className="button secondary"
-                  href={api.attachmentFileUrl(a.id)}
-                  download
-                  dir="auto"
-                  data-user-content=""
-                  aria-label={t('attachments.downloadAria', { name: a.name })}
-                >
-                  {t('common.download')}
-                </a>
+                <FileActions attachment={a} />
                 {actions && confirmingId === a.id ? (
                   <>
                     <span>{t('attachments.confirmDelete')}</span>
@@ -179,14 +153,6 @@ export function AttachmentList({
           ))}
         </tbody>
       </table>
-
-      {previewing ? (
-        <FilePreview
-          attachment={previewing}
-          onClose={() => setPreviewing(null)}
-          returnFocusTo={triggerRef.current}
-        />
-      ) : null}
     </>
   );
 }

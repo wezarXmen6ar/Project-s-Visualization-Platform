@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { addDays, countWorkingDays, dayOfWeek, todayLocal, type ISODate, type WorkCalendar } from '../../shared/calendar';
+import { addDays, countWorkingDays, dayOfWeek, todayLocal, toLocalDate, type ISODate, type WorkCalendar } from '../../shared/calendar';
 import type { MessageKey } from '../../shared/i18n/en';
 import type {
   AttachmentRecord, EntryRecord, EntryType, ListValue, Me, PhaseRecord, ProjectRecord, ResourceRecord, SubPhaseRecord,
@@ -17,7 +17,7 @@ import { useAsync } from '../useAsync';
 import type { PhaseNameFor } from '../todos';
 import { EntryForm } from './EntryForm';
 import { EntryItem } from './EntryItem';
-import { FilePreview } from './FilePreview';
+import { FileActions } from './FileActions';
 import { ToDoForm } from './ToDoForm';
 import { ToDoRow } from './ToDoRow';
 import { Uploader } from './Uploader';
@@ -33,8 +33,11 @@ export function usePhaseParam() {
   const triggerRef = useRef<HTMLElement | null>(null);
 
   const open = useCallback(
-    (id: number) => {
-      const active = document.activeElement;
+    // `el` is the activated piece itself (e.g. the Gantt event's `currentTarget`), which is more reliable than
+    // `document.activeElement` — Safari doesn't focus an SVG element on mousedown, so a click there would otherwise
+    // leave nothing to return focus to. Falls back to `document.activeElement` for a caller that doesn't pass it.
+    (id: number, el?: Element | null) => {
+      const active = el ?? document.activeElement;
       triggerRef.current = active instanceof Element && active !== document.body ? (active as HTMLElement) : null;
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
@@ -105,6 +108,9 @@ export interface PhasePanelProps {
   calendar: WorkCalendar;
   /** Maps a top-level phase's stored name to its display name (e.g. its Arabic name). */
   nameFor?: PhaseNameFor;
+  /** True when a top-level phase's stored name is user-typed, not one of the Phases list's values — so the heading
+   * marks it `dir="auto"` and `data-user-content`. Defaults to treating every name as user content. */
+  isCustomName?: (name: string) => boolean;
   onClose: () => void;
   /** Manage mode: who "I am", for the to-do form's assignee default. */
   me?: Me;
@@ -125,8 +131,8 @@ export interface PhasePanelProps {
  * updates, to-dos and files in one newest-first list, grouped by week or by type.
  */
 export function PhasePanel({
-  project, phaseId, mode, calendar, nameFor = (n) => n, onClose, me, people = [], todos = [], onToggleToDo,
-  attachmentTypes = [], onChanged,
+  project, phaseId, mode, calendar, nameFor = (n) => n, isCustomName = () => true, onClose, me, people = [], todos = [],
+  onToggleToDo, attachmentTypes = [], onChanged,
 }: PhasePanelProps) {
   const t = useT();
   const { lang, dir } = useLang();
@@ -148,13 +154,16 @@ export function PhasePanel({
     closeRef.current?.focus();
   }, [phaseId]);
 
+  // While a form is open in the panel, Escape does not close the panel — that would discard whatever the user typed.
+  // The form's own Cancel button closes it instead. With no form open, Escape closes the panel as usual.
   useEffect(() => {
+    if (adding !== null) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !e.defaultPrevented) onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, adding]);
 
   const found = findPhase(project, phaseId);
   if (!found) return null;
@@ -186,7 +195,7 @@ export function PhasePanel({
     ...(manage
       ? todos
           .filter((x) => x.phase !== null && ids.has(x.phase.id))
-          .map((x): HistoryItem => ({ key: `todo-${x.id}`, kind: 'todo', date: x.dueDate ?? x.createdAt.slice(0, 10), id: x.id, todo: x }))
+          .map((x): HistoryItem => ({ key: `todo-${x.id}`, kind: 'todo', date: x.dueDate ?? toLocalDate(x.createdAt), id: x.id, todo: x }))
       : []),
     // A file on an entry shown here is listed under that entry, not again on its own. Stakeholders see only files of
     // the highlighted entries.
@@ -194,7 +203,7 @@ export function PhasePanel({
       ? attachments
           .filter((a) => a.phase !== null && ids.has(a.phase.id) && !(a.entryId !== null && entryIds.has(a.entryId)))
           .map((a): HistoryItem => ({
-            key: `file-${a.id}`, kind: 'file', date: a.documentDate ?? a.uploadedAt.slice(0, 10), id: a.id, attachment: a,
+            key: `file-${a.id}`, kind: 'file', date: a.documentDate ?? toLocalDate(a.uploadedAt), id: a.id, attachment: a,
           }))
       : []),
   ].sort((a, b) => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : b.id - a.id));
@@ -246,6 +255,7 @@ export function PhasePanel({
   }
 
   const topName = nameFor(top.name);
+  const topNameIsCustom = isCustomName(top.name);
   const phasePeople = manage ? project.assignments.filter((a) => a.phaseId === piece.id) : [];
 
   return (
@@ -258,7 +268,7 @@ export function PhasePanel({
     >
       <div className="phase-panel-head">
         <h2 id={headingId}>
-          {topName}
+          {topNameIsCustom ? <span dir="auto" data-user-content="">{topName}</span> : topName}
           {sub ? (
             <>
               {' › '}
@@ -406,9 +416,7 @@ function PanelFile({ attachment: a }: { attachment: AttachmentRecord }) {
   const t = useT();
   const { lang } = useLang();
   const { formatDate } = useFormat();
-  const [previewing, setPreviewing] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const date = a.documentDate ?? a.uploadedAt.slice(0, 10);
+  const date = a.documentDate ?? toLocalDate(a.uploadedAt);
 
   return (
     <li className="phase-panel-file">
@@ -422,31 +430,8 @@ function PanelFile({ attachment: a }: { attachment: AttachmentRecord }) {
         </div>
       </div>
       <div className="option-add-actions">
-        {a.previewable ? (
-          <button
-            ref={triggerRef}
-            type="button"
-            className="button secondary"
-            dir="auto"
-            data-user-content=""
-            aria-label={t('attachments.previewAria', { name: a.name })}
-            onClick={() => setPreviewing(true)}
-          >
-            {t('common.preview')}
-          </button>
-        ) : null}
-        <a
-          className="button secondary"
-          href={api.attachmentFileUrl(a.id)}
-          download
-          dir="auto"
-          data-user-content=""
-          aria-label={t('attachments.downloadAria', { name: a.name })}
-        >
-          {t('common.download')}
-        </a>
+        <FileActions attachment={a} />
       </div>
-      {previewing ? <FilePreview attachment={a} onClose={() => setPreviewing(false)} returnFocusTo={triggerRef.current} /> : null}
     </li>
   );
 }
