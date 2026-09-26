@@ -268,6 +268,9 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const id = Number(req.params.id);
     const existing = getPersonAccount(db, id, today());
     if (!existing) return reply.code(404).send(err('error.personAccountNotFound'));
+    // Accounts are tech-side only (controller decision), the same rule POST enforces on creation.
+    const owner = getResource(db, existing.resourceId, today());
+    if (owner && owner.side !== 'tech') return reply.code(400).send(err('error.accountsTechOnly'));
     const parsed = personAccountInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid account', issues: toIssues(parsed.error) });
     const issues = checkPersonAccountRefs(db, parsed.data);

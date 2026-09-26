@@ -421,9 +421,9 @@ describe('no English left in the Arabic pages', () => {
     expect(await screen.findByText('متابعة العقد المتأخر')).toBeInTheDocument();
     await screen.findAllByRole('link', { name: PROJECT });
     await screen.findByRole('link', { name: 'عرض عبء العمل' });
-    await screen.findByText('تنتهي صلاحية جواز السفر لفاطمة نور خلال 12 يوماً');
+    await screen.findByText('تنتهي صلاحية جواز السفر لـفاطمة نور خلال 12 يوماً');
     // Two upcoming key dates: the notice reads as the Arabic dual plural, not the single-date wording.
-    const notice = await screen.findByText('تاريخان مهمان قريبان أو فاتا');
+    const notice = await screen.findByText('تاريخان مهمان قريبان أو فائتان');
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'عرض التواريخ المهمة' }));
     within(notice.closest('.notice')!).getByText('انتهاء الترخيص');

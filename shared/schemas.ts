@@ -387,11 +387,15 @@ export const personDocumentUpdateSchema = z.object({
 export type PersonDocumentUpdateInput = z.input<typeof personDocumentUpdateSchema>;
 export type PersonDocumentUpdateData = z.output<typeof personDocumentUpdateSchema>;
 
-/** POST /api/resources/:id/documents's querystring: same fields as `personDocumentUpdateSchema`, as strings. */
+/**
+ * POST /api/resources/:id/documents's querystring: same fields as `personDocumentUpdateSchema`, as strings, but the
+ * note is capped at 500 characters here (M7 review fix) because it travels in the query string on upload; a longer
+ * note can still be added afterwards through Edit (`personDocumentUpdateSchema`, uncapped at 500).
+ */
 export const personDocumentUploadQuerySchema = z.object({
   typeId: optionalIdQuery,
   expiryDate: z.preprocess((v) => (v === '' ? undefined : v), isoDate.nullish().transform((v) => v ?? null)),
-  note: z.preprocess((v) => (v === '' ? undefined : v), optionalText(2000)),
+  note: z.preprocess((v) => (v === '' ? undefined : v), optionalText(500)),
 });
 export type PersonDocumentUploadQueryInput = z.input<typeof personDocumentUploadQuerySchema>;
 export type PersonDocumentUploadQuery = z.output<typeof personDocumentUploadQuerySchema>;

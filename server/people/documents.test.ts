@@ -73,6 +73,18 @@ describe('person documents', () => {
     expect(files[0]).toContain('passport.pdf');
   });
 
+  it('rejects an upload note over 500 characters, but accepts exactly 500', async () => {
+    const fatima = await person();
+    const tooLong = 'a'.repeat(501);
+    const rejected = await uploadDocument(fatima.id, 'passport.pdf', { note: tooLong });
+    expect(rejected.statusCode).toBe(400);
+
+    const exact = 'b'.repeat(500);
+    const accepted = await uploadDocument(fatima.id, 'passport2.pdf', { note: exact });
+    expect(accepted.statusCode).toBe(201);
+    expect(accepted.json().note).toBe(exact);
+  });
+
   it('accepts an Arabic file name and round-trips it; inline is offered only for previewable types', async () => {
     const fatima = await person();
     const pdf = (await uploadDocument(fatima.id, 'جواز السفر.pdf', { type: 'application/pdf' })).json();
@@ -173,6 +185,21 @@ describe('GET /api/people/expiring — documents', () => {
     expect(found).toBeDefined();
     expect(found.state).toBe('soon');
   });
+
+  it('excludes an inactive person\'s expiring document, but still includes an active one\'s', async () => {
+    const active = await person('Active One');
+    const inactive = await person('Inactive One');
+    await app.inject({
+      method: 'PUT', url: `/api/resources/${inactive.id}`, payload: { name: 'Inactive One', side: 'tech', active: false },
+    });
+    const activeDoc = (await uploadDocument(active.id, 'active.pdf', { expiryDate: '2026-10-01' })).json();
+    const inactiveDoc = (await uploadDocument(inactive.id, 'inactive.pdf', { expiryDate: '2026-10-01' })).json();
+
+    const res = await app.inject({ method: 'GET', url: '/api/people/expiring?withinDays=30' });
+    const ids = res.json().map((i: { id: number }) => i.id);
+    expect(ids).toContain(activeDoc.id);
+    expect(ids).not.toContain(inactiveDoc.id);
+  });
 });
 
 describe('person accounts', () => {
@@ -227,6 +254,26 @@ describe('person accounts', () => {
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('error.accountsTechOnly');
   });
+
+  it('refuses to update an account for a business-side person, with error.accountsTechOnly', async () => {
+    const fatima = await person();
+    const typeId = await accountType('Network account');
+    const created = await app.inject({
+      method: 'POST', url: `/api/resources/${fatima.id}/accounts`, payload: { typeId, expiryDate: '2026-12-01' },
+    });
+    expect(created.statusCode).toBe(201);
+
+    // Seed data inconsistency directly (bypassing the app layer, which now refuses this via the sideChange rule):
+    // a business-side person left holding an account row, as could exist from data created before this fix.
+    db.prepare("UPDATE resources SET side = 'business' WHERE id = ?").run(fatima.id);
+
+    const res = await app.inject({
+      method: 'PUT', url: `/api/person-accounts/${created.json().id}`,
+      payload: { typeId, expiryDate: '2027-01-01', remindDays: 30 },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('error.accountsTechOnly');
+  });
 });
 
 describe('GET /api/people/expiring — accounts', () => {
@@ -258,6 +305,39 @@ describe('GET /api/people/expiring — accounts', () => {
     const res = await app.inject({ method: 'GET', url: '/api/people/expiring?withinDays=30' });
     const kinds = res.json().map((i: { kind: string }) => i.kind).sort();
     expect(kinds).toEqual(['account', 'document']);
+  });
+
+  it('excludes a past-outsourced person\'s expiring account, but still includes a currently-engaged outsourced one\'s', async () => {
+    const companyRes = db.prepare("INSERT INTO list_values (list, name, sort_order) VALUES ('company', 'Acme', 0)").run();
+    const companyId = Number(companyRes.lastInsertRowid);
+    const typeId = await accountType('Network account');
+
+    const engaged = (await app.inject({
+      method: 'POST', url: '/api/resources',
+      payload: {
+        name: 'Engaged Outsourced', side: 'tech', employment: 'outsourced', companyId,
+        engagementStart: '2026-01-01', engagementEnd: '2026-12-31',
+      },
+    })).json();
+    const past = (await app.inject({
+      method: 'POST', url: '/api/resources',
+      payload: {
+        name: 'Past Outsourced', side: 'tech', employment: 'outsourced', companyId,
+        engagementStart: '2026-01-01', engagementEnd: '2026-06-30',
+      },
+    })).json();
+
+    const engagedAccount = await app.inject({
+      method: 'POST', url: `/api/resources/${engaged.id}/accounts`, payload: { typeId, expiryDate: '2026-10-01' },
+    });
+    const pastAccount = await app.inject({
+      method: 'POST', url: `/api/resources/${past.id}/accounts`, payload: { typeId, expiryDate: '2026-10-01' },
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/api/people/expiring?withinDays=30' });
+    const ids = res.json().map((i: { id: number }) => i.id);
+    expect(ids).toContain(engagedAccount.json().id);
+    expect(ids).not.toContain(pastAccount.json().id);
   });
 });
 

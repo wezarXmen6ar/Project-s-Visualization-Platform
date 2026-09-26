@@ -150,7 +150,7 @@ export function PersonDocuments({ resourceId, documentTypes, today, refreshKey =
           </label>
           <label>
             {t('personDocs.noteField')}
-            <input dir="auto" value={uploadNote} onChange={(e) => setUploadNote(e.target.value)} />
+            <input dir="auto" maxLength={500} value={uploadNote} onChange={(e) => setUploadNote(e.target.value)} />
           </label>
           <input
             ref={fileInputRef}
@@ -166,7 +166,18 @@ export function PersonDocuments({ resourceId, documentTypes, today, refreshKey =
           <button type="button" className="button secondary" disabled={busy} onClick={() => fileInputRef.current?.click()}>
             <UploadIcon />{busy ? t('common.adding') : t('personDocs.uploadDocument')}
           </button>
-          <button type="button" className="button secondary" onClick={() => setUploading(false)}>{t('common.cancel')}</button>
+          <button
+            type="button" className="button secondary"
+            onClick={() => {
+              setUploading(false);
+              // Clears the picked file and any upload error (M7 review fix), so Retry — which re-sends
+              // `lastFileRef.current` — cannot fire on a file the user has already cancelled out of.
+              lastFileRef.current = null;
+              setErrors([]);
+            }}
+          >
+            {t('common.cancel')}
+          </button>
           {busy && uploadProgress !== null ? (
             <progress className="uploader-progress" value={uploadProgress} max={100} aria-label={t('uploader.uploading')} />
           ) : null}
@@ -233,13 +244,13 @@ export function PersonDocuments({ resourceId, documentTypes, today, refreshKey =
                     ) : (
                       <>
                         <button
-                          type="button" className="button secondary" dir="auto" data-user-content=""
+                          type="button" className="button secondary"
                           aria-label={t('personDocs.editAria', { name: d.name })} onClick={() => startEditing(d)}
                         >
                           {t('common.edit')}
                         </button>
                         <button
-                          type="button" className="button ghost-icon" dir="auto" data-user-content=""
+                          type="button" className="button ghost-icon"
                           aria-label={t('personDocs.deleteAria', { name: d.name })} onClick={() => setConfirmingId(d.id)}
                         >
                           <TrashIcon />

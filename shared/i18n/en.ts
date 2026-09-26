@@ -752,6 +752,10 @@ export const en = {
     one: 'they have {count} account',
     other: 'they have {count} accounts',
   },
+  'error.reasonAttendedMeetings': {
+    one: 'attended {count} meeting',
+    other: 'attended {count} meetings',
+  },
   'error.listValueInUseAccounts': {
     one: '"{name}" is used by {count} account',
     other: '"{name}" is used by {count} accounts',
@@ -831,7 +835,7 @@ export const en = {
   'settings.keyDateTypes': 'Key date types',
   'settings.keyDateType': 'Key date type',
   'keyDates.title': 'Key dates',
-  'keyDates.addKeyDate': '+ Add key date',
+  'keyDates.addKeyDate': 'Add key date',
   'keyDates.colType': 'Type',
   'keyDates.dateField': 'Date',
   'keyDates.noteField': 'Note (optional)',

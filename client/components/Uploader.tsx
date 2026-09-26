@@ -59,6 +59,12 @@ export function Uploader({
   // render). Updating it and reporting busy happen as plain statements, never from inside a setState updater
   // function — doing that from there risks running while React is still rendering this component.
   const filesRef = useRef<PendingFile[]>([]);
+  // Mirrors `onUploaded`, so the upload's `.then` handler — created (and closed over whichever `onUploaded` was
+  // current) at the render where the upload started — always calls the LATEST callback instead of a stale one
+  // (M7 review fix). Without this, a parent whose own `onUploaded` closes over state that changes between the
+  // upload starting and its response arriving (e.g. a key date typed in mid-upload) would see that change lost.
+  const onUploadedRef = useRef(onUploaded);
+  onUploadedRef.current = onUploaded;
 
   function applyFiles(next: PendingFile[]) {
     filesRef.current = next;
@@ -88,7 +94,7 @@ export function Uploader({
       .then(
         (attachment) => {
           patchFile(key, { status: 'done', progress: 100 });
-          onUploaded(attachment);
+          onUploadedRef.current(attachment);
         },
         (err) => {
           patchFile(key, { status: 'error', error: messagesOf(err, t)[0] });

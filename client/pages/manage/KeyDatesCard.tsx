@@ -135,7 +135,11 @@ export function KeyDatesCard({ projectId, keyDateTypes, today, refreshKey = 0 }:
           {keyDates.map((k) => (
             <li key={k.id} className="key-date-item">
               <div className="key-date-headline">
-                <span dir="auto" data-user-content="">{k.type ? listName(k.type, lang) : t('keyDates.noType')}</span>
+                {k.type ? (
+                  <span dir="auto" data-user-content="">{listName(k.type, lang)}</span>
+                ) : (
+                  <span>{t('keyDates.noType')}</span>
+                )}
                 <span>{formatDate(k.date)}</span>
                 <span className={k.state === 'expired' ? 'expiry-expired' : k.state === 'soon' ? 'expiry-soon' : undefined}>
                   {relativeText(t, k, today as ISODate)}

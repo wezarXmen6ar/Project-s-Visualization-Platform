@@ -827,6 +827,13 @@ export const ar: Record<MessageKey, Message> = {
     many: 'لديه {count} أحقية',
     other: 'لديه {count} أحقية',
   },
+  'error.reasonAttendedMeetings': {
+    one: 'حضر اجتماعاً واحداً',
+    two: 'حضر اجتماعين',
+    few: 'حضر {count} اجتماعات',
+    many: 'حضر {count} اجتماعاً',
+    other: 'حضر {count} اجتماعاً',
+  },
   'error.listValueInUseAccounts': {
     one: '"{name}" تُستخدم في أحقية واحدة',
     two: '"{name}" تُستخدم في أحقيتين',
@@ -879,7 +886,7 @@ export const ar: Record<MessageKey, Message> = {
   'personAccounts.confirmDelete': 'حذف هذه الأحقية؟',
 
   // Residence (M7 Task 8).
-  'person.residenceLegend': 'مقيم في',
+  'person.residenceLegend': 'مكان الإقامة',
   'person.residenceUae': 'داخل الدولة',
   'person.residenceAbroad': 'خارج الدولة',
   'resources.colResidence': 'الإقامة',
@@ -889,23 +896,23 @@ export const ar: Record<MessageKey, Message> = {
   // (the validity of X expires): a subject that reads correctly whatever the grammatical gender of {type} is, and
   // whatever type a user later adds through Settings.
   'dashboard.expiringOneDocument': {
-    one: 'تنتهي صلاحية {type} ل{name} خلال يوم واحد',
-    two: 'تنتهي صلاحية {type} ل{name} خلال يومين',
-    few: 'تنتهي صلاحية {type} ل{name} خلال {count} أيام',
-    many: 'تنتهي صلاحية {type} ل{name} خلال {count} يوماً',
-    other: 'تنتهي صلاحية {type} ل{name} خلال {count} يوماً',
+    one: 'تنتهي صلاحية {type} لـ{name} خلال يوم واحد',
+    two: 'تنتهي صلاحية {type} لـ{name} خلال يومين',
+    few: 'تنتهي صلاحية {type} لـ{name} خلال {count} أيام',
+    many: 'تنتهي صلاحية {type} لـ{name} خلال {count} يوماً',
+    other: 'تنتهي صلاحية {type} لـ{name} خلال {count} يوماً',
   },
-  'dashboard.expiringOneDocumentToday': 'تنتهي صلاحية {type} ل{name} اليوم',
-  'dashboard.expiringOneDocumentExpired': 'انتهت صلاحية {type} ل{name}',
+  'dashboard.expiringOneDocumentToday': 'تنتهي صلاحية {type} لـ{name} اليوم',
+  'dashboard.expiringOneDocumentExpired': 'انتهت صلاحية {type} لـ{name}',
   'dashboard.expiringOneAccount': {
-    one: 'تنتهي صلاحية {type} ل{name} خلال يوم واحد — قدّم طلب التجديد',
-    two: 'تنتهي صلاحية {type} ل{name} خلال يومين — قدّم طلب التجديد',
-    few: 'تنتهي صلاحية {type} ل{name} خلال {count} أيام — قدّم طلب التجديد',
-    many: 'تنتهي صلاحية {type} ل{name} خلال {count} يوماً — قدّم طلب التجديد',
-    other: 'تنتهي صلاحية {type} ل{name} خلال {count} يوماً — قدّم طلب التجديد',
+    one: 'تنتهي صلاحية {type} لـ{name} خلال يوم واحد — قدّم طلب التجديد',
+    two: 'تنتهي صلاحية {type} لـ{name} خلال يومين — قدّم طلب التجديد',
+    few: 'تنتهي صلاحية {type} لـ{name} خلال {count} أيام — قدّم طلب التجديد',
+    many: 'تنتهي صلاحية {type} لـ{name} خلال {count} يوماً — قدّم طلب التجديد',
+    other: 'تنتهي صلاحية {type} لـ{name} خلال {count} يوماً — قدّم طلب التجديد',
   },
-  'dashboard.expiringOneAccountToday': 'تنتهي صلاحية {type} ل{name} اليوم — قدّم طلب التجديد',
-  'dashboard.expiringOneAccountExpired': 'انتهت صلاحية {type} ل{name} — قدّم طلب التجديد',
+  'dashboard.expiringOneAccountToday': 'تنتهي صلاحية {type} لـ{name} اليوم — قدّم طلب التجديد',
+  'dashboard.expiringOneAccountExpired': 'انتهت صلاحية {type} لـ{name} — قدّم طلب التجديد',
   'dashboard.expiringMany': {
     one: 'وثيقة أو أحقية واحدة تحتاج إلى متابعة',
     two: 'وثيقتان أو أحقيتان تحتاجان إلى متابعة',
@@ -920,7 +927,7 @@ export const ar: Record<MessageKey, Message> = {
   // Key dates on a project (M7 Task 9). The Arabic {type} names are already noun phrases ("انتهاء العقد", "انتهاء
   // الترخيص"…), so every sentence below builds around them without a gendered verb like ينتهي/تنتهي — "{type} خلال
   // {count} يوماً" reads naturally whatever type the user later adds through Settings.
-  'error.unknownKeyDateType': 'نوع التاريخ المهم غير معروف',
+  'error.unknownKeyDateType': 'نوع التاريخ غير معروف',
   'error.keyDateNotFound': 'التاريخ المهم غير موجود',
   'error.listValueInUseKeyDates': {
     one: '"{name}" تُستخدم في تاريخ مهم واحد',
@@ -930,9 +937,9 @@ export const ar: Record<MessageKey, Message> = {
     other: '"{name}" تُستخدم في {count} تاريخ مهم',
   },
   'settings.keyDateTypes': 'أنواع التواريخ المهمة',
-  'settings.keyDateType': 'نوع التاريخ المهم',
+  'settings.keyDateType': 'نوع التاريخ',
   'keyDates.title': 'التواريخ المهمة',
-  'keyDates.addKeyDate': '+ إضافة تاريخ مهم',
+  'keyDates.addKeyDate': 'إضافة تاريخ مهم',
   'keyDates.colType': 'النوع',
   'keyDates.dateField': 'التاريخ',
   'keyDates.noteField': 'ملاحظة (اختياري)',
@@ -972,18 +979,18 @@ export const ar: Record<MessageKey, Message> = {
   },
   'dashboard.keyDateOneToday': '{project}: {type} اليوم',
   'dashboard.keyDateOnePassed': {
-    one: '{project}: {type} مضى عليه يوم واحد',
-    two: '{project}: {type} مضى عليه يومان',
-    few: '{project}: {type} مضى عليه {count} أيام',
-    many: '{project}: {type} مضى عليه {count} يوماً',
-    other: '{project}: {type} مضى عليه {count} يوماً',
+    one: '{project}: {type} فات منذ يوم واحد',
+    two: '{project}: {type} فات منذ يومين',
+    few: '{project}: {type} فات منذ {count} أيام',
+    many: '{project}: {type} فات منذ {count} يوماً',
+    other: '{project}: {type} فات منذ {count} يوماً',
   },
   'dashboard.keyDatesMany': {
-    one: 'تاريخ مهم واحد قريب أو فات',
-    two: 'تاريخان مهمان قريبان أو فاتا',
-    few: '{count} تواريخ مهمة قريبة أو فاتت',
-    many: '{count} تاريخاً مهماً قريب أو فات',
-    other: '{count} تاريخ مهم قريب أو فات',
+    one: 'تاريخ مهم واحد قريب أو فائت',
+    two: 'تاريخان مهمان قريبان أو فائتان',
+    few: 'تواريخ مهمة قريبة أو فائتة: {count}',
+    many: 'تواريخ مهمة قريبة أو فائتة: {count}',
+    other: 'تواريخ مهمة قريبة أو فائتة: {count}',
   },
   'dashboard.seeKeyDates': 'عرض التواريخ المهمة',
 };

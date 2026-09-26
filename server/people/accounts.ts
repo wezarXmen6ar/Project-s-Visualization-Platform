@@ -4,6 +4,7 @@ import { daysUntilExpiry, expiryState } from '../../shared/expiry';
 import { translate } from '../../shared/i18n/translate';
 import type { PersonAccountData, ValidationIssue } from '../../shared/schemas';
 import type { ExpiringItem, PersonAccountRecord } from '../../shared/types';
+import { isCurrentPerson } from './documents';
 
 interface AccountRow {
   id: number;
@@ -14,12 +15,18 @@ interface AccountRow {
   note: string | null;
   created_at: string;
   person_name: string;
+  person_active: number;
+  person_employment: string;
+  person_engagement_start: string | null;
+  person_engagement_end: string | null;
   type_name: string | null;
   type_name_ar: string | null;
 }
 
 const SELECT_ACCOUNTS = `
-  SELECT a.*, r.name AS person_name, lv.name AS type_name, lv.name_ar AS type_name_ar
+  SELECT a.*, r.name AS person_name, r.active AS person_active, r.employment AS person_employment,
+         r.engagement_start AS person_engagement_start, r.engagement_end AS person_engagement_end,
+         lv.name AS type_name, lv.name_ar AS type_name_ar
   FROM person_accounts a
   JOIN resources r ON r.id = a.resource_id
   LEFT JOIN list_values lv ON lv.id = a.type_id`;
@@ -96,7 +103,7 @@ export function deletePersonAccountRow(db: DatabaseSync, id: number): boolean {
 export function listExpiringAccounts(db: DatabaseSync, today: ISODate): ExpiringItem[] {
   const rows = db.prepare(`${SELECT_ACCOUNTS} ${ORDER_ACCOUNTS}`).all() as unknown as AccountRow[];
   return rows
-    .filter((row) => daysUntilExpiry(row.expiry_date as ISODate, today) <= row.remind_days)
+    .filter((row) => daysUntilExpiry(row.expiry_date as ISODate, today) <= row.remind_days && isCurrentPerson(row, today))
     .map((row) => ({
       kind: 'account' as const,
       id: row.id,

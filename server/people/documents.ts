@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { addDays, type ISODate } from '../../shared/calendar';
+import { addDays, engagementStatus, type ISODate } from '../../shared/calendar';
 import { expiryState } from '../../shared/expiry';
 import { translate } from '../../shared/i18n/translate';
 import type { PersonDocumentUpdateData, ValidationIssue } from '../../shared/schemas';
@@ -21,12 +21,18 @@ interface DocumentRow {
   note: string | null;
   uploaded_at: string;
   person_name: string;
+  person_active: number;
+  person_employment: string;
+  person_engagement_start: string | null;
+  person_engagement_end: string | null;
   type_name: string | null;
   type_name_ar: string | null;
 }
 
 const SELECT_DOCUMENTS = `
-  SELECT d.*, r.name AS person_name, lv.name AS type_name, lv.name_ar AS type_name_ar
+  SELECT d.*, r.name AS person_name, r.active AS person_active, r.employment AS person_employment,
+         r.engagement_start AS person_engagement_start, r.engagement_end AS person_engagement_end,
+         lv.name AS type_name, lv.name_ar AS type_name_ar
   FROM person_documents d
   JOIN resources r ON r.id = d.resource_id
   LEFT JOIN list_values lv ON lv.id = d.type_id`;
@@ -49,6 +55,19 @@ function toDocument(row: DocumentRow, today: ISODate): PersonDocumentRecord {
     previewable: isPreviewable(row.mime),
     state: expiryState(row.expiry_date as ISODate | null, today, DOCUMENT_WINDOW_DAYS),
   };
+}
+
+/** Excludes an inactive person, and a past-outsourced one, from the dashboard reminder (M7 fix): their history
+ * stays on their own page, but a reminder to renew or chase them up no longer makes sense once they're gone. */
+export function isCurrentPerson(
+  row: { person_active: number; person_employment: string; person_engagement_start: string | null; person_engagement_end: string | null },
+  today: ISODate,
+): boolean {
+  if (row.person_active === 0) return false;
+  if (row.person_employment === 'outsourced' && engagementStatus(row.person_engagement_start, row.person_engagement_end, today) === 'past') {
+    return false;
+  }
+  return true;
 }
 
 function getRow(db: DatabaseSync, id: number): DocumentRow | undefined {
@@ -141,7 +160,7 @@ export function listExpiringDocuments(db: DatabaseSync, today: ISODate, withinDa
   const rows = db
     .prepare(`${SELECT_DOCUMENTS} WHERE d.expiry_date IS NOT NULL AND d.expiry_date <= ? ${ORDER_DOCUMENTS}`)
     .all(addDays(today, withinDays)) as unknown as DocumentRow[];
-  return rows.map((row) => ({
+  return rows.filter((row) => isCurrentPerson(row, today)).map((row) => ({
     kind: 'document' as const,
     id: row.id,
     person: { id: row.resource_id, name: row.person_name },

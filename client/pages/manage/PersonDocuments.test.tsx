@@ -79,6 +79,32 @@ describe('PersonDocuments', () => {
     expect(await screen.findByText('passport.pdf')).toBeInTheDocument();
   });
 
+  it('Cancel clears the picked file, so Retry cannot re-upload it after an error', async () => {
+    let documents: PersonDocumentRecord[] = [];
+    mockFetch({ 'GET /api/resources/71/documents': () => ({ body: documents }) });
+    const { requests } = installMockXhr();
+    const user = userEvent.setup();
+    render(<PersonDocuments resourceId={71} documentTypes={TYPES} today="2026-10-07" />);
+    await user.click(await screen.findByRole('button', { name: 'Upload document' }));
+
+    const fileInput = screen.getByLabelText('Upload document', { selector: 'input' }) as HTMLInputElement;
+    const file = new File(['%PDF-1.4'], 'passport.pdf', { type: 'application/pdf' });
+    await user.upload(fileInput, file);
+    expect(requests).toHaveLength(1);
+    requests[0].respond(500, { error: 'Server error' });
+
+    // Before Cancel, the failed upload's error banner offers Retry for the picked file.
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
+
+    await user.click(await screen.findByRole('button', { name: 'Upload document' }));
+    // Reopening the row without cancelling first would still show the same error/Retry; cancel via the row's
+    // own Cancel button to reproduce the actual flow: open again, then Cancel.
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // After Cancel, the error banner (and its Retry button) is gone: there is nothing left to retry.
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  });
+
   it('shows no documents yet when there are none', async () => {
     mockFetch(routes([]));
     render(<PersonDocuments resourceId={71} documentTypes={TYPES} today="2026-10-07" />);

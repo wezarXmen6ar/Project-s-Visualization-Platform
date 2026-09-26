@@ -85,7 +85,7 @@ describe('KeyDatesCard', () => {
     render(<KeyDatesCard projectId={1} keyDateTypes={TYPES} today="2026-10-07" />);
     expect(await screen.findByText('No key dates yet.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '+ Add key date' }));
+    await user.click(screen.getByRole('button', { name: 'Add key date' }));
     await user.selectOptions(screen.getByLabelText('Type'), 'License expiry');
     await user.type(screen.getByLabelText('Date'), '2027-01-15');
     await user.click(screen.getByRole('button', { name: 'Save' }));

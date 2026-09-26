@@ -114,6 +114,23 @@ describe('resources API', () => {
     expect(renamed.json()).toMatchObject({ name: 'Fatima Noor', side: 'tech' });
   });
 
+  it("refuses to switch a tech person's side to business when they have an account, with error.reasonHasAccounts", async () => {
+    const tech = (await post({ name: 'Fatima', side: 'tech' })).json();
+    const lists = (await app.inject({ method: 'GET', url: '/api/lists' })).json();
+    const typeId = lists.accountType[0].id;
+    const created = await app.inject({
+      method: 'POST', url: `/api/resources/${tech.id}/accounts`, payload: { typeId, expiryDate: '2026-12-01' },
+    });
+    expect(created.statusCode).toBe(201);
+
+    const switched = await app.inject({
+      method: 'PUT', url: `/api/resources/${tech.id}`, payload: { name: 'Fatima', side: 'business' },
+    });
+    expect(switched.statusCode).toBe(409);
+    expect(switched.json().code).toBe('error.personInUseSideChange');
+    expect(switched.json().params.reasons).toEqual([{ code: 'error.reasonHasAccounts', count: 1 }]);
+  });
+
   it('records leave, refuses an end before the start, and removes leave', async () => {
     const person = (await post({ name: 'Fatima', side: 'tech' })).json();
     const added = await app.inject({
@@ -193,6 +210,26 @@ describe('resources API', () => {
     });
     expect(switched.statusCode).toBe(200);
     expect(switched.json().side).toBe('tech');
+  });
+
+  it('refuses to delete a person who attended a meeting, with error.reasonAttendedMeetings', async () => {
+    const project = (
+      await app.inject({
+        method: 'POST', url: '/api/projects',
+        payload: { name: 'Portal', color: '#3b82f6', startDate: '2026-10-05', phases: [{ name: 'A', durationDays: 5 }] },
+      })
+    ).json();
+    const attendee = (await post({ name: 'Fatima', side: 'tech' })).json();
+    const meeting = await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/entries`,
+      payload: { type: 'meeting', effectiveDate: '2026-10-05', title: 'Kickoff', attendeeIds: [attendee.id] },
+    });
+    expect(meeting.statusCode).toBe(201);
+
+    const res = await app.inject({ method: 'DELETE', url: `/api/resources/${attendee.id}` });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().code).toBe('error.personInUseDelete');
+    expect(res.json().params.reasons).toEqual([{ code: 'error.reasonAttendedMeetings', count: 1 }]);
   });
 
   it('clears "I am" when that person is deleted, and a reused id never inherits it', async () => {

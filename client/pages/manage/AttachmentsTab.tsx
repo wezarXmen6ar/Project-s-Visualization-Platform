@@ -1,4 +1,4 @@
-import { useCallback, useState, type DragEvent } from 'react';
+import { useCallback, useRef, useState, type DragEvent } from 'react';
 import type { AttachmentRecord, EntryRecord, ListValue, ProjectRecord } from '../../../shared/types';
 import { api } from '../../api';
 import { AttachmentList } from '../../components/AttachmentList';
@@ -66,6 +66,11 @@ export function AttachmentsTab({
   // (M7 review fix — losing typed rows to a failed save, silently, was the bug).
   const [uploadKeyDatesOpen, setUploadKeyDatesOpen] = useState(false);
   const [uploadKeyDateRows, setUploadKeyDateRows] = useState<KeyDateDraft[]>([]);
+  // Mirrors `uploadKeyDateRows`, so `saveUploadKeyDates` always reads the latest typed rows even when it's called
+  // from a closure created earlier — e.g. `onUploaded`, captured by the Uploader at the render where the upload
+  // started — instead of the (possibly stale) rows that existed at that time (M7 review fix).
+  const uploadKeyDateRowsRef = useRef(uploadKeyDateRows);
+  uploadKeyDateRowsRef.current = uploadKeyDateRows;
   const [keyDatesRetryAttachmentId, setKeyDatesRetryAttachmentId] = useState<number | null>(null);
   const [savingKeyDates, setSavingKeyDates] = useState(false);
 
@@ -94,7 +99,7 @@ export function AttachmentsTab({
   // the section closed; on failure they, and the attachment id, are kept so Retry can send them again — the file
   // itself is already uploaded and is never re-sent.
   async function saveUploadKeyDates(attachmentId: number) {
-    const rows = uploadKeyDateRows.filter((r) => r.date !== '');
+    const rows = uploadKeyDateRowsRef.current.filter((r) => r.date !== '');
     if (rows.length === 0) {
       setUploadKeyDateRows([]);
       setUploadKeyDatesOpen(false);
@@ -252,20 +257,6 @@ export function AttachmentsTab({
             {t('attachments.documentDateField')}
             <input type="date" value={uploadDocumentDate} onChange={(e) => setUploadDocumentDate(e.target.value)} />
           </label>
-          <Uploader
-            projectId={project.id}
-            typeId={uploadTypeId}
-            phaseId={uploadPhaseId}
-            documentDate={uploadDocumentDate === '' ? null : uploadDocumentDate}
-            buttonLabel={t('attachments.uploadFile')}
-            onUploaded={onUploaded}
-            initialFiles={droppedFiles}
-            onInitialFilesConsumed={() => setDroppedFiles(null)}
-            singleFile={uploadKeyDateRows.length > 0}
-            singleFileHint={t('attachments.keyDatesSingleFileHint')}
-          />
-          <button type="button" className="button secondary" onClick={() => setUploading(false)}>{t('attachments.cancelUpload')}</button>
-
           <div className="key-date-section">
             <button
               type="button" className="button-link" aria-expanded={uploadKeyDatesOpen}
@@ -280,6 +271,20 @@ export function AttachmentsTab({
               </>
             ) : null}
           </div>
+
+          <Uploader
+            projectId={project.id}
+            typeId={uploadTypeId}
+            phaseId={uploadPhaseId}
+            documentDate={uploadDocumentDate === '' ? null : uploadDocumentDate}
+            buttonLabel={t('attachments.uploadFile')}
+            onUploaded={onUploaded}
+            initialFiles={droppedFiles}
+            onInitialFilesConsumed={() => setDroppedFiles(null)}
+            singleFile={uploadKeyDateRows.length > 0}
+            singleFileHint={t('attachments.keyDatesSingleFileHint')}
+          />
+          <button type="button" className="button secondary" onClick={() => setUploading(false)}>{t('attachments.cancelUpload')}</button>
         </div>
       ) : null}
 

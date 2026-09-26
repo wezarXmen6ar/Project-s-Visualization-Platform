@@ -368,6 +368,49 @@ describe('AttachmentsTab', () => {
       expect(screen.getByText('Key dates attach to one contract file at a time.')).toBeInTheDocument();
     });
 
+    it('keeps a key date typed after picking the file but before the upload resolves (M7 stale-callback fix)', async () => {
+      const { requests } = installMockXhr();
+      const created = {
+        id: 500, projectId: 1, phase: null, entryId: null, type: { id: 108, name: 'Contract', nameAr: 'العقد' }, name: 'contract.pdf',
+        mime: 'application/pdf', size: 10, documentDate: null, uploadedAt: '2026-09-26T09:00:00.000Z', previewable: true,
+      };
+      const replacePuts: { date: string }[][] = [];
+      mockFetch({
+        'GET /api/projects/1/attachments': () => ({ body: [] }),
+        'GET /api/projects/1/entries': () => ({ body: [] }),
+        'GET /api/projects/1/key-dates': () => ({ body: [] }),
+        'PUT /api/attachments/500/key-dates': (init) => {
+          const body = JSON.parse(init!.body as string) as { date: string }[];
+          replacePuts.push(body);
+          return { status: 200, body: body.map((r, i) => ({ id: 900 + i, projectId: 1, type: null, date: r.date, note: null, attachment: { id: 500, name: 'contract.pdf', mime: 'application/pdf', previewable: true }, createdAt: 'x', state: 'soon' })) };
+        },
+      });
+      const user = userEvent.setup();
+      render(
+        <AttachmentsTab
+          project={sampleProject()} attachmentTypes={TYPES_WITH_CONTRACT} keyDateTypes={KEY_DATE_TYPES} onOpenHistory={vi.fn()}
+        />,
+      );
+      await screen.findByText('No files yet.');
+      await user.click(screen.getByRole('button', { name: 'Upload file' }));
+      await user.selectOptions(screen.getByLabelText('Type'), 'Contract');
+
+      // Pick the file first (starts the upload, not yet resolved) …
+      const input = screen.getByLabelText('Upload file', { selector: 'input' });
+      const file = new File(['x'], 'contract.pdf', { type: 'application/pdf' });
+      await user.upload(input, file);
+
+      // … then, before the upload's response arrives, type the key date.
+      const dateInputs = screen.getAllByLabelText('Date');
+      fireEvent.change(dateInputs[0], { target: { value: '2026-12-01' } });
+
+      // Now the upload resolves.
+      requests[0].respond(201, created);
+
+      await waitFor(() => expect(replacePuts).toHaveLength(1));
+      expect(replacePuts[0]).toMatchObject([{ date: '2026-12-01' }]);
+    });
+
     it('editing a Contract shows and edits its own key dates', async () => {
       const attachment = {
         id: 400, projectId: 1, phase: null, entryId: null, type: { id: 108, name: 'Contract', nameAr: 'العقد' }, name: 'contract.pdf',

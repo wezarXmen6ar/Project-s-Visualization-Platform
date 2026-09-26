@@ -30,6 +30,10 @@
   --success-wash: oklch(0.950 0.035 155);
   --warning: oklch(0.680 0.150 70);
   --warning-wash: oklch(0.955 0.045 70);
+  /* Darker amber for TEXT only (WCAG AA): #92400e ≈ luminance 0.098, background ≈ 0.96–1.0 →
+     contrast ≈ 6.8–7.1:1 against --bg/--surface, well over the 4.5:1 minimum for normal text.
+     --warning itself stays lighter/more saturated for borders, backgrounds, icons and badges. */
+  --warning-text: #92400e;
   --danger: oklch(0.550 0.190 25);
   --danger-wash: oklch(0.955 0.035 25);
   --today: var(--primary);
@@ -803,7 +807,7 @@ button.heat:hover { border-color: var(--border-strong); }
 /* Expiry states shared by person documents, accounts and project key dates (M7 Task 8/9): red once past, amber
  * while within the warning window. Applied to a table cell, alongside its own text. */
 .expiry-expired { color: var(--danger); font-weight: 600; }
-.expiry-soon { color: var(--warning); font-weight: 600; }
+.expiry-soon { color: var(--warning-text); font-weight: 600; }
 
 /* A small pill of supplementary information next to a name, e.g. "Abroad" beside a person (M7 Task 8). */
 .tag {

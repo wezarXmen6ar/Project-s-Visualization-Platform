@@ -77,6 +77,11 @@ const USAGE: { sql: string; key: MessageKey; sideChange: boolean }[] = [
   {
     sql: 'SELECT COUNT(*) AS n FROM person_accounts WHERE resource_id = ?',
     key: 'error.reasonHasAccounts',
+    sideChange: true,
+  },
+  {
+    sql: 'SELECT COUNT(*) AS n FROM entry_attendees WHERE resource_id = ?',
+    key: 'error.reasonAttendedMeetings',
     sideChange: false,
   },
 ];

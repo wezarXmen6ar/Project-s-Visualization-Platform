@@ -273,7 +273,7 @@ Rule (user): a work account is **أحقية** (plural **الأحقيات**) ever
 | Apply for renewal | قدّم طلب التجديد | proposed |
 | Renewed | تم التجديد | proposed |
 | Remind {n} days before | التذكير قبل {n} يوماً | proposed |
-| Lives in: In the UAE / Abroad | مقيم: داخل الدولة / خارج الدولة | proposed |
+| Lives in: In the UAE / Abroad | مكان الإقامة: داخل الدولة / خارج الدولة | proposed |
 | Requirements bank (M9) | بنك المتطلبات | proposed (user's word) |
 
 Rule (user, 2026-09-26): "Our team" is **فريق القطاع الجنائي**, never فريقنا.
