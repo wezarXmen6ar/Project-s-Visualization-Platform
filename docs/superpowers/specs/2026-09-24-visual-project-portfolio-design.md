@@ -367,6 +367,12 @@ A one-page view of the most important facts about one project, for a manager who
   - the end date must not be before the start date
   - a requirement cannot move past 0% while it is Incomplete, unless Start at risk is used
 - A failed upload shows a retry and never leaves a half-saved entry. Each save is one database transaction.
+- **Storage protection (M8, user 2026-09-26).** Uploaded files live as ordinary files under `attachments/` (a folder per project, `attachments/people/<id>/` for person documents); the database holds only their details.
+  - **Files are backed up too:** the daily backup also copies uploaded files, copying only files it doesn't have yet (files never change once stored).
+  - **Backup location of the user's choice** in Settings: another drive, a USB disk, a network folder or a OneDrive folder, so a failed disk or lost laptop doesn't take the backups with it. The app warns when the location can't be reached and falls back to the local `backups/` folder.
+  - **Storage page** in Settings: the space used by the database, files, deleted files and backups, and the free disk space. The dashboard warns when free space drops below 5 GB.
+  - **Deleted files** are kept in `_deleted` for 90 days, then removed; Settings has **Empty deleted files** to clear them sooner (with confirmation).
+  - Sensitive person documents rely on the computer's own protection (Windows sign-in, and BitLocker disk encryption is recommended).
 
 ### 5.4 Testing
 - **Engines** (calendar, scheduler, capacity, baselines, timeline): thorough Vitest unit tests using realistic scenarios, for example a hold during Eid while a change request is approved.
