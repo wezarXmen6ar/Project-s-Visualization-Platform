@@ -190,7 +190,7 @@ export function EntryForm({ project, me, people, type, initial, nameFor, onSave,
         </div>
       ) : null}
 
-      <label className="checkbox-field">
+      <label className="check">
         <input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} />
         {t('entryForm.showInPresentation')}
       </label>

@@ -1,0 +1,79 @@
+// @vitest-environment jsdom
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
+import { describe, expect, it, vi } from 'vitest';
+import type { EntryRecord, ToDoRecord } from '../../shared/types';
+import { LanguageProvider } from '../i18n/LanguageProvider';
+import { EntryItem } from './EntryItem';
+
+function entry(overrides: Partial<EntryRecord> = {}): EntryRecord {
+  return {
+    id: 1,
+    projectId: 1,
+    type: 'meeting',
+    effectiveDate: '2026-10-07',
+    createdAt: '2026-10-07T09:00:00.000Z',
+    title: 'Kickoff',
+    body: 'Discussed scope.',
+    highlight: false,
+    phase: null,
+    attendees: [],
+    attachmentIds: [],
+    followUpToDoIds: [1],
+    ...overrides,
+  };
+}
+
+function followUp(overrides: Partial<ToDoRecord> = {}): ToDoRecord {
+  return {
+    id: 1,
+    projectId: 1,
+    projectName: 'Test Project',
+    title: 'Book the room',
+    note: null,
+    assignee: null,
+    dueDate: null,
+    done: false,
+    doneDate: null,
+    phase: null,
+    formerPhase: null,
+    sourceEntry: null,
+    createdAt: '2026-10-07T09:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function renderItem(element: React.ReactElement) {
+  return render(
+    <LanguageProvider lang="en">
+      <MemoryRouter>{element}</MemoryRouter>
+    </LanguageProvider>,
+  );
+}
+
+describe('EntryItem', () => {
+  it('without actions: no Edit/Delete buttons and a disabled follow-up checkbox', () => {
+    renderItem(<EntryItem entry={entry()} followUps={[followUp()]} onToggleFollowUp={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toBeDisabled();
+  });
+
+  it('with actions: Edit and Delete buttons are present, and the follow-up checkbox is enabled', () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    renderItem(
+      <EntryItem
+        entry={entry()}
+        followUps={[followUp()]}
+        onToggleFollowUp={vi.fn()}
+        actions={{ onEdit, onDelete }}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /edit/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).not.toBeDisabled();
+  });
+});

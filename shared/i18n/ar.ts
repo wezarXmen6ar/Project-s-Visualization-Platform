@@ -453,7 +453,7 @@ export const ar: Record<MessageKey, Message> = {
   'entryForm.attendees': 'الحضور',
   'entryForm.searchPeople': 'البحث عن شخص',
   'entryForm.onThisProject': 'على هذا المشروع',
-  'entryForm.everyoneElse': 'الجميع',
+  'entryForm.everyoneElse': 'باقي الأشخاص',
   'entryForm.removeAttendeeAria': 'إزالة {name}',
   'entryForm.showInPresentation': 'إظهار في العرض',
   'entryForm.showInPresentationHint': 'يرى أصحاب المصلحة هذا العنصر في العرض.',
