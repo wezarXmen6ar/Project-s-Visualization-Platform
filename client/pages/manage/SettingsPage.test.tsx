@@ -227,6 +227,22 @@ describe('SettingsPage', () => {
     expect(screen.getByText('التطوير')).toBeInTheDocument();
   });
 
+  it('shows the Attachment types list, seeded with its Arabic names', async () => {
+    mockFetch(fakeServer());
+    renderPage();
+    expect(await screen.findByRole('heading', { name: 'Attachment types' })).toBeInTheDocument();
+    expect(screen.getByText('Meeting Minutes')).toBeInTheDocument();
+    expect(screen.getByText('Contract')).toBeInTheDocument();
+  });
+
+  it('in Arabic, shows the Attachment types list with its Arabic names', async () => {
+    mockFetch(fakeServer());
+    renderArabic();
+    expect(await screen.findByRole('heading', { name: 'أنواع المرفقات' })).toBeInTheDocument();
+    expect(screen.getByText('اعتماد')).toBeInTheDocument();
+    expect(screen.getByText('العقد')).toBeInTheDocument();
+  });
+
   it('in Arabic, renaming the Arabic name sends nameAr', async () => {
     const fetchMock = mockFetch(fakeServer());
     const user = userEvent.setup();

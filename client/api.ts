@@ -121,10 +121,14 @@ export const api = {
     const qs = params.toString();
     return request<AttachmentRecord[]>(`/api/projects/${projectId}/attachments${qs ? `?${qs}` : ''}`);
   },
-  /** Uploads raw file bytes. `name` is sent as X-File-Name; a `Blob`'s own `type`, if any, becomes X-File-Type. */
+  /**
+   * Uploads raw file bytes with `XMLHttpRequest`, so `onProgress` can report upload progress. `name` is sent as
+   * X-File-Name (percent-encoded, so an Arabic name round-trips); a `Blob`'s own `type`, if any, becomes X-File-Type.
+   */
   uploadAttachment: (
     projectId: number, file: Blob, name: string,
     opts: { typeId?: number; phaseId?: number; documentDate?: string; entryId?: number } = {},
+    onProgress?: (loaded: number, total: number) => void,
   ) => {
     const params = new URLSearchParams();
     if (opts.typeId !== undefined) params.set('typeId', String(opts.typeId));
@@ -132,9 +136,40 @@ export const api = {
     if (opts.documentDate !== undefined) params.set('documentDate', opts.documentDate);
     if (opts.entryId !== undefined) params.set('entryId', String(opts.entryId));
     const qs = params.toString();
-    const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(name) };
-    if (file.type) headers['X-File-Type'] = file.type;
-    return request<AttachmentRecord>(`/api/projects/${projectId}/attachments${qs ? `?${qs}` : ''}`, { method: 'POST', body: file, headers });
+    return new Promise<AttachmentRecord>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `/api/projects/${projectId}/attachments${qs ? `?${qs}` : ''}`);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('X-File-Name', encodeURIComponent(name));
+      if (file.type) xhr.setRequestHeader('X-File-Type', file.type);
+      if (xhr.upload && onProgress) {
+        xhr.upload.onprogress = (e) => onProgress(e.loaded, e.total);
+      }
+      xhr.onload = () => {
+        let body: { error?: string; issues?: ValidationIssue[]; code?: MessageKey; params?: Params } = {};
+        try {
+          body = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+        } catch {
+          body = {};
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body as unknown as AttachmentRecord);
+          return;
+        }
+        const hasServerMessage = body.error !== undefined;
+        reject(new ApiError(
+          body.error ?? `Request failed (${xhr.status})`,
+          xhr.status,
+          body.issues ?? [],
+          hasServerMessage ? body.code : 'common.requestFailed',
+          hasServerMessage ? body.params : { status: xhr.status },
+        ));
+      };
+      // A genuine network failure (offline, connection reset): left uncoded, like fetch's own thrown error, so
+      // messagesOf falls back to the translated "could not reach the server" message instead of a raw browser string.
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(file);
+    });
   },
   updateAttachment: (id: number, input: AttachmentUpdateInput) => request<AttachmentRecord>(`/api/attachments/${id}`, withBody('PUT', input)),
   deleteAttachment: (id: number) => request<void>(`/api/attachments/${id}`, { method: 'DELETE' }),

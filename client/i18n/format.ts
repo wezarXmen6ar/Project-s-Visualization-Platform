@@ -93,6 +93,14 @@ export function percent(_lang: Lang, n: number): string {
   return `${n}%`;
 }
 
+/** "2.4 MB" / "2.4 ميغابايت", or "850.0 KB" / "850.0 كيلوبايت" under 1 MB. One decimal place, Western digits. */
+export function fileSize(lang: Lang, bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} ${lang === 'ar' ? 'ميغابايت' : 'MB'}`;
+  const kb = bytes / 1024;
+  return `${kb.toFixed(1)} ${lang === 'ar' ? 'كيلوبايت' : 'KB'}`;
+}
+
 /** The formatters bound to the current language. */
 export function useFormat() {
   const { lang } = useLang();
@@ -106,6 +114,7 @@ export function useFormat() {
       barDates: (start: ISODate, end: ISODate) => barDates(lang, start, end),
       dayRange: (first: ISODate, last: ISODate) => dayRange(lang, first, last),
       percent: (n: number) => percent(lang, n),
+      fileSize: (bytes: number) => fileSize(lang, bytes),
     }),
     [lang],
   );

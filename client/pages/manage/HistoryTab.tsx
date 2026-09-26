@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { EntryType, Me, ProjectRecord, ResourceRecord, ToDoRecord } from '../../../shared/types';
+import type { AttachmentRecord, EntryType, ListValue, Me, ProjectRecord, ResourceRecord, ToDoRecord } from '../../../shared/types';
 import { api } from '../../api';
 import { EntryForm } from '../../components/EntryForm';
 import { EntryItem } from '../../components/EntryItem';
@@ -18,16 +18,25 @@ interface HistoryTabProps {
   toggleDone: (t: ToDoRecord) => void;
   /** Maps a top-level phase's stored name to its display name (e.g. its Arabic name). */
   nameFor?: PhaseNameFor;
+  /** For the "Attach files" picker's type default (Meeting Minutes / Other) and its own list editor entry. */
+  attachmentTypes: ListValue[];
 }
 
 /** The History tab: meetings and updates, filterable by phase, with an inline add/edit form. */
-export function HistoryTab({ project, me, people, todos, toggleDone, nameFor }: HistoryTabProps) {
+export function HistoryTab({ project, me, people, todos, toggleDone, nameFor, attachmentTypes }: HistoryTabProps) {
   const t = useT();
   const [phaseFilter, setPhaseFilter] = useState<number | null>(null);
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   const loaded = useAsync(() => api.listEntries(project.id, phaseFilter ?? undefined), [project.id, phaseFilter, version]);
   const entries = loaded.data ?? [];
+  // Every entry's attachments are shown inline, so the whole project's list is loaded once and grouped by entryId.
+  const attachmentsLoaded = useAsync(() => api.listAttachments(project.id), [project.id, version]);
+  const attachmentsByEntry = new Map<number, AttachmentRecord[]>();
+  for (const a of attachmentsLoaded.data ?? []) {
+    if (a.entryId === null) continue;
+    attachmentsByEntry.set(a.entryId, [...(attachmentsByEntry.get(a.entryId) ?? []), a]);
+  }
 
   const [adding, setAdding] = useState<EntryType | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -83,6 +92,7 @@ export function HistoryTab({ project, me, people, todos, toggleDone, nameFor }: 
           people={people}
           type={adding}
           nameFor={nameFor}
+          attachmentTypes={attachmentTypes}
           onSave={async (input) => {
             await api.createEntry(project.id, input);
             setAdding(null);
@@ -106,6 +116,7 @@ export function HistoryTab({ project, me, people, todos, toggleDone, nameFor }: 
                   type={entry.type}
                   initial={entry}
                   nameFor={nameFor}
+                  attachmentTypes={attachmentTypes}
                   onSave={async (input) => {
                     await api.updateEntry(entry.id, input);
                     setEditingId(null);
@@ -121,6 +132,7 @@ export function HistoryTab({ project, me, people, todos, toggleDone, nameFor }: 
                 nameFor={nameFor}
                 followUps={entry.followUpToDoIds.map((id) => todoById.get(id)).filter((x): x is ToDoRecord => x !== undefined)}
                 onToggleFollowUp={toggleDone}
+                attachments={attachmentsByEntry.get(entry.id) ?? []}
                 actions={{ onEdit: () => setEditingId(entry.id), onDelete: () => void deleteEntry(entry.id) }}
               />
             ),

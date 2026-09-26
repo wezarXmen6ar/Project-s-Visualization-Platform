@@ -857,3 +857,56 @@ button.heat:hover { border-color: var(--border-strong); }
 :root:lang(ar) { line-height: 1.6; }
 :lang(ar) h1, :lang(ar) th, :lang(ar) .stat-value { letter-spacing: normal; }
 :lang(ar) th { text-transform: none; }
+
+/* ---------------------------------------------------------------------- *
+ * Attachments: the Attachments tab, the upload row, the uploader and the file preview dialog
+ * ---------------------------------------------------------------------- */
+.attachment-table td { vertical-align: middle; }
+.attachment-table td:first-child { display: flex; align-items: center; gap: var(--sp-2); }
+.attachment-table td:first-child svg { width: 1.1rem; height: 1.1rem; flex: none; color: var(--muted); }
+
+.upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  margin-block-end: var(--sp-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+}
+
+.uploader { display: flex; flex-direction: column; gap: var(--sp-2); }
+.uploader-files { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.uploader-file { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); }
+.uploader-file-size { color: var(--muted); }
+.uploader-progress { width: 10rem; }
+.uploader-file-error-row { display: flex; align-items: center; gap: var(--sp-2); }
+.uploader-file-error-row [role='alert'] { color: var(--danger); }
+
+.attach-files { display: grid; gap: var(--sp-2); }
+
+.file-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: oklch(0.15 0.02 235 / 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+  z-index: 50;
+}
+.file-preview {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  max-width: min(60rem, 100%);
+  max-height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.file-preview-head { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3); border-block-end: 1px solid var(--border); }
+.file-preview-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-preview-body { flex: 1; min-height: 0; padding: var(--sp-2); display: flex; }
+.file-preview-body iframe, .file-preview-body img { width: 100%; height: min(70vh, 40rem); border: 0; object-fit: contain; }

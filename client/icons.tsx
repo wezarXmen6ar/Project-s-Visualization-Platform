@@ -106,6 +106,26 @@ export function AlertIcon() {
   );
 }
 
+/** A generic file, shown next to an attachment's name. */
+export function FileIcon() {
+  return (
+    <svg {...base}>
+      <path d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z" />
+      <path d="M14 3.5V8h4" />
+    </svg>
+  );
+}
+
+/** An upward arrow into a tray, for the "Upload file" button. */
+export function UploadIcon() {
+  return (
+    <svg {...base}>
+      <path d="M12 15V4M8.5 7.5 12 4l3.5 3.5" />
+      <path d="M4.5 15v3A1.5 1.5 0 0 0 6 19.5h12a1.5 1.5 0 0 0 1.5-1.5v-3" />
+    </svg>
+  );
+}
+
 export function GripIcon() {
   return (
     <svg {...base} fill="currentColor" stroke="none">

@@ -17,6 +17,7 @@ import { useLists } from '../../useLists';
 import { useMe } from '../../useMe';
 import { useResources } from '../../useResources';
 import { useWorkload } from '../../useWorkload';
+import { AttachmentsTab } from './AttachmentsTab';
 import { HistoryTab } from './HistoryTab';
 import { NextUp } from './NextUp';
 import { ProjectDetailsTab } from './ProjectDetailsTab';
@@ -116,6 +117,7 @@ export function ProjectPage() {
           todos={todos}
           toggleDone={(x) => void toggleDone(x)}
           nameFor={nameFor}
+          attachmentTypes={lists.attachmentType}
         />
       ),
     },
@@ -149,7 +151,18 @@ export function ProjectPage() {
         />
       ),
     },
-    { key: 'attachments', label: t('tabs.attachments'), content: <section className="card"><p>{t('tabs.comingNextStep')}</p></section> },
+    {
+      key: 'attachments',
+      label: t('tabs.attachments'),
+      content: (
+        <AttachmentsTab
+          project={p}
+          attachmentTypes={lists.attachmentType}
+          nameFor={nameFor}
+          onOpenHistory={() => setActiveTab('history')}
+        />
+      ),
+    },
     { key: 'details', label: t('tabs.details'), content: <ProjectDetailsTab project={p} nameFor={nameFor} /> },
   ];
 

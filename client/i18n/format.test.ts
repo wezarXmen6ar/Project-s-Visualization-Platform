@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { barDates, dayDate, dayRange, formatDate, monthLabel, percent, shortDate, weekdayLetter } from './format';
+import { barDates, dayDate, dayRange, fileSize, formatDate, monthLabel, percent, shortDate, weekdayLetter } from './format';
 
 const ARABIC_INDIC = /[٠-٩۰-۹]/;
 
@@ -21,6 +21,12 @@ describe('format, English (unchanged from before M6)', () => {
     expect(dayRange('en', '2026-09-28', '2026-10-02')).toBe('28 Sep – 2 Oct');
     expect(dayRange('en', '2026-10-12', '2026-10-12')).toBe('12 Oct');
     expect(percent('en', 60)).toBe('60%');
+  });
+
+  it('formats a file size in KB or MB, with one decimal', () => {
+    expect(fileSize('en', 2_500_000)).toBe('2.4 MB');
+    expect(fileSize('en', 870_400)).toBe('850.0 KB');
+    expect(fileSize('en', 1_048_576)).toBe('1.0 MB');
   });
 });
 
@@ -46,6 +52,11 @@ describe('format, Arabic', () => {
     expect(across).toBe('30 نوفمبر 2026 – 19 فبراير 2027');
     expect(dayRange('ar', '2026-10-12', '2026-10-16')).toBe('⁦12–16⁩ أكتوبر');
     expect(percent('ar', 60)).toBe('60%');
+  });
+
+  it('formats a file size in Arabic, with Western digits', () => {
+    expect(fileSize('ar', 2_500_000)).toBe('2.4 ميغابايت');
+    expect(fileSize('ar', 870_400)).toBe('850.0 كيلوبايت');
   });
 
   it('uses Western digits only', () => {

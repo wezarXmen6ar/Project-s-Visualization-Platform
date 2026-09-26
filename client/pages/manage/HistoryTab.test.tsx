@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EntryRecord, Me } from '../../../shared/types';
-import { mockFetch, sampleEntries, samplePeople, sampleProject, sampleToDos } from '../../testing/mockFetch';
+import { mockFetch, sampleEntries, sampleLists, samplePeople, sampleProject, sampleToDos } from '../../testing/mockFetch';
 import { LanguageProvider } from '../../i18n/LanguageProvider';
 import { HistoryTab } from './HistoryTab';
 
@@ -23,10 +23,19 @@ function project() {
   });
 }
 
+const attachmentTypes = sampleLists().attachmentType;
+
 function renderTab(entries: EntryRecord[] = [], todos = sampleToDos()) {
   return render(
     <MemoryRouter>
-      <HistoryTab project={project()} me={me} people={samplePeople()} todos={todos} toggleDone={vi.fn()} />
+      <HistoryTab
+        project={project()}
+        me={me}
+        people={samplePeople()}
+        todos={todos}
+        toggleDone={vi.fn()}
+        attachmentTypes={attachmentTypes}
+      />
     </MemoryRouter>,
   );
 }
@@ -37,7 +46,10 @@ afterEach(() => {
 
 describe('HistoryTab', () => {
   it('shows the list newest first, with attendees, phase and a follow-up to-do', async () => {
-    mockFetch({ 'GET /api/projects/1/entries': () => ({ body: sampleEntries() }) });
+    mockFetch({
+      'GET /api/projects/1/entries': () => ({ body: sampleEntries() }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
+    });
     renderTab();
 
     const items = await screen.findAllByRole('listitem');
@@ -50,7 +62,10 @@ describe('HistoryTab', () => {
   });
 
   it('shows "No meetings or updates yet." when there are none', async () => {
-    mockFetch({ 'GET /api/projects/1/entries': () => ({ body: [] }) });
+    mockFetch({
+      'GET /api/projects/1/entries': () => ({ body: [] }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
+    });
     renderTab();
     expect(await screen.findByText('No meetings or updates yet.')).toBeInTheDocument();
   });
@@ -59,6 +74,7 @@ describe('HistoryTab', () => {
     let entries: EntryRecord[] = [];
     const fetchMock = mockFetch({
       'GET /api/projects/1/entries': () => ({ body: entries }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
       'POST /api/projects/1/entries': (init) => {
         const input = JSON.parse(init!.body as string);
         const created: EntryRecord = {
@@ -96,7 +112,10 @@ describe('HistoryTab', () => {
   });
 
   it('an update form has no attendees field', async () => {
-    mockFetch({ 'GET /api/projects/1/entries': () => ({ body: [] }) });
+    mockFetch({
+      'GET /api/projects/1/entries': () => ({ body: [] }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
+    });
     const user = userEvent.setup();
     renderTab();
 
@@ -105,7 +124,10 @@ describe('HistoryTab', () => {
   });
 
   it('an empty title shows "Write a title"', async () => {
-    mockFetch({ 'GET /api/projects/1/entries': () => ({ body: [] }) });
+    mockFetch({
+      'GET /api/projects/1/entries': () => ({ body: [] }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
+    });
     const user = userEvent.setup();
     renderTab();
 
@@ -118,6 +140,7 @@ describe('HistoryTab', () => {
     mockFetch({
       'GET /api/projects/1/entries': () => ({ body: sampleEntries() }),
       'GET /api/projects/1/entries?phaseId=12': () => ({ body: [sampleEntries()[0]] }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
     });
     const user = userEvent.setup();
     renderTab();
@@ -133,6 +156,7 @@ describe('HistoryTab', () => {
     let entries = sampleEntries();
     const fetchMock = mockFetch({
       'GET /api/projects/1/entries': () => ({ body: entries }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
       'PUT /api/entries/300': (init) => {
         const input = JSON.parse(init!.body as string);
         entries = entries.map((e) => (e.id === 300 ? { ...e, title: input.title, highlight: input.highlight } : e));
@@ -163,6 +187,7 @@ describe('HistoryTab', () => {
   it('Delete asks for confirmation, then sends DELETE', async () => {
     const fetchMock = mockFetch({
       'GET /api/projects/1/entries': () => ({ body: sampleEntries() }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
       'DELETE /api/entries/300': () => ({ status: 204, body: null }),
     });
     const user = userEvent.setup();
@@ -179,11 +204,21 @@ describe('HistoryTab', () => {
   });
 
   it('renders in Arabic', async () => {
-    mockFetch({ 'GET /api/projects/1/entries': () => ({ body: sampleEntries() }) });
+    mockFetch({
+      'GET /api/projects/1/entries': () => ({ body: sampleEntries() }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
+    });
     render(
       <LanguageProvider lang="ar">
         <MemoryRouter>
-          <HistoryTab project={project()} me={me} people={samplePeople()} todos={sampleToDos()} toggleDone={vi.fn()} />
+          <HistoryTab
+            project={project()}
+            me={me}
+            people={samplePeople()}
+            todos={sampleToDos()}
+            toggleDone={vi.fn()}
+            attachmentTypes={attachmentTypes}
+          />
         </MemoryRouter>
       </LanguageProvider>,
     );

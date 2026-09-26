@@ -1,12 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { todayLocal } from '../../shared/calendar';
 import { entryInputSchema, toIssues, type EntryInput } from '../../shared/schemas';
-import type { EntryRecord, EntryType, Me, ProjectRecord, ResourceRecord } from '../../shared/types';
+import type { AttachmentRecord, EntryRecord, EntryType, ListValue, Me, ProjectRecord, ResourceRecord } from '../../shared/types';
+import { api } from '../api';
 import { attendeeChoices, entryToInput } from '../entries';
 import { AlertIcon } from '../icons';
 import { messageFor, messagesOf } from '../errors';
+import { useAsync } from '../useAsync';
 import { useLang, useT } from '../i18n/LanguageProvider';
 import { assigneeChoices, phaseChoices, type PhaseNameFor } from '../todos';
+import { Uploader } from './Uploader';
 
 interface FollowUpRow {
   title: string;
@@ -24,12 +27,14 @@ interface EntryFormProps {
   /** The entry being edited, or undefined for a new one. */
   initial?: EntryRecord;
   nameFor?: PhaseNameFor;
+  /** For the "Attach files" picker's type default: "Meeting Minutes" for a meeting, "Other" for an update. */
+  attachmentTypes: ListValue[];
   onSave: (input: EntryInput) => Promise<void>;
   onCancel: () => void;
 }
 
 /** Add or edit a meeting or an update: title, date, phase, notes, attendees (meetings), highlight and follow-ups (new meetings). */
-export function EntryForm({ project, me, people, type, initial, nameFor, onSave, onCancel }: EntryFormProps) {
+export function EntryForm({ project, me, people, type, initial, nameFor, attachmentTypes, onSave, onCancel }: EntryFormProps) {
   const t = useT();
   const { lang } = useLang();
   const entryType: EntryType = initial?.type ?? type;
@@ -51,6 +56,21 @@ export function EntryForm({ project, me, people, type, initial, nameFor, onSave,
   const [followUps, setFollowUps] = useState<FollowUpRow[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Attachments: new ones upload immediately when chosen; existing ones (when editing) can be unlinked with an ×.
+  const [newAttachments, setNewAttachments] = useState<AttachmentRecord[]>([]);
+  const [unlinkedExisting, setUnlinkedExisting] = useState<number[]>([]);
+  const [uploadsBusy, setUploadsBusy] = useState(false);
+  const existingIds = initial?.attachmentIds ?? [];
+  const existingAttachments = useAsync(
+    () => (existingIds.length > 0 ? api.listAttachments(project.id) : Promise.resolve([])),
+    [project.id, initial?.id],
+  );
+  const existingForEntry = (existingAttachments.data ?? []).filter(
+    (a) => existingIds.includes(a.id) && !unlinkedExisting.includes(a.id),
+  );
+  const attachTypeId =
+    attachmentTypes.find((v) => v.name === (isMeeting ? 'Meeting Minutes' : 'Other'))?.id ?? null;
 
   const phases = phaseChoices(project, nameFor);
   const { onProject, others } = attendeeChoices(project, people);
@@ -82,6 +102,10 @@ export function EntryForm({ project, me, people, type, initial, nameFor, onSave,
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (uploadsBusy) {
+      setErrors([t('entryForm.uploadsPending')]);
+      return;
+    }
     const input = {
       type: entryType,
       effectiveDate,
@@ -96,7 +120,7 @@ export function EntryForm({ project, me, people, type, initial, nameFor, onSave,
             .filter((f) => f.title.trim() !== '')
             .map((f) => ({ title: f.title, assigneeId: f.assigneeId, dueDate: f.dueDate === '' ? null : f.dueDate }))
           : [],
-      attachmentIds: defaults.attachmentIds ?? [],
+      attachmentIds: [...existingForEntry.map((a) => a.id), ...newAttachments.map((a) => a.id)],
     };
     const parsed = entryInputSchema.safeParse(input);
     if (!parsed.success) {
@@ -189,6 +213,48 @@ export function EntryForm({ project, me, people, type, initial, nameFor, onSave,
           </ul>
         </div>
       ) : null}
+
+      <div className="attach-files">
+        {existingForEntry.length > 0 || newAttachments.length > 0 ? (
+          <ul className="chip-list">
+            {existingForEntry.map((a) => (
+              <li key={a.id} className="chip">
+                <span dir="auto" data-user-content="">{a.name}</span>
+                <button
+                  type="button"
+                  dir="auto"
+                  data-user-content=""
+                  aria-label={t('entryForm.removeAttachmentAria', { name: a.name })}
+                  onClick={() => setUnlinkedExisting((v) => [...v, a.id])}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+            {newAttachments.map((a) => (
+              <li key={a.id} className="chip">
+                <span dir="auto" data-user-content="">{a.name}</span>
+                <button
+                  type="button"
+                  dir="auto"
+                  data-user-content=""
+                  aria-label={t('entryForm.removeAttachmentAria', { name: a.name })}
+                  onClick={() => setNewAttachments((v) => v.filter((x) => x.id !== a.id))}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <Uploader
+          projectId={project.id}
+          typeId={attachTypeId}
+          buttonLabel={t('entryForm.attachFiles')}
+          onUploaded={(a) => setNewAttachments((v) => [...v, a])}
+          onBusyChange={setUploadsBusy}
+        />
+      </div>
 
       <label className="check">
         <input type="checkbox" checked={highlight} onChange={(e) => setHighlight(e.target.checked)} />

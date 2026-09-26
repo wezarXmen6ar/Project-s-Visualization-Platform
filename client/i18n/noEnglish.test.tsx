@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Lang } from '../../shared/i18n/types';
 import type {
-  EntryRecord, Lists, Me, ProjectRecord, ResourceRecord, StarterToDo, ToDoRecord, WorkloadData,
+  AttachmentRecord, EntryRecord, Lists, Me, ProjectRecord, ResourceRecord, StarterToDo, ToDoRecord, WorkloadData,
 } from '../../shared/types';
 import { App } from '../App';
 import { ProjectPage } from '../pages/manage/ProjectPage';
@@ -38,6 +38,7 @@ const ALLOWED: RegExp[] = [
   /\bCR\b/g,
   /\bQA\b/g,
   /\bUAT\b/g,
+  /\bBRD\b/g,
   /\bYYYY(?:-MM-DD)?\b/g, // a date-format hint
   /#[0-9a-fA-F]{3,8}\b/g, // the colour hex placeholder
 ];
@@ -200,7 +201,23 @@ function arabicEntries(): EntryRecord[] {
       body: 'السطر الأول.\nالسطر الثاني.\nالسطر الثالث.\nالسطر الرابع.',
       phase: { id: 120, name: `Development › ${INCREMENT}`, phaseName: 'Development', subPhaseName: INCREMENT },
       attendees: [{ id: 70, name: SARA }, { id: 71, name: FATIMA }],
-      attachmentIds: [], followUpToDoIds: [200],
+      attachmentIds: [401], followUpToDoIds: [200],
+    },
+  ];
+}
+
+function arabicAttachments(): AttachmentRecord[] {
+  return [
+    {
+      id: 400, projectId: 1,
+      phase: { id: 120, name: `Development › ${INCREMENT}`, phaseName: 'Development', subPhaseName: INCREMENT },
+      entryId: null, type: { id: 101, name: 'Approval', nameAr: 'اعتماد' }, name: 'خطاب الاعتماد.pdf', mime: 'application/pdf',
+      size: 245_000, documentDate: '2026-09-20', uploadedAt: '2026-09-21T09:00:00.000Z', previewable: true,
+    },
+    {
+      id: 401, projectId: 1, phase: null, entryId: 300, type: { id: 100, name: 'Meeting Minutes', nameAr: 'محضر اجتماع' },
+      name: 'محضر.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size: 18_000, documentDate: null, uploadedAt: '2026-09-24T10:00:00.000Z', previewable: false,
     },
   ];
 }
@@ -247,6 +264,7 @@ function arabicRoutes(): Record<string, MockHandler> {
     'GET /api/todos?done=include': () => ({ body: todos }),
     'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
     'GET /api/projects/1/entries': () => ({ body: arabicEntries() }),
+    'GET /api/projects/1/attachments': () => ({ body: arabicAttachments() }),
     'GET /api/todos?assigneeId=70': () => ({ body: todos.filter((t) => t.assignee?.id === 70) }),
     'GET /api/todos?assigneeId=72': () => ({ body: [{ ...todos[1], assignee: { id: 72, name: RAMI } }] }),
     'GET /api/starter-todos': () => ({ body: starters }),
@@ -361,7 +379,15 @@ describe('no English left in the Arabic pages', () => {
     await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
     await user.click(screen.getByRole('tab', { name: 'المرفقات' }));
+    await screen.findByText('خطاب الاعتماد.pdf');
     expectNoEnglish('the project page on the Attachments tab');
+
+    await user.click(screen.getByRole('button', { name: 'رفع ملف' }));
+    expectNoEnglish('the project page with the upload row open');
+
+    await user.click(screen.getByRole('button', { name: 'معاينة خطاب الاعتماد.pdf' }));
+    expectNoEnglish('the project page with a file preview dialog open');
+    await user.keyboard('{Escape}');
 
     await user.click(screen.getByRole('tab', { name: 'التفاصيل' }));
     expectNoEnglish('the project page on the Details tab');

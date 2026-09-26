@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { EntryRecord, Lists, ProjectRecord, ResourceRecord, ToDoRecord, WorkloadData } from '../../shared/types';
+import type { AttachmentRecord, EntryRecord, Lists, ProjectRecord, ResourceRecord, ToDoRecord, WorkloadData } from '../../shared/types';
 
 export type MockHandler = (init?: RequestInit) => { status?: number; body: unknown };
 
@@ -208,6 +208,22 @@ export function sampleEntries(): EntryRecord[] {
       phase: { id: 12, name: 'Development', phaseName: 'Development', subPhaseName: null },
     }),
     base({ id: 301, type: 'update', title: 'Weekly status', effectiveDate: '2026-09-18', body: 'On track.' }),
+  ];
+}
+
+/** Two project attachments: a previewable PDF with a type and phase, and a non-previewable file linked to a meeting. */
+export function sampleAttachments(): AttachmentRecord[] {
+  return [
+    {
+      id: 400, projectId: 1, phase: { id: 12, name: 'Development', phaseName: 'Development', subPhaseName: null },
+      entryId: null, type: { id: 101, name: 'Approval', nameAr: 'اعتماد' }, name: 'Approval letter.pdf', mime: 'application/pdf',
+      size: 245_000, documentDate: '2026-09-20', uploadedAt: '2026-09-21T09:00:00.000Z', previewable: true,
+    },
+    {
+      id: 401, projectId: 1, phase: null, entryId: 300, type: { id: 100, name: 'Meeting Minutes', nameAr: 'محضر اجتماع' },
+      name: 'notes.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      size: 18_000, documentDate: null, uploadedAt: '2026-09-24T10:00:00.000Z', previewable: false,
+    },
   ];
 }
 

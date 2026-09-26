@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import type { EntryRecord, ToDoRecord } from '../../shared/types';
+import type { AttachmentRecord, EntryRecord, ToDoRecord } from '../../shared/types';
 import { MeetingIcon, UpdateIcon } from '../icons';
 import { useFormat } from '../i18n/format';
 import { useT } from '../i18n/LanguageProvider';
 import { phaseRefLabel, type PhaseNameFor } from '../todos';
+import { AttachmentList } from './AttachmentList';
 
 const NOTE_LINES = 3;
 
@@ -15,6 +16,8 @@ interface EntryItemProps {
   /** The to-dos this entry's `followUpToDoIds` point to, in the same order. */
   followUps?: ToDoRecord[];
   onToggleFollowUp?: (todo: ToDoRecord) => void;
+  /** The attachments this entry's `attachmentIds` point to; shown read-only with Preview and Download. */
+  attachments?: AttachmentRecord[];
   /**
    * Edit and delete controls, and the follow-ups' done checkbox, are shown only when this is given. Left out for a
    * read-only list, e.g. the phase side panel (M7 Task 6) or the presentation view.
@@ -26,7 +29,7 @@ interface EntryItemProps {
 }
 
 /** One meeting or update in the History tab's list: its icon, title, date, phase, attendees, notes and follow-ups. */
-export function EntryItem({ entry, nameFor, followUps = [], onToggleFollowUp, actions }: EntryItemProps) {
+export function EntryItem({ entry, nameFor, followUps = [], onToggleFollowUp, attachments = [], actions }: EntryItemProps) {
   const t = useT();
   const { formatDate } = useFormat();
   const [expanded, setExpanded] = useState(false);
@@ -100,6 +103,15 @@ export function EntryItem({ entry, nameFor, followUps = [], onToggleFollowUp, ac
             </button>
           ) : null}
         </>
+      ) : null}
+
+      {attachments.length > 0 ? (
+        <AttachmentList
+          attachments={attachments}
+          nameFor={nameFor}
+          columns={{ type: false, phase: false, documentDate: false, uploaded: false, from: false }}
+          ariaLabel={t('tabs.attachments')}
+        />
       ) : null}
 
       {followUps.length > 0 ? (

@@ -645,13 +645,13 @@ describe('ProjectPage tabs', () => {
     expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
   });
 
-  it('shows a Coming in the next step placeholder for Attachments', async () => {
-    mockFetch(baseRoutes());
+  it('shows the Attachments tab, with no files yet', async () => {
+    mockFetch({ ...baseRoutes(), 'GET /api/projects/1/attachments': () => ({ body: [] }) });
     const user = userEvent.setup();
     renderAt('/manage/projects/1');
 
     await user.click(await screen.findByRole('tab', { name: 'Attachments' }));
-    expect(screen.getByText('Coming in the next step')).toBeInTheDocument();
+    expect(await screen.findByText('No files yet.')).toBeInTheDocument();
   });
 
   it('shows the open to-do count on the To-dos tab', async () => {

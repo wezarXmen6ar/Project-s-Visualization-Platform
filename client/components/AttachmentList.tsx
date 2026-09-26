@@ -1,0 +1,175 @@
+import { useRef, useState } from 'react';
+import type { AttachmentRecord } from '../../shared/types';
+import { api } from '../api';
+import { useFormat } from '../i18n/format';
+import { useLang, useT } from '../i18n/LanguageProvider';
+import { FileIcon } from '../icons';
+import { phaseRefLabel, type PhaseNameFor } from '../todos';
+import { FilePreview } from './FilePreview';
+
+export interface AttachmentListColumns {
+  type?: boolean;
+  phase?: boolean;
+  documentDate?: boolean;
+  uploaded?: boolean;
+  size?: boolean;
+  from?: boolean;
+}
+
+const DEFAULT_COLUMNS: Required<AttachmentListColumns> = {
+  type: true, phase: true, documentDate: true, uploaded: true, size: true, from: true,
+};
+
+export interface AttachmentListProps {
+  attachments: AttachmentRecord[];
+  nameFor?: PhaseNameFor;
+  columns?: AttachmentListColumns;
+  /** Called for the "From" column's link, when the attachment belongs to a meeting or update. Omit to hide the link. */
+  onOpenEntry?: (entryId: number) => void;
+  /**
+   * Edit and delete row actions; left out for a read-only list (EntryItem, the phase side panel, presentation).
+   * `Preview` and `Download` are always shown (Preview only for a previewable file).
+   */
+  actions?: {
+    onEdit: (a: AttachmentRecord) => void;
+    onDelete: (a: AttachmentRecord) => void;
+  };
+  emptyMessage?: string;
+  ariaLabel?: string;
+}
+
+/** A table of attachments, reused (read-only or with Edit/Delete) by the Attachments tab, EntryItem and the phase side panel. */
+export function AttachmentList({
+  attachments, nameFor, columns, onOpenEntry, actions, emptyMessage, ariaLabel,
+}: AttachmentListProps) {
+  const t = useT();
+  const { lang } = useLang();
+  const { formatDate, fileSize } = useFormat();
+  const cols = { ...DEFAULT_COLUMNS, ...columns };
+  const [previewing, setPreviewing] = useState<AttachmentRecord | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+
+  if (attachments.length === 0) {
+    return <p className="muted">{emptyMessage ?? t('attachments.nothingYet')}</p>;
+  }
+
+  return (
+    <>
+      <table aria-label={ariaLabel ?? t('tabs.attachments')} className="attachment-table">
+        <thead>
+          <tr>
+            <th>{t('attachments.colName')}</th>
+            {cols.type ? <th>{t('attachments.colType')}</th> : null}
+            {cols.phase ? <th>{t('attachments.colPhase')}</th> : null}
+            {cols.documentDate ? <th>{t('attachments.colDocumentDate')}</th> : null}
+            {cols.uploaded ? <th>{t('attachments.colUploaded')}</th> : null}
+            {cols.size ? <th>{t('attachments.colSize')}</th> : null}
+            {cols.from ? <th>{t('attachments.colFrom')}</th> : null}
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {attachments.map((a) => (
+            <tr key={a.id}>
+              <td>
+                <FileIcon />
+                <span dir="auto" data-user-content="">{a.name}</span>
+              </td>
+              {cols.type ? <td>{a.type ? (lang === 'ar' ? a.type.nameAr ?? a.type.name : a.type.name) : t('attachments.noType')}</td> : null}
+              {cols.phase ? <td>{a.phase ? phaseRefLabel(a.phase, nameFor) : t('attachments.wholeProject')}</td> : null}
+              {cols.documentDate ? <td>{a.documentDate ? formatDate(a.documentDate) : t('common.notSet')}</td> : null}
+              {cols.uploaded ? <td>{formatDate(a.uploadedAt.slice(0, 10))}</td> : null}
+              {cols.size ? <td>{fileSize(a.size)}</td> : null}
+              {cols.from ? (
+                <td>
+                  {a.entryId !== null && onOpenEntry ? (
+                    <button type="button" className="button-link" onClick={() => onOpenEntry(a.entryId!)}>
+                      {t('attachments.viewInHistory')}
+                    </button>
+                  ) : (
+                    t('common.none')
+                  )}
+                </td>
+              ) : null}
+              <td className="option-add-actions">
+                {a.previewable ? (
+                  <button
+                    type="button"
+                    className="button secondary"
+                    dir="auto"
+                    data-user-content=""
+                    aria-label={t('attachments.previewAria', { name: a.name })}
+                    onClick={(e) => {
+                      triggerRef.current = e.currentTarget;
+                      setPreviewing(a);
+                    }}
+                  >
+                    {t('common.preview')}
+                  </button>
+                ) : null}
+                <a
+                  className="button secondary"
+                  href={api.attachmentFileUrl(a.id)}
+                  download
+                  dir="auto"
+                  data-user-content=""
+                  aria-label={t('attachments.downloadAria', { name: a.name })}
+                >
+                  {t('common.download')}
+                </a>
+                {actions && confirmingId === a.id ? (
+                  <>
+                    <span>{t('attachments.confirmDelete')}</span>
+                    <button
+                      type="button"
+                      className="button danger"
+                      onClick={() => {
+                        setConfirmingId(null);
+                        actions.onDelete(a);
+                      }}
+                    >
+                      {t('common.delete')}
+                    </button>
+                    <button type="button" className="button secondary" onClick={() => setConfirmingId(null)}>{t('common.keep')}</button>
+                  </>
+                ) : actions ? (
+                  <>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      dir="auto"
+                      data-user-content=""
+                      aria-label={t('attachments.editAria', { name: a.name })}
+                      onClick={() => actions.onEdit(a)}
+                    >
+                      {t('common.edit')}
+                    </button>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      dir="auto"
+                      data-user-content=""
+                      aria-label={t('attachments.deleteAria', { name: a.name })}
+                      onClick={() => setConfirmingId(a.id)}
+                    >
+                      {t('common.delete')}
+                    </button>
+                  </>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {previewing ? (
+        <FilePreview
+          attachment={previewing}
+          onClose={() => setPreviewing(null)}
+          returnFocusTo={triggerRef.current}
+        />
+      ) : null}
+    </>
+  );
+}
