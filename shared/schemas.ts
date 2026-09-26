@@ -27,12 +27,15 @@ const optionalText = (max: number) =>
     .transform((v) => (v ? v : null));
 
 /** Optional reference to a list value. */
-const optionalId = z
+export const optionalId = z
   .number()
   .int()
   .positive()
   .nullish()
   .transform((v) => v ?? null);
+
+/** `optionalId`, but for a querystring value, which arrives as a string (or is absent). */
+const optionalIdQuery = z.preprocess((v) => (v === undefined || v === '' ? undefined : Number(v)), optionalId);
 
 /**
  * Normalises a UAE mobile number to "+971 5X XXX XXXX". Accepts +971, 00971, 971 or 0 in front of 5X XXX XXXX, with
@@ -313,6 +316,16 @@ export const attachmentUpdateSchema = z.object({
 });
 export type AttachmentUpdateInput = z.input<typeof attachmentUpdateSchema>;
 export type AttachmentUpdateData = z.output<typeof attachmentUpdateSchema>;
+
+/** POST /api/projects/:id/attachments's querystring: same references and date as `attachmentUpdateSchema`, as strings. */
+export const attachmentUploadQuerySchema = z.object({
+  typeId: optionalIdQuery,
+  phaseId: optionalIdQuery,
+  entryId: optionalIdQuery,
+  documentDate: isoDate.nullish().transform((v) => v ?? null),
+});
+export type AttachmentUploadQueryInput = z.input<typeof attachmentUploadQuerySchema>;
+export type AttachmentUploadQuery = z.output<typeof attachmentUploadQuerySchema>;
 
 export const starterToDoInputSchema = z.object({
   phaseListId: z.number().int().positive(),

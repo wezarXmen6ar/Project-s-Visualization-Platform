@@ -94,6 +94,8 @@ export const ar: Record<MessageKey, Message> = {
   'error.unknownEntry': 'بند غير معروف في السجل',
   'error.fileTooLarge': 'حجم الملف يتجاوز 50 ميغابايت',
   'error.fileEmpty': 'الملف فارغ',
+  'error.badFileName': 'تعذّرت قراءة اسم الملف',
+  'error.requestTooLarge': 'الطلب كبير جداً',
   'error.starterNotFound': 'المهمة الجاهزة غير موجودة',
   'error.chooseTechTeamMember': 'اختر شخصاً من الفريق التقني',
   'error.invalidYear': 'يجب أن تكون السنة رقماً صحيحاً بين 2000 و2100',

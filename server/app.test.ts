@@ -33,6 +33,17 @@ describe('GET /api/backups', () => {
   });
 });
 
+describe('request body too large', () => {
+  it('answers a generic 413 for a non-upload route, not the file-specific message', async () => {
+    const app = buildApp(openDb(':memory:'));
+    const res = await app.inject({
+      method: 'PUT', url: '/api/attachments/1', payload: { documentDate: 'a'.repeat(2 * 1024 * 1024) },
+    });
+    expect(res.statusCode).toBe(413);
+    expect(res.json()).toEqual({ error: 'The request is too large', code: 'error.requestTooLarge' });
+  });
+});
+
 describe('POST /api/projects with sub-phases', () => {
   it('rejects a sub-phase assigned to a business contact', async () => {
     const db = openDb(':memory:');

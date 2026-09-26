@@ -92,6 +92,8 @@ export const en = {
   'error.unknownEntry': 'Unknown entry',
   'error.fileTooLarge': 'The file is larger than 50 MB',
   'error.fileEmpty': 'The file is empty',
+  'error.badFileName': "The file name couldn't be read",
+  'error.requestTooLarge': 'The request is too large',
   'error.starterNotFound': 'Starter to-do not found',
   'error.chooseTechTeamMember': 'Choose someone from your tech team',
   'error.invalidYear': 'year must be a whole number between 2000 and 2100',

@@ -42,19 +42,24 @@ export function guessMime(fileName: string): string {
   return EXTENSION_MIME[ext] ?? 'application/octet-stream';
 }
 
-/** True for application/pdf and image/*, the types the client can preview inline. */
+/**
+ * True for application/pdf and image/*, the types the client can preview inline — except image/svg+xml, which can
+ * carry a script and must always download as a plain attachment.
+ */
 export function isPreviewable(mime: string): boolean {
-  return mime === 'application/pdf' || mime.startsWith('image/');
+  return mime === 'application/pdf' || (mime.startsWith('image/') && mime !== 'image/svg+xml');
 }
 
 /**
- * Strips any path prefix (everything up to the last "/" or "\"), keeps letters (including Arabic), digits, ".",
- * "-", "_" and spaces (turning everything else into "_"), and cuts the result to 100 characters.
+ * Strips any path prefix (everything up to the last "/" or "\"), keeps letters (including Arabic), combining marks
+ * (Arabic diacritics such as a shadda), digits, ".", "-", "_" and spaces (turning everything else into "_"), strips
+ * trailing dots and spaces (Windows can't keep a file ending in either), and cuts the result to 100 characters.
  */
 export function sanitiseFileName(name: string): string {
   const base = name.slice(Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\')) + 1);
-  const cleaned = base.replace(/[^\p{L}\p{N}.\-_ ]/gu, '_');
-  const cut = cleaned.slice(0, 100);
+  const cleaned = base.replace(/[^\p{L}\p{M}\p{N}.\-_ ]/gu, '_');
+  const trimmed = cleaned.replace(/[. ]+$/, '');
+  const cut = trimmed.slice(0, 100);
   return cut.length > 0 ? cut : '_';
 }
 
@@ -78,9 +83,12 @@ export function removeAttachmentFile(dir: string, storedName: string): void {
   unlinkSync(join(dir, storedName));
 }
 
-/** Moves `dir/storedName` to `dir/_deleted/storedName`, creating `_deleted` if it is missing. */
-export function moveAttachmentFileToDeleted(dir: string, storedName: string): void {
-  const deletedDir = join(dir, '_deleted');
+/**
+ * Moves `dir/storedName` to `deletedDir/storedName`, creating `deletedDir` if it is missing. `deletedDir` is the
+ * caller's choice (one shared `_deleted` root, not one per folder), so every kind of resource's files end up in the
+ * same place.
+ */
+export function moveAttachmentFileToDeleted(dir: string, storedName: string, deletedDir: string): void {
   mkdirSync(deletedDir, { recursive: true });
   renameSync(join(dir, storedName), join(deletedDir, storedName));
 }

@@ -6,9 +6,9 @@ import { translate } from '../shared/i18n/translate';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
-  assignmentsUpdateSchema, attachmentUpdateSchema, entryInputSchema, leaveInputSchema, listValueInputSchema, meInputSchema,
-  newProjectSchema, overloadDecisionSchema, projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, starterAcceptSchema,
-  starterTitleSchema, starterToDoInputSchema, toDoInputSchema, toIssues,
+  assignmentsUpdateSchema, attachmentUpdateSchema, attachmentUploadQuerySchema, entryInputSchema, leaveInputSchema, listValueInputSchema,
+  meInputSchema, newProjectSchema, overloadDecisionSchema, projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema,
+  starterAcceptSchema, starterTitleSchema, starterToDoInputSchema, toDoInputSchema, toIssues,
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import { backupStatus } from './backup';
@@ -39,7 +39,7 @@ export interface AppOptions {
   today?: () => ISODate;
   /** Where daily database backups are kept. */
   backupDir?: string;
-  /** Where uploaded files are kept, under `<dir>/<projectId>/`; deleted ones move to `<dir>/<projectId>/_deleted/`. */
+  /** Where uploaded files are kept, under `<dir>/<projectId>/`; deleted ones move to the shared `<dir>/_deleted/`. */
   attachmentsDir?: string;
   /** The largest upload accepted, in bytes. Lowered in tests instead of sending a real 50 MB buffer. */
   uploadLimitBytes?: number;
@@ -48,8 +48,13 @@ export interface AppOptions {
 /** A plain error body from one of this route's own message keys (not from a repo result, which already carries one). */
 function err(key: 'error.unknownList' | 'error.personNotFound' | 'error.leaveNotFound' | 'error.projectNotFound' |
   'error.phaseNotFound' | 'error.todoNotFound' | 'error.starterNotFound' | 'error.chooseTechTeamMember' | 'error.invalidYear' |
-  'error.entryNotFound' | 'error.attachmentNotFound' | 'error.fileEmpty') {
+  'error.entryNotFound' | 'error.attachmentNotFound' | 'error.fileEmpty' | 'error.badFileName') {
   return { error: translate('en', key), code: key };
+}
+
+/** Percent-encodes for RFC 5987's `filename*`: `encodeURIComponent` plus the few extra characters it leaves as-is. */
+function encodeFilenameStar(name: string): string {
+  return encodeURIComponent(name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
 export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
@@ -58,15 +63,20 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   const attachmentsDir = opts.attachmentsDir ?? 'attachments';
   const uploadLimitBytes = opts.uploadLimitBytes ?? DEFAULT_UPLOAD_LIMIT_BYTES;
   const projectAttachmentsDir = (projectId: number) => join(attachmentsDir, String(projectId));
+  const deletedAttachmentsDir = join(attachmentsDir, '_deleted');
   const app = Fastify();
 
   app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: uploadLimitBytes }, (_req, body, done) => {
     done(null, body);
   });
 
-  app.setErrorHandler((error: FastifyError, _req, reply) => {
+  app.setErrorHandler((error: FastifyError, req, reply) => {
     if (error.code === 'FST_ERR_CTP_BODY_TOO_LARGE') {
-      return reply.code(413).send({ error: translate('en', 'error.fileTooLarge'), code: 'error.fileTooLarge' });
+      // Only the upload route's own limit gets the file-specific message; any other route's body limit is generic.
+      const isUpload = String(req.headers['content-type'] ?? '').startsWith('application/octet-stream');
+      return isUpload
+        ? reply.code(413).send({ error: translate('en', 'error.fileTooLarge'), code: 'error.fileTooLarge' })
+        : reply.code(413).send({ error: translate('en', 'error.requestTooLarge'), code: 'error.requestTooLarge' });
     }
     return reply.code(error.statusCode ?? 500).send(error);
   });
@@ -292,18 +302,22 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
       if (!Buffer.isBuffer(body) || body.length === 0) return reply.code(400).send(err('error.fileEmpty'));
 
       const rawName = req.headers['x-file-name'];
-      const originalName = rawName ? decodeURIComponent(String(rawName)) : 'file';
+      let originalName: string;
+      try {
+        originalName = rawName ? decodeURIComponent(String(rawName)) : 'file';
+      } catch {
+        return reply.code(400).send(err('error.badFileName'));
+      }
       const rawType = req.headers['x-file-type'];
-      const mime = rawType ? String(rawType) : guessMime(originalName);
+      // A client-declared MIME type is only trusted when it looks like one; anything else falls back to a guess
+      // from the extension, same as when the header is absent.
+      const mime = typeof rawType === 'string' && rawType.length <= 100 && /^[\w.+-]+\/[\w.+-]+$/.test(rawType)
+        ? rawType
+        : guessMime(originalName);
 
-      const parseId = (v: string | undefined) => {
-        const n = Number(v);
-        return v !== undefined && Number.isInteger(n) && n > 0 ? n : null;
-      };
-      const typeId = parseId(req.query.typeId);
-      const phaseId = parseId(req.query.phaseId);
-      const entryId = parseId(req.query.entryId);
-      const documentDate = req.query.documentDate ?? null;
+      const parsedQuery = attachmentUploadQuerySchema.safeParse(req.query);
+      if (!parsedQuery.success) return reply.code(400).send({ error: 'Invalid attachment', issues: toIssues(parsedQuery.error) });
+      const { typeId, phaseId, entryId, documentDate } = parsedQuery.data;
 
       const issues = checkAttachmentRefs(db, projectId, { typeId, phaseId, entryId });
       if (issues.length > 0) return reply.code(400).send({ error: 'Invalid attachment', issues });
@@ -335,12 +349,16 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     let data: Buffer;
     try {
       data = readAttachmentFile(projectAttachmentsDir(file.projectId), file.storedName);
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
       return reply.code(404).send(err('error.attachmentNotFound'));
     }
     const inline = req.query.inline === '1' && isPreviewable(file.mime);
-    const encoded = encodeURIComponent(file.originalName);
+    const encoded = encodeFilenameStar(file.originalName);
     reply.header('X-Content-Type-Options', 'nosniff');
+    // SVG can carry a script, so even a plain download is locked down: no scripts, no styles but inline, no
+    // embedding, nothing but same-origin images.
+    reply.header('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
     reply.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encoded}`);
     reply.type(file.mime);
     return reply.send(data);
@@ -362,9 +380,11 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const file = getAttachmentFile(db, id);
     if (!file) return reply.code(404).send(err('error.attachmentNotFound'));
     try {
-      moveAttachmentFileToDeleted(projectAttachmentsDir(file.projectId), file.storedName);
-    } catch {
-      // The row is still removed even when the file is already missing on disk.
+      moveAttachmentFileToDeleted(projectAttachmentsDir(file.projectId), file.storedName, deletedAttachmentsDir);
+    } catch (error) {
+      // The row is still removed even when the file is already missing on disk; any other error (e.g. a locked
+      // file) is surfaced as a 500 and the row is kept, so the file isn't silently orphaned.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
     deleteAttachmentRow(db, id);
     return reply.code(204).send();
