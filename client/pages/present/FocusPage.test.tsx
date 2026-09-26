@@ -110,7 +110,11 @@ describe('FocusPage', () => {
     expect(document.body.textContent).not.toContain('Fatima Noor');
     expect(document.body.textContent).not.toContain('Sara Ahmed');
     // No to-dos are ever asked for under /present.
-    expect(fetchMock.mock.calls.map(([url]) => String(url)).some((url) => url.includes('/todos'))).toBe(false);
+    const requestedUrls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requestedUrls.some((url) => url.includes('/todos'))).toBe(false);
+    // Person documents and accounts (M7 Task 8) are never fetched or shown on the presentation side either.
+    expect(requestedUrls.some((url) => url.includes('/documents') || url.includes('/accounts'))).toBe(false);
+    expect(document.body.textContent).not.toMatch(/الوثائق|الأحقيات/);
     const buttons = within(panel).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent);
     expect(buttons).toEqual(['Close', 'Preview Minutes.pdf']);
     expect(within(panel).getByRole('link', { name: 'Download Minutes.pdf' })).toBeInTheDocument();

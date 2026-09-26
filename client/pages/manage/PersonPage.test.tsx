@@ -203,9 +203,15 @@ describe('PersonPage', () => {
 
   it('shows the Documents and Accounts cards for a tech person, and only Documents for a business contact', async () => {
     mockFetch(fakeServer());
-    renderAt('/manage/resources/72');
+    const tech = renderAt('/manage/resources/72');
     expect(await screen.findByRole('heading', { name: 'Documents' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Accounts' })).toBeInTheDocument();
+    tech.unmount();
+
+    mockFetch(fakeServer());
+    renderAt('/manage/resources/80');
+    expect(await screen.findByRole('heading', { name: 'Documents' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Accounts' })).toBeNull();
   });
 
   it('sets, shows and saves residence for a tech person, defaulting to Not set', async () => {

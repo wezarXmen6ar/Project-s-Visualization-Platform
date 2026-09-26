@@ -88,7 +88,8 @@ describe('ResourcesPage', () => {
     const fatima = table.getByRole('link', { name: 'Fatima Noor' }).closest('tr')!;
     expect(within(fatima).queryByText('Abroad')).toBeNull();
 
-    await user.selectOptions(screen.getByLabelText('Residence'), 'Abroad');
+    // The People table's own Residence filter is the first of the two ("Residence" also filters the Outsourced section).
+    await user.selectOptions(screen.getAllByLabelText('Residence')[0], 'Abroad');
     expect(await names()).toEqual(['Rami Saleh']);
   });
 
@@ -120,6 +121,22 @@ describe('ResourcesPage', () => {
     expect(details.open).toBe(true);
     expect(within(details).getByText('Layla Zaid')).toBeInTheDocument();
     expect(within(details).queryByText('Nadia Haddad')).toBeNull();
+  });
+
+  it('filters the Outsourced section by residence', async () => {
+    const outsourced = sampleOutsourced().map((p) => (p.id === 90 ? { ...p, residence: 'abroad' as const } : p));
+    mockFetch({ ...routes, 'GET /api/resources': () => ({ body: [...samplePeople(), ...outsourced] }) });
+    const user = userEvent.setup();
+    renderPage();
+    const outsourcedTable = await screen.findByRole('table', { name: 'Outsourced' });
+    expect(within(outsourcedTable).getByText('Omar Farid')).toBeInTheDocument();
+    expect(within(outsourcedTable).getByText('Nadia Haddad')).toBeInTheDocument();
+
+    // The Outsourced table's own Residence filter is the second of the two.
+    await user.selectOptions(screen.getAllByLabelText('Residence')[1], 'Abroad');
+    const filteredTable = screen.getByRole('table', { name: 'Outsourced' });
+    expect(within(filteredTable).getByText('Omar Farid')).toBeInTheDocument();
+    expect(within(filteredTable).queryByText('Nadia Haddad')).toBeNull();
   });
 
   it('sorts by the Projects column and flips direction on a second click', async () => {

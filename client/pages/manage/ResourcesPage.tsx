@@ -108,6 +108,7 @@ export function ResourcesPage() {
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [outsourcedProjectId, setOutsourcedProjectId] = useState<number | null>(null);
+  const [outsourcedResidenceFilter, setOutsourcedResidenceFilter] = useState<Residence | 'all'>('all');
   const [outsourcedSort, setOutsourcedSort] = useState<{ key: OutsourcedSortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
 
   const { workload, error: workloadError, reload } = useWorkload();
@@ -159,7 +160,10 @@ export function ResourcesPage() {
   const engagedOutsourced = outsourced.filter((p) => p.engagement !== 'past');
   const pastOutsourced = outsourced.filter((p) => p.engagement === 'past');
   const outsourcedFiltered = engagedOutsourced.filter(
-    (p) => (companyId === null || p.company?.id === companyId) && (outsourcedProjectId === null || p.engagementProject?.id === outsourcedProjectId),
+    (p) =>
+      (companyId === null || p.company?.id === companyId) &&
+      (outsourcedProjectId === null || p.engagementProject?.id === outsourcedProjectId) &&
+      (outsourcedResidenceFilter === 'all' || p.residence === outsourcedResidenceFilter),
   );
   const outsourcedShown = sortOutsourced(outsourcedFiltered, outsourcedSort.key, outsourcedSort.dir, lang, companies);
   const toggleOutsourcedSort = (key: OutsourcedSortKey) =>
@@ -393,6 +397,14 @@ export function ResourcesPage() {
               {engagementProjectOptions(engagedOutsourced).map((p) => (
                 <option key={p.id} value={String(p.id)}>{p.name}</option>
               ))}
+            </select>
+          </label>
+          <label>
+            {t('resources.colResidence')}
+            <select value={outsourcedResidenceFilter} onChange={(e) => setOutsourcedResidenceFilter(e.target.value as Residence | 'all')}>
+              <option value="all">{t('resources.anyResidence')}</option>
+              <option value="uae">{t('person.residenceUae')}</option>
+              <option value="abroad">{t('person.residenceAbroad')}</option>
             </select>
           </label>
         </div>

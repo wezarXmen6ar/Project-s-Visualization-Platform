@@ -20,14 +20,15 @@ import {
   checkAttachmentRefs, createAttachment, deleteAttachmentRow, getAttachment, getAttachmentFile, listAttachments, updateAttachment,
 } from './attachments/repo';
 import {
-  guessMime, isPreviewable, makeStoredName, moveAttachmentFileToDeleted, readAttachmentFile, removeAttachmentFile, writeAttachmentFile,
+  isPreviewable, makeStoredName, moveAttachmentFileToDeleted, parseUploadHeaders, readAttachmentFile, removeAttachmentFile,
+  sendStoredFile, writeAttachmentFile,
 } from './attachments/files';
 import { transaction } from './db';
 import { checkEntry, createEntry, deleteEntry, getEntry, listEntries, updateEntry } from './entries/repo';
 import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
 import { checkRefs, createProject, getProject, listProjects, updateProjectDetails, updateSchedule } from './projects/repo';
 import {
-  addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, listResources, updateResourceChecked,
+  addLeave, checkResourceRefs, createResource, deleteLeave, deleteResource, getResource, listResources, updateResourceChecked,
 } from './resources/repo';
 import {
   checkPersonAccountRefs, createPersonAccount, deletePersonAccountRow, getPersonAccount, listPersonAccounts, updatePersonAccount,
@@ -58,13 +59,8 @@ export interface AppOptions {
 function err(key: 'error.unknownList' | 'error.personNotFound' | 'error.leaveNotFound' | 'error.projectNotFound' |
   'error.phaseNotFound' | 'error.todoNotFound' | 'error.starterNotFound' | 'error.chooseTechTeamMember' | 'error.invalidYear' |
   'error.entryNotFound' | 'error.attachmentNotFound' | 'error.fileEmpty' | 'error.badFileName' |
-  'error.personDocumentNotFound' | 'error.personAccountNotFound') {
+  'error.personDocumentNotFound' | 'error.personAccountNotFound' | 'error.accountsTechOnly') {
   return { error: translate('en', key), code: key };
-}
-
-/** Percent-encodes for RFC 5987's `filename*`: `encodeURIComponent` plus the few extra characters it leaves as-is. */
-function encodeFilenameStar(name: string): string {
-  return encodeURIComponent(name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
 export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
@@ -74,6 +70,8 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   const uploadLimitBytes = opts.uploadLimitBytes ?? DEFAULT_UPLOAD_LIMIT_BYTES;
   const projectAttachmentsDir = (projectId: number) => join(attachmentsDir, String(projectId));
   const personDocumentsDir = (resourceId: number) => join(attachmentsDir, 'people', String(resourceId));
+  /** Whether a resource with this id exists at all, used by every route nested under `/api/resources/:id/...`. */
+  const resourceExists = (id: number) => Boolean(db.prepare('SELECT id FROM resources WHERE id = ?').get(id));
   const deletedAttachmentsDir = join(attachmentsDir, '_deleted');
   const app = Fastify();
 
@@ -159,7 +157,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.get<{ Params: { id: string } }>('/api/resources/:id/documents', async (req, reply) => {
     const resourceId = Number(req.params.id);
-    if (!db.prepare('SELECT id FROM resources WHERE id = ?').get(resourceId)) return reply.code(404).send(err('error.personNotFound'));
+    if (!resourceExists(resourceId)) return reply.code(404).send(err('error.personNotFound'));
     return listPersonDocuments(db, resourceId, today());
   });
 
@@ -167,22 +165,14 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     '/api/resources/:id/documents',
     async (req, reply) => {
       const resourceId = Number(req.params.id);
-      if (!db.prepare('SELECT id FROM resources WHERE id = ?').get(resourceId)) return reply.code(404).send(err('error.personNotFound'));
+      if (!resourceExists(resourceId)) return reply.code(404).send(err('error.personNotFound'));
 
       const body = req.body;
       if (!Buffer.isBuffer(body) || body.length === 0) return reply.code(400).send(err('error.fileEmpty'));
 
-      const rawName = req.headers['x-file-name'];
-      let originalName: string;
-      try {
-        originalName = rawName ? decodeURIComponent(String(rawName)) : 'file';
-      } catch {
-        return reply.code(400).send(err('error.badFileName'));
-      }
-      const rawType = req.headers['x-file-type'];
-      const mime = typeof rawType === 'string' && rawType.length <= 100 && /^[\w.+-]+\/[\w.+-]+$/.test(rawType)
-        ? rawType.toLowerCase()
-        : guessMime(originalName);
+      const headers = parseUploadHeaders(req.headers);
+      if (!headers) return reply.code(400).send(err('error.badFileName'));
+      const { originalName, mime } = headers;
 
       const parsedQuery = personDocumentUploadQuerySchema.safeParse(req.query);
       if (!parsedQuery.success) return reply.code(400).send({ error: 'Invalid document', issues: toIssues(parsedQuery.error) });
@@ -223,13 +213,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
       return reply.code(404).send(err('error.personDocumentNotFound'));
     }
     const inline = req.query.inline === '1' && isPreviewable(file.mime);
-    const encoded = encodeFilenameStar(file.originalName);
-    reply.header('X-Content-Type-Options', 'nosniff');
-    const sandbox = file.mime.toLowerCase() === 'application/pdf' ? '' : '; sandbox';
-    reply.header('Content-Security-Policy', `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'${sandbox}`);
-    reply.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encoded}`);
-    reply.type(file.mime);
-    return reply.send(data);
+    return sendStoredFile(reply, data, { originalName: file.originalName, mime: file.mime }, inline);
   });
 
   app.put<{ Params: { id: string } }>('/api/person-documents/:id', async (req, reply) => {
@@ -258,13 +242,16 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.get<{ Params: { id: string } }>('/api/resources/:id/accounts', async (req, reply) => {
     const resourceId = Number(req.params.id);
-    if (!db.prepare('SELECT id FROM resources WHERE id = ?').get(resourceId)) return reply.code(404).send(err('error.personNotFound'));
+    if (!resourceExists(resourceId)) return reply.code(404).send(err('error.personNotFound'));
     return listPersonAccounts(db, resourceId, today());
   });
 
   app.post<{ Params: { id: string } }>('/api/resources/:id/accounts', async (req, reply) => {
     const resourceId = Number(req.params.id);
-    if (!db.prepare('SELECT id FROM resources WHERE id = ?').get(resourceId)) return reply.code(404).send(err('error.personNotFound'));
+    const person = getResource(db, resourceId, today());
+    if (!person) return reply.code(404).send(err('error.personNotFound'));
+    // Accounts are tech-side only (controller decision): a business contact only gets Documents.
+    if (person.side !== 'tech') return reply.code(400).send(err('error.accountsTechOnly'));
     const parsed = personAccountInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid account', issues: toIssues(parsed.error) });
     const issues = checkPersonAccountRefs(db, parsed.data);
@@ -447,19 +434,9 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
       const body = req.body;
       if (!Buffer.isBuffer(body) || body.length === 0) return reply.code(400).send(err('error.fileEmpty'));
 
-      const rawName = req.headers['x-file-name'];
-      let originalName: string;
-      try {
-        originalName = rawName ? decodeURIComponent(String(rawName)) : 'file';
-      } catch {
-        return reply.code(400).send(err('error.badFileName'));
-      }
-      const rawType = req.headers['x-file-type'];
-      // A client-declared MIME type is only trusted when it looks like one; anything else falls back to a guess
-      // from the extension, same as when the header is absent.
-      const mime = typeof rawType === 'string' && rawType.length <= 100 && /^[\w.+-]+\/[\w.+-]+$/.test(rawType)
-        ? rawType.toLowerCase()
-        : guessMime(originalName);
+      const headers = parseUploadHeaders(req.headers);
+      if (!headers) return reply.code(400).send(err('error.badFileName'));
+      const { originalName, mime } = headers;
 
       const parsedQuery = attachmentUploadQuerySchema.safeParse(req.query);
       if (!parsedQuery.success) return reply.code(400).send({ error: 'Invalid attachment', issues: toIssues(parsedQuery.error) });
@@ -500,16 +477,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
       return reply.code(404).send(err('error.attachmentNotFound'));
     }
     const inline = req.query.inline === '1' && isPreviewable(file.mime);
-    const encoded = encodeFilenameStar(file.originalName);
-    reply.header('X-Content-Type-Options', 'nosniff');
-    // SVG can carry a script, so even a plain download is locked down: no scripts, no styles but inline, no
-    // embedding, nothing but same-origin images. A PDF skips `sandbox`, which some browsers' PDF viewers refuse to
-    // run under; the viewer runs PDF scripts in its own sandbox, never on the app's origin.
-    const sandbox = file.mime.toLowerCase() === 'application/pdf' ? '' : '; sandbox';
-    reply.header('Content-Security-Policy', `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'${sandbox}`);
-    reply.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encoded}`);
-    reply.type(file.mime);
-    return reply.send(data);
+    return sendStoredFile(reply, data, { originalName: file.originalName, mime: file.mime }, inline);
   });
 
   app.put<{ Params: { id: string } }>('/api/attachments/:id', async (req, reply) => {

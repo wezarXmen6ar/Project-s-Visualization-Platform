@@ -8,9 +8,22 @@ import { useFormat } from '../../i18n/format';
 import { useLang, useT } from '../../i18n/LanguageProvider';
 import { useAsync } from '../../useAsync';
 
-/** "Passport" → "passport": the type name reads lower-case mid-sentence in English; Arabic needs no change. */
-function lowerFirst(s: string): string {
-  return s.length === 0 ? s : s[0].toLowerCase() + s.slice(1);
+/**
+ * "Jira", a product name, keeps its capital letter like any other proper noun — the general lower-casing rule below
+ * would otherwise lower it too, since (like "Passport") the rest of its first word is already lower-case.
+ */
+const KEEP_CAPITALISED = new Set(['Jira']);
+
+/**
+ * "Passport" → "passport" mid-sentence in English, but "NDA" and "UAE ID" (real acronyms — the rest of their first
+ * word is upper-case) and "Jira" (a product name) keep their capital letters. Arabic needs no such change.
+ */
+function englishTypeText(name: string): string {
+  const firstWord = name.match(/^\S+/)?.[0] ?? '';
+  if (KEEP_CAPITALISED.has(firstWord)) return name;
+  const restOfFirstWord = firstWord.slice(1);
+  const isAcronym = restOfFirstWord.length === 0 || restOfFirstWord !== restOfFirstWord.toLowerCase();
+  return isAcronym ? name : name[0].toLowerCase() + name.slice(1);
 }
 
 export interface ExpiringDocumentsNoticeProps {
@@ -30,17 +43,30 @@ export function ExpiringDocumentsNotice({ today }: ExpiringDocumentsNoticeProps)
   const items = loaded.data ?? [];
   if (items.length === 0) return null;
 
-  const typeText = (item: ExpiringItem) => {
-    if (!item.type) return '';
-    return lang === 'ar' ? item.type.nameAr ?? item.type.name : lowerFirst(item.type.name);
+  // The type name as it reads in a list, e.g. the expanded list's own line: falls back to the file name for a
+  // document with no type, or a generic "document"/"account" word (an account, unlike a document, has no file name).
+  const displayType = (item: ExpiringItem): string => {
+    if (item.type) return lang === 'ar' ? item.type.nameAr ?? item.type.name : item.type.name;
+    if (item.kind === 'document') return item.name ?? t('dashboard.genericDocument');
+    return t('dashboard.genericAccount');
+  };
+
+  // The type name as it reads mid-sentence in the single-item notice: English lower-cases an ordinary word
+  // ("passport") but not an acronym or product name ("NDA", "Jira").
+  const sentenceType = (item: ExpiringItem): string => {
+    if (!item.type) return displayType(item);
+    return lang === 'ar' ? item.type.nameAr ?? item.type.name : englishTypeText(item.type.name);
   };
 
   function singleText(item: ExpiringItem): string {
-    const params = { name: item.person.name, type: typeText(item), count: daysUntilExpiry(item.expiryDate, today) };
+    const days = daysUntilExpiry(item.expiryDate, today);
+    const params = { name: item.person.name, type: sentenceType(item), count: days };
     if (item.kind === 'document') {
-      return item.state === 'expired' ? t('dashboard.expiringOneDocumentExpired', params) : t('dashboard.expiringOneDocument', params);
+      if (item.state === 'expired') return t('dashboard.expiringOneDocumentExpired', params);
+      return days === 0 ? t('dashboard.expiringOneDocumentToday', params) : t('dashboard.expiringOneDocument', params);
     }
-    return item.state === 'expired' ? t('dashboard.expiringOneAccountExpired', params) : t('dashboard.expiringOneAccount', params);
+    if (item.state === 'expired') return t('dashboard.expiringOneAccountExpired', params);
+    return days === 0 ? t('dashboard.expiringOneAccountToday', params) : t('dashboard.expiringOneAccount', params);
   }
 
   return (
@@ -60,7 +86,7 @@ export function ExpiringDocumentsNotice({ today }: ExpiringDocumentsNoticeProps)
             <li key={`${item.kind}-${item.id}`}>
               <Link to={`/manage/resources/${item.person.id}`} dir="auto" data-user-content="">{item.person.name}</Link>
               {' · '}
-              <span dir="auto" data-user-content="">{item.name ?? (item.type ? (lang === 'ar' ? item.type.nameAr ?? item.type.name : item.type.name) : '')}</span>
+              <span dir="auto" data-user-content="">{displayType(item)}</span>
               {' · '}
               {shortDate(item.expiryDate)}
             </li>

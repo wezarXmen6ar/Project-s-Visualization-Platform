@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
-import { toLocalDate } from '../../../shared/calendar';
+import { toLocalDate, type ISODate } from '../../../shared/calendar';
+import { daysUntilExpiry } from '../../../shared/expiry';
 import type { ListValue, PersonDocumentRecord } from '../../../shared/types';
 import { api } from '../../api';
+import { FileActions } from '../../components/FileActions';
 import { messagesOf } from '../../errors';
 import { AlertIcon, PlusIcon, TrashIcon, UploadIcon } from '../../icons';
 import { useFormat } from '../../i18n/format';
@@ -17,10 +19,10 @@ export interface PersonDocumentsProps {
   refreshKey?: number;
 }
 
-/** Days-left text for a "soon" document: "Expires in 12 days" / "تنتهي خلال 12 يوماً" (Arabic plural). */
-function expiresInDays(t: ReturnType<typeof useT>, expiryDate: string, today: string): string {
-  const days = Math.round((new Date(`${expiryDate}T00:00:00Z`).getTime() - new Date(`${today}T00:00:00Z`).getTime()) / 86_400_000);
-  return t('personDocs.expiresIn', { count: days });
+/** Days-left text for a "soon" document: "Expires today", or "Expires in 12 days" / "تنتهي خلال 12 يوماً" (Arabic plural). */
+function expiresInDays(t: ReturnType<typeof useT>, expiryDate: ISODate, today: ISODate): string {
+  const days = daysUntilExpiry(expiryDate, today);
+  return days === 0 ? t('common.expiresToday') : t('personDocs.expiresIn', { count: days });
 }
 
 /** The person page's "Documents" card (الوثائق): upload, list, edit and delete a person's own documents. Never on /present. */
@@ -40,6 +42,10 @@ export function PersonDocuments({ resourceId, documentTypes, today, refreshKey =
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // The upload's own progress (0–100) while `busy`, and the last file picked, so a failed upload's error (in the
+  // shared `errors` banner) can be retried with the same file — mirrors `Uploader`'s own progress-and-Retry pattern.
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const lastFileRef = useRef<File | null>(null);
 
   const [editing, setEditing] = useState<PersonDocumentRecord | null>(null);
   const [editTypeId, setEditTypeId] = useState<number | null>(null);
@@ -79,25 +85,33 @@ export function PersonDocuments({ resourceId, documentTypes, today, refreshKey =
     }
   }
 
-  async function onFileChosen(file: File | undefined) {
-    if (!file) return;
+  async function doUpload(file: File) {
+    lastFileRef.current = file;
     setBusy(true);
     setErrors([]);
     try {
-      await api.uploadPersonDocument(resourceId, file, file.name, {
-        typeId: uploadTypeId ?? undefined, expiryDate: uploadExpiry === '' ? undefined : uploadExpiry,
-        note: uploadNote === '' ? undefined : uploadNote,
-      });
+      await api.uploadPersonDocument(
+        resourceId, file, file.name,
+        { typeId: uploadTypeId ?? undefined, expiryDate: uploadExpiry === '' ? undefined : uploadExpiry, note: uploadNote === '' ? undefined : uploadNote },
+        (loaded, total) => setUploadProgress(total > 0 ? Math.round((loaded / total) * 100) : 0),
+      );
       setUploading(false);
       setUploadTypeId(null);
       setUploadExpiry('');
       setUploadNote('');
+      lastFileRef.current = null;
       reload();
     } catch (err) {
       setErrors(messagesOf(err, t));
     } finally {
       setBusy(false);
+      setUploadProgress(null);
     }
+  }
+
+  function onFileChosen(file: File | undefined) {
+    if (!file) return;
+    void doUpload(file);
   }
 
   return (
@@ -115,6 +129,9 @@ export function PersonDocuments({ resourceId, documentTypes, today, refreshKey =
         <div className="errors" role="alert">
           <AlertIcon />
           <ul>{errors.map((m) => <li key={m}>{m}</li>)}</ul>
+          {lastFileRef.current ? (
+            <button type="button" className="button secondary" onClick={() => void doUpload(lastFileRef.current!)}>{t('common.retry')}</button>
+          ) : null}
         </div>
       ) : null}
 
@@ -142,7 +159,7 @@ export function PersonDocuments({ resourceId, documentTypes, today, refreshKey =
             aria-label={t('personDocs.uploadDocument')}
             disabled={busy}
             onChange={(e) => {
-              void onFileChosen(e.target.files?.[0]);
+              onFileChosen(e.target.files?.[0]);
               e.target.value = '';
             }}
           />
@@ -150,6 +167,9 @@ export function PersonDocuments({ resourceId, documentTypes, today, refreshKey =
             <UploadIcon />{busy ? t('common.adding') : t('personDocs.uploadDocument')}
           </button>
           <button type="button" className="button secondary" onClick={() => setUploading(false)}>{t('common.cancel')}</button>
+          {busy && uploadProgress !== null ? (
+            <progress className="uploader-progress" value={uploadProgress} max={100} aria-label={t('uploader.uploading')} />
+          ) : null}
         </div>
       ) : null}
 
@@ -198,17 +218,12 @@ export function PersonDocuments({ resourceId, documentTypes, today, refreshKey =
                   <td dir="auto" data-user-content="">{d.name}</td>
                   <td className={d.state === 'expired' ? 'expiry-expired' : d.state === 'soon' ? 'expiry-soon' : undefined}>
                     {d.state === 'expired' ? t('personDocs.expired')
-                      : d.state === 'soon' && d.expiryDate ? expiresInDays(t, d.expiryDate, today)
+                      : d.state === 'soon' && d.expiryDate ? expiresInDays(t, d.expiryDate, today as ISODate)
                         : d.expiryDate ? formatDate(d.expiryDate) : t('common.notSet')}
                   </td>
                   <td>{formatDate(toLocalDate(d.uploadedAt))}</td>
                   <td className="option-add-actions">
-                    {d.previewable ? (
-                      <a className="button secondary" href={api.personDocumentFileUrl(d.id, true)} target="_blank" rel="noreferrer">
-                        {t('common.preview')}
-                      </a>
-                    ) : null}
-                    <a className="button secondary" href={api.personDocumentFileUrl(d.id)} download>{t('common.download')}</a>
+                    <FileActions file={{ name: d.name, mime: d.mime, previewable: d.previewable, fileUrl: api.personDocumentFileUrl(d.id) }} />
                     {confirmingId === d.id ? (
                       <>
                         <span>{t('personDocs.confirmDelete')}</span>

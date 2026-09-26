@@ -26,6 +26,48 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Uploads raw file bytes with `XMLHttpRequest`, so `onProgress` can report upload progress. `name` is sent as
+ * X-File-Name (percent-encoded, so an Arabic name round-trips); a `Blob`'s own `type`, if any, becomes X-File-Type.
+ * Shared by `uploadAttachment` and `uploadPersonDocument`, which each build their own URL and query string.
+ */
+function uploadFile<T>(url: string, file: Blob, name: string, onProgress?: (loaded: number, total: number) => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.setRequestHeader('X-File-Name', encodeURIComponent(name));
+    if (file.type) xhr.setRequestHeader('X-File-Type', file.type);
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (e) => onProgress(e.loaded, e.total);
+    }
+    xhr.onload = () => {
+      let body: { error?: string; issues?: ValidationIssue[]; code?: MessageKey; params?: Params } = {};
+      try {
+        body = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+      } catch {
+        body = {};
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body as unknown as T);
+        return;
+      }
+      const hasServerMessage = body.error !== undefined;
+      reject(new ApiError(
+        body.error ?? `Request failed (${xhr.status})`,
+        xhr.status,
+        body.issues ?? [],
+        hasServerMessage ? body.code : 'common.requestFailed',
+        hasServerMessage ? body.params : { status: xhr.status },
+      ));
+    };
+    // A genuine network failure (offline, connection reset): left uncoded, like fetch's own thrown error, so
+    // messagesOf falls back to the translated "could not reach the server" message instead of a raw browser string.
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(file);
+  });
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Only declare JSON when there is a body: Fastify rejects an empty body sent as application/json.
   const headers = init?.body === undefined ? init?.headers : { 'Content-Type': 'application/json', ...init?.headers };
@@ -122,10 +164,7 @@ export const api = {
     const qs = params.toString();
     return request<AttachmentRecord[]>(`/api/projects/${projectId}/attachments${qs ? `?${qs}` : ''}`);
   },
-  /**
-   * Uploads raw file bytes with `XMLHttpRequest`, so `onProgress` can report upload progress. `name` is sent as
-   * X-File-Name (percent-encoded, so an Arabic name round-trips); a `Blob`'s own `type`, if any, becomes X-File-Type.
-   */
+  /** See `uploadFile` above: this just builds the URL and query string for a project attachment. */
   uploadAttachment: (
     projectId: number, file: Blob, name: string,
     opts: { typeId?: number; phaseId?: number; documentDate?: string; entryId?: number } = {},
@@ -137,40 +176,7 @@ export const api = {
     if (opts.documentDate !== undefined) params.set('documentDate', opts.documentDate);
     if (opts.entryId !== undefined) params.set('entryId', String(opts.entryId));
     const qs = params.toString();
-    return new Promise<AttachmentRecord>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `/api/projects/${projectId}/attachments${qs ? `?${qs}` : ''}`);
-      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-      xhr.setRequestHeader('X-File-Name', encodeURIComponent(name));
-      if (file.type) xhr.setRequestHeader('X-File-Type', file.type);
-      if (xhr.upload && onProgress) {
-        xhr.upload.onprogress = (e) => onProgress(e.loaded, e.total);
-      }
-      xhr.onload = () => {
-        let body: { error?: string; issues?: ValidationIssue[]; code?: MessageKey; params?: Params } = {};
-        try {
-          body = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-        } catch {
-          body = {};
-        }
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(body as unknown as AttachmentRecord);
-          return;
-        }
-        const hasServerMessage = body.error !== undefined;
-        reject(new ApiError(
-          body.error ?? `Request failed (${xhr.status})`,
-          xhr.status,
-          body.issues ?? [],
-          hasServerMessage ? body.code : 'common.requestFailed',
-          hasServerMessage ? body.params : { status: xhr.status },
-        ));
-      };
-      // A genuine network failure (offline, connection reset): left uncoded, like fetch's own thrown error, so
-      // messagesOf falls back to the translated "could not reach the server" message instead of a raw browser string.
-      xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send(file);
-    });
+    return uploadFile<AttachmentRecord>(`/api/projects/${projectId}/attachments${qs ? `?${qs}` : ''}`, file, name, onProgress);
   },
   updateAttachment: (id: number, input: AttachmentUpdateInput) => request<AttachmentRecord>(`/api/attachments/${id}`, withBody('PUT', input)),
   deleteAttachment: (id: number) => request<void>(`/api/attachments/${id}`, { method: 'DELETE' }),
@@ -178,10 +184,7 @@ export const api = {
   attachmentFileUrl: (id: number, inline = false) => `/api/attachments/${id}/file${inline ? '?inline=1' : ''}`,
 
   listPersonDocuments: (resourceId: number) => request<PersonDocumentRecord[]>(`/api/resources/${resourceId}/documents`),
-  /**
-   * Uploads raw file bytes with `XMLHttpRequest`, so `onProgress` can report upload progress. `name` is sent as
-   * X-File-Name (percent-encoded, so an Arabic name round-trips); a `Blob`'s own `type`, if any, becomes X-File-Type.
-   */
+  /** See `uploadFile` above: this just builds the URL and query string for a person document. */
   uploadPersonDocument: (
     resourceId: number, file: Blob, name: string,
     opts: { typeId?: number; expiryDate?: string; note?: string } = {},
@@ -192,38 +195,7 @@ export const api = {
     if (opts.expiryDate !== undefined) params.set('expiryDate', opts.expiryDate);
     if (opts.note !== undefined) params.set('note', opts.note);
     const qs = params.toString();
-    return new Promise<PersonDocumentRecord>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `/api/resources/${resourceId}/documents${qs ? `?${qs}` : ''}`);
-      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-      xhr.setRequestHeader('X-File-Name', encodeURIComponent(name));
-      if (file.type) xhr.setRequestHeader('X-File-Type', file.type);
-      if (xhr.upload && onProgress) {
-        xhr.upload.onprogress = (e) => onProgress(e.loaded, e.total);
-      }
-      xhr.onload = () => {
-        let body: { error?: string; issues?: ValidationIssue[]; code?: MessageKey; params?: Params } = {};
-        try {
-          body = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-        } catch {
-          body = {};
-        }
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(body as unknown as PersonDocumentRecord);
-          return;
-        }
-        const hasServerMessage = body.error !== undefined;
-        reject(new ApiError(
-          body.error ?? `Request failed (${xhr.status})`,
-          xhr.status,
-          body.issues ?? [],
-          hasServerMessage ? body.code : 'common.requestFailed',
-          hasServerMessage ? body.params : { status: xhr.status },
-        ));
-      };
-      xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send(file);
-    });
+    return uploadFile<PersonDocumentRecord>(`/api/resources/${resourceId}/documents${qs ? `?${qs}` : ''}`, file, name, onProgress);
   },
   updatePersonDocument: (id: number, input: PersonDocumentUpdateInput) =>
     request<PersonDocumentRecord>(`/api/person-documents/${id}`, withBody('PUT', input)),

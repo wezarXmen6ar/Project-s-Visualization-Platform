@@ -23,6 +23,7 @@ export const en = {
   'common.retry': 'Retry',
   'common.preview': 'Preview',
   'common.download': 'Download',
+  'common.expiresToday': 'Expires today',
 
   'lang.switch': 'Language',
   'lang.ar': 'العربية',
@@ -744,6 +745,7 @@ export const en = {
   'personDocs.deleteAria': 'Delete {name}',
 
   // Accounts (M7 Task 8): a person's work accounts (network, email, VPN, Jira…), each with its own reminder lead.
+  'error.accountsTechOnly': 'Only tech team members have accounts',
   'error.unknownAccountType': 'Unknown account type',
   'error.personAccountNotFound': 'Account not found',
   'error.reasonHasAccounts': {
@@ -783,7 +785,7 @@ export const en = {
   },
   'personAccounts.renewed': 'Renewed',
   'personAccounts.renewedNewExpiry': 'New expiry date',
-  'personAccounts.renewedNote': 'Renewed on {date}, was {old}',
+  'personAccounts.renewedNote': 'Renewed on {date}; the expiry was {old}',
   'personAccounts.editAria': 'Edit account {type}',
   'personAccounts.deleteAria': 'Delete account {type}',
   'personAccounts.confirmDelete': 'Delete this account?',
@@ -800,17 +802,23 @@ export const en = {
     one: "{name}'s {type} expires in 1 day",
     other: "{name}'s {type} expires in {count} days",
   },
+  'dashboard.expiringOneDocumentToday': "{name}'s {type} expires today",
   'dashboard.expiringOneDocumentExpired': "{name}'s {type} has expired",
   'dashboard.expiringOneAccount': {
     one: "{name}'s {type} expires in 1 day — apply for renewal",
     other: "{name}'s {type} expires in {count} days — apply for renewal",
   },
+  'dashboard.expiringOneAccountToday': "{name}'s {type} expires today — apply for renewal",
   'dashboard.expiringOneAccountExpired': "{name}'s {type} has expired — apply for renewal",
   'dashboard.expiringMany': {
     one: '1 document or account needs attention',
     other: '{count} documents and accounts need attention',
   },
   'dashboard.seeDocuments': 'See documents',
+  // Fall-back {type} text when a document or account has no type set, so the sentence never has a hole: a document
+  // falls back to its file name (see ExpiringDocumentsNotice), an account — which has no file name — to this word.
+  'dashboard.genericDocument': 'document',
+  'dashboard.genericAccount': 'account',
 } satisfies Record<string, Message>;
 
 export type MessageKey = keyof typeof en;

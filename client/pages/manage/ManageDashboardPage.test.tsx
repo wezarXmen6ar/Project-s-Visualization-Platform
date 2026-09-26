@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ExpiringItem, Me, ToDoRecord } from '../../../shared/types';
+import { LanguageProvider } from '../../i18n/LanguageProvider';
 import { mockFetch, overbookedWorkload, sampleProject, sampleWorkload, type MockHandler } from '../../testing/mockFetch';
 import { ManageDashboardPage } from './ManageDashboardPage';
 
@@ -19,14 +20,16 @@ function baseRoutes(overrides: Partial<Record<string, MockHandler>> = {}): Recor
   };
 }
 
-function renderPage() {
+function renderPage(lang: 'en' | 'ar' = 'en') {
   return render(
-    <MemoryRouter initialEntries={['/manage']}>
-      <Routes>
-        <Route path="/manage" element={<ManageDashboardPage />} />
-        <Route path="/manage/projects/:id" element={<div>Project opened</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <LanguageProvider lang={lang}>
+      <MemoryRouter initialEntries={['/manage']}>
+        <Routes>
+          <Route path="/manage" element={<ManageDashboardPage />} />
+          <Route path="/manage/projects/:id" element={<div>Project opened</div>} />
+        </Routes>
+      </MemoryRouter>
+    </LanguageProvider>,
   );
 }
 
@@ -121,6 +124,18 @@ describe('ManageDashboardPage', () => {
       await user.click(screen.getByRole('button', { name: 'See documents' }));
       expect(await screen.findAllByRole('link', { name: 'Fatima Noor' })).toHaveLength(2);
       expect(screen.getByRole('link', { name: 'Rami Saleh' })).toBeInTheDocument();
+    });
+
+    it('shows the Arabic plural form for two expiring items', async () => {
+      const items: ExpiringItem[] = [
+        { kind: 'document', id: 1, person: { id: 71, name: 'فاطمة نور' }, type: { id: 300, name: 'Passport', nameAr: 'جواز السفر' }, name: 'passport.pdf', expiryDate: '2026-10-19', state: 'soon' },
+        { kind: 'account', id: 2, person: { id: 71, name: 'فاطمة نور' }, type: { id: 310, name: 'Network account', nameAr: 'أحقية الشبكة' }, name: null, expiryDate: '2026-10-27', state: 'soon' },
+      ];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+      mockFetch(baseRoutes({ 'GET /api/people/expiring?withinDays=30': () => ({ body: items }) }));
+      renderPage('ar');
+      expect(await screen.findByText('وثيقتان أو أحقيتان تحتاجان إلى متابعة')).toBeInTheDocument();
     });
 
     it('shows no notice when nothing is expiring', async () => {

@@ -800,6 +800,35 @@ button.heat:hover { border-color: var(--border-strong); }
 .todo.done .todo-title { text-decoration: line-through; color: var(--muted); }
 .overdue { color: var(--danger); font-weight: 600; }
 
+/* Expiry states shared by person documents, accounts and project key dates (M7 Task 8/9): red once past, amber
+ * while within the warning window. Applied to a table cell, alongside its own text. */
+.expiry-expired { color: var(--danger); font-weight: 600; }
+.expiry-soon { color: var(--warning); font-weight: 600; }
+
+/* A small pill of supplementary information next to a name, e.g. "Abroad" beside a person (M7 Task 8). */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+/* The dashboard notice's expanded list, one line per person and document/account (M7 Task 8). */
+.notice-expanded {
+  flex-basis: 100%;
+  list-style: none;
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+}
+
 /* ---------------------------------------------------------------------- *
  * History tab: entries list and form
  * ---------------------------------------------------------------------- */

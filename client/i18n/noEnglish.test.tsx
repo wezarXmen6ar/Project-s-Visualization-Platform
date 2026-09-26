@@ -401,7 +401,7 @@ describe('no English left in the Arabic pages', () => {
     expect(await screen.findByText('متابعة العقد المتأخر')).toBeInTheDocument();
     await screen.findAllByRole('link', { name: PROJECT });
     await screen.findByRole('link', { name: 'عرض عبء العمل' });
-    await screen.findByText('ينتهي جواز السفر لفاطمة نور خلال 12 يوماً');
+    await screen.findByText('تنتهي صلاحية جواز السفر لفاطمة نور خلال 12 يوماً');
     await settled();
     expectNoEnglish('the dashboard');
   });

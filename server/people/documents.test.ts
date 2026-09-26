@@ -52,6 +52,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  db.close();
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -144,7 +145,7 @@ describe('GET /api/people/expiring — documents', () => {
     const fatima = await person();
     const expired = (await uploadDocument(fatima.id, 'expired.pdf', { expiryDate: '2026-09-01' })).json();
     const soon = (await uploadDocument(fatima.id, 'soon.pdf', { expiryDate: '2026-10-10' })).json();
-    await uploadDocument(fatima.id, 'later.pdf', { expiryDate: '2027-06-01' });
+    const later = (await uploadDocument(fatima.id, 'later.pdf', { expiryDate: '2027-06-01' })).json();
     await uploadDocument(fatima.id, 'no-expiry.pdf');
 
     const res = await app.inject({ method: 'GET', url: '/api/people/expiring?withinDays=30' });
@@ -152,11 +153,25 @@ describe('GET /api/people/expiring — documents', () => {
     const ids = res.json().map((i: { id: number; kind: string }) => `${i.kind}:${i.id}`);
     expect(ids).toContain(`document:${expired.id}`);
     expect(ids).toContain(`document:${soon.id}`);
-    expect(ids).not.toContain('document:' + 'later');
+    expect(ids).not.toContain(`document:${later.id}`);
     expect(res.json().find((i: { id: number }) => i.id === expired.id).state).toBe('expired');
     expect(res.json().find((i: { id: number }) => i.id === soon.id).state).toBe('soon');
     expect(res.json().find((i: { id: number }) => i.id === soon.id).person).toEqual({ id: fatima.id, name: 'Fatima Noor' });
     expect(res.json()).toHaveLength(2);
+  });
+
+  it('judges the state against the requested window, not the fixed 30 days, so a wider window is consistent', async () => {
+    const fatima = await person();
+    // 40 days after today (2026-09-26): outside the default 30-day window, inside a 60-day one.
+    const doc = (await uploadDocument(fatima.id, 'in-40-days.pdf', { expiryDate: '2026-11-05' })).json();
+
+    const narrow = await app.inject({ method: 'GET', url: '/api/people/expiring?withinDays=30' });
+    expect(narrow.json().map((i: { id: number }) => i.id)).not.toContain(doc.id);
+
+    const wide = await app.inject({ method: 'GET', url: '/api/people/expiring?withinDays=60' });
+    const found = wide.json().find((i: { id: number }) => i.id === doc.id);
+    expect(found).toBeDefined();
+    expect(found.state).toBe('soon');
   });
 });
 
@@ -202,6 +217,15 @@ describe('person accounts', () => {
       method: 'POST', url: `/api/resources/${fatima.id}/accounts`, payload: { typeId: 999999, expiryDate: '2026-12-01' },
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('refuses an account for a business-side person, with error.accountsTechOnly', async () => {
+    const mariam = await person('Mariam', 'business');
+    const res = await app.inject({
+      method: 'POST', url: `/api/resources/${mariam.id}/accounts`, payload: { expiryDate: '2026-12-01' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('error.accountsTechOnly');
   });
 });
 

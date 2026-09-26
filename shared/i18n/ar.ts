@@ -22,6 +22,7 @@ export const ar: Record<MessageKey, Message> = {
   'common.retry': 'إعادة المحاولة',
   'common.preview': 'معاينة',
   'common.download': 'تنزيل',
+  'common.expiresToday': 'تنتهي اليوم',
 
   'lang.switch': 'اللغة',
   'lang.ar': 'العربية',
@@ -816,6 +817,7 @@ export const ar: Record<MessageKey, Message> = {
   'personDocs.deleteAria': 'حذف {name}',
 
   // Accounts (M7 Task 8).
+  'error.accountsTechOnly': 'الأحقيات لأعضاء الفريق التقني فقط',
   'error.unknownAccountType': 'نوع الأحقية غير معروف',
   'error.personAccountNotFound': 'الأحقية غير موجودة',
   'error.reasonHasAccounts': {
@@ -861,16 +863,17 @@ export const ar: Record<MessageKey, Message> = {
     many: 'جدّد خلال {count} يوماً',
     other: 'جدّد خلال {count} يوماً',
   },
+  // أحقية is feminine, so the verb agrees: انتهت (not انتهى).
   'personAccounts.expiredAgo': {
-    one: 'انتهى منذ يوم واحد',
-    two: 'انتهى منذ يومين',
-    few: 'انتهى منذ {count} أيام',
-    many: 'انتهى منذ {count} يوماً',
-    other: 'انتهى منذ {count} يوماً',
+    one: 'انتهت منذ يوم واحد',
+    two: 'انتهت منذ يومين',
+    few: 'انتهت منذ {count} أيام',
+    many: 'انتهت منذ {count} يوماً',
+    other: 'انتهت منذ {count} يوماً',
   },
   'personAccounts.renewed': 'تم التجديد',
   'personAccounts.renewedNewExpiry': 'تاريخ الانتهاء الجديد',
-  'personAccounts.renewedNote': 'تم التجديد في {date}، وكانت {old}',
+  'personAccounts.renewedNote': 'جُدّدت في {date}، وكان تاريخ الانتهاء {old}',
   'personAccounts.editAria': 'تعديل الأحقية {type}',
   'personAccounts.deleteAria': 'حذف الأحقية {type}',
   'personAccounts.confirmDelete': 'حذف هذه الأحقية؟',
@@ -882,22 +885,26 @@ export const ar: Record<MessageKey, Message> = {
   'resources.colResidence': 'الإقامة',
   'resources.anyResidence': 'أي مكان',
 
-  // The dashboard's documents-and-accounts notice (M7 Task 8).
+  // The dashboard's documents-and-accounts notice (M7 Task 8). Both documents and accounts use "تنتهي صلاحية"
+  // (the validity of X expires): a subject that reads correctly whatever the grammatical gender of {type} is, and
+  // whatever type a user later adds through Settings.
   'dashboard.expiringOneDocument': {
-    one: 'ينتهي {type} ل{name} خلال يوم واحد',
-    two: 'ينتهي {type} ل{name} خلال يومين',
-    few: 'ينتهي {type} ل{name} خلال {count} أيام',
-    many: 'ينتهي {type} ل{name} خلال {count} يوماً',
-    other: 'ينتهي {type} ل{name} خلال {count} يوماً',
+    one: 'تنتهي صلاحية {type} ل{name} خلال يوم واحد',
+    two: 'تنتهي صلاحية {type} ل{name} خلال يومين',
+    few: 'تنتهي صلاحية {type} ل{name} خلال {count} أيام',
+    many: 'تنتهي صلاحية {type} ل{name} خلال {count} يوماً',
+    other: 'تنتهي صلاحية {type} ل{name} خلال {count} يوماً',
   },
+  'dashboard.expiringOneDocumentToday': 'تنتهي صلاحية {type} ل{name} اليوم',
   'dashboard.expiringOneDocumentExpired': 'انتهت صلاحية {type} ل{name}',
   'dashboard.expiringOneAccount': {
-    one: 'تنتهي {type} ل{name} خلال يوم واحد — قدّم طلب التجديد',
-    two: 'تنتهي {type} ل{name} خلال يومين — قدّم طلب التجديد',
-    few: 'تنتهي {type} ل{name} خلال {count} أيام — قدّم طلب التجديد',
-    many: 'تنتهي {type} ل{name} خلال {count} يوماً — قدّم طلب التجديد',
-    other: 'تنتهي {type} ل{name} خلال {count} يوماً — قدّم طلب التجديد',
+    one: 'تنتهي صلاحية {type} ل{name} خلال يوم واحد — قدّم طلب التجديد',
+    two: 'تنتهي صلاحية {type} ل{name} خلال يومين — قدّم طلب التجديد',
+    few: 'تنتهي صلاحية {type} ل{name} خلال {count} أيام — قدّم طلب التجديد',
+    many: 'تنتهي صلاحية {type} ل{name} خلال {count} يوماً — قدّم طلب التجديد',
+    other: 'تنتهي صلاحية {type} ل{name} خلال {count} يوماً — قدّم طلب التجديد',
   },
+  'dashboard.expiringOneAccountToday': 'تنتهي صلاحية {type} ل{name} اليوم — قدّم طلب التجديد',
   'dashboard.expiringOneAccountExpired': 'انتهت صلاحية {type} ل{name} — قدّم طلب التجديد',
   'dashboard.expiringMany': {
     one: 'وثيقة أو أحقية واحدة تحتاج إلى متابعة',
@@ -907,4 +914,6 @@ export const ar: Record<MessageKey, Message> = {
     other: '{count} وثيقة وأحقية تحتاج إلى متابعة',
   },
   'dashboard.seeDocuments': 'عرض الوثائق',
+  'dashboard.genericDocument': 'وثيقة',
+  'dashboard.genericAccount': 'أحقية',
 };

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import type { ISODate } from '../../../shared/calendar';
+import { daysUntilExpiry } from '../../../shared/expiry';
 import type { ListValue, PersonAccountRecord } from '../../../shared/types';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
@@ -15,11 +17,11 @@ export interface PersonAccountsProps {
   refreshKey?: number;
 }
 
-/** "renew within {n} days" / "expired {n} days ago" (Arabic plurals), against this account's own remindDays. */
+/** "Expires today", "renew within {n} days" or "expired {n} days ago" (Arabic plurals), against this account's own remindDays. */
 function stateText(t: ReturnType<typeof useT>, a: PersonAccountRecord, today: string): string {
-  const days = Math.round((new Date(`${a.expiryDate}T00:00:00Z`).getTime() - new Date(`${today}T00:00:00Z`).getTime()) / 86_400_000);
+  const days = daysUntilExpiry(a.expiryDate, today as ISODate);
   if (a.state === 'expired') return t('personAccounts.expiredAgo', { count: -days });
-  if (a.state === 'soon') return t('personAccounts.renewWithin', { count: days });
+  if (a.state === 'soon') return days === 0 ? t('common.expiresToday') : t('personAccounts.renewWithin', { count: days });
   return '';
 }
 
@@ -97,9 +99,12 @@ export function PersonAccounts({ resourceId, accountTypes, today, refreshKey = 0
     if (!renewing || !renewExpiry) return;
     setErrors([]);
     try {
+      // The renewal line names today (when it was renewed) and the expiry that was just replaced, and is appended
+      // to any note the account already had — never replacing it.
+      const renewalLine = t('personAccounts.renewedNote', { date: formatDate(today), old: formatDate(renewing.expiryDate) });
+      const note = renewing.note ? `${renewing.note}\n${renewalLine}` : renewalLine;
       await api.updatePersonAccount(renewing.id, {
-        typeId: renewing.type?.id ?? undefined, expiryDate: renewExpiry, remindDays: renewing.remindDays,
-        note: t('personAccounts.renewedNote', { date: formatDate(renewExpiry), old: formatDate(renewing.expiryDate) }),
+        typeId: renewing.type?.id ?? undefined, expiryDate: renewExpiry, remindDays: renewing.remindDays, note,
       });
       setRenewing(null);
       reload();

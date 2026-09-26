@@ -639,7 +639,7 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
   - The table shows type, file name, expiry and uploaded date. Expiry is red when expired ("منتهية") and amber within 30 days ("تنتهي خلال 12 يوماً"), with an Arabic plural for the days.
   - Row actions: Preview (PDF or image), Download, Edit and Delete. Delete asks for confirmation.
 - **The dashboard, a notice** when any documents are expired or expire within 30 days:
-  - one document: "Fatima Noor's passport expires in 12 days" / "ينتهي جواز السفر لفاطمة نور خلال 12 يوماً";
+  - one document: "Fatima Noor's passport expires in 12 days" / "تنتهي صلاحية جواز السفر لفاطمة نور خلال 12 يوماً" (controller decision: "تنتهي صلاحية {type} ل{name} …" reads correctly whatever the type's grammatical gender);
   - several: "3 documents expire soon or have expired" / "3 وثائق منتهية أو قاربت على الانتهاء".
   - It has a link, **See documents**, that goes to the person page for one document, or to a small list for several: the notice expands to show each person and document with links.
 - **Settings** gets a **Person document types** list, bilingual.
@@ -671,7 +671,7 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
 - **Routes:** `GET/POST /api/resources/:id/accounts`, `PUT/DELETE /api/person-accounts/:id`. The expiring route becomes `GET /api/people/expiring?withinDays=30`, returning documents **and** accounts. An account is included when today is on or after its expiry date minus its own `remind_days`, so a 45-day renewal warns 45 days ahead.
 - **States:** *expired* (red) when the expiry date is before today; *renew now* (amber) from `expiry − remind_days`; otherwise fine.
 - **The person page, an "Accounts" card (الأحقيات):** type, expiry date (with the weekday), "renew within {n} days" / "جدّد خلال {n} يوماً" or "expired {n} days ago" / "انتهى منذ {n} أيام" (Arabic plurals), the reminder lead ("remind 30 days before" / "التذكير قبل 30 يوماً"), and the note. **+ Add account** takes a type, an expiry date, the reminder lead (default 30 days) and a note. **Renewed** on a row asks for the new expiry date and keeps the old one in the note ("Renewed on {date}, was {old date}"). Edit and Delete.
-- **The dashboard notice** covers documents and accounts together: one item reads "Fatima Noor's network account expires in 20 days — apply for renewal" / "تنتهي أحقية الشبكة لفاطمة نور خلال 20 يوماً — قدّم طلب التجديد"; several read "4 documents and accounts need attention" / "4 وثائق وأحقيات تحتاج إلى متابعة", and expand into a list.
+- **The dashboard notice** covers documents and accounts together: one item reads "Fatima Noor's network account expires in 20 days — apply for renewal" / "تنتهي صلاحية أحقية الشبكة لفاطمة نور خلال 20 يوماً — قدّم طلب التجديد" (the same "تنتهي صلاحية {type} ل{name} …" pattern as documents); several read "4 documents and accounts need attention" / "4 وثائق وأحقيات تحتاج إلى متابعة", and expand into a list.
 - **Deleting a person** is refused while they have accounts, as for documents (`error.reasonHasAccounts`). **Settings** gets an **Account types** list.
 
 **Residence:**

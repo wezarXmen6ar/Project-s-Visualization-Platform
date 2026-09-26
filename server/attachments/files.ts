@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import type { IncomingHttpHeaders } from 'node:http';
 import { join } from 'node:path';
+import type { FastifyReply } from 'fastify';
 
 /**
  * File storage for anything uploaded against a resource: project attachments now, person documents from M7 Task 8
@@ -90,4 +92,57 @@ export function removeAttachmentFile(dir: string, storedName: string): void {
 export function moveAttachmentFileToDeleted(dir: string, storedName: string, deletedDir: string): void {
   mkdirSync(deletedDir, { recursive: true });
   renameSync(join(dir, storedName), join(deletedDir, storedName));
+}
+
+export interface UploadHeaders {
+  originalName: string;
+  mime: string;
+}
+
+/**
+ * Reads an upload's X-File-Name (percent-decoded, so an Arabic name round-trips) and X-File-Type headers, shared by
+ * the attachments and person-documents upload routes. Returns undefined when X-File-Name is present but isn't valid
+ * percent-encoding, which the caller turns into a 400 `error.badFileName`.
+ */
+export function parseUploadHeaders(headers: IncomingHttpHeaders): UploadHeaders | undefined {
+  const rawName = headers['x-file-name'];
+  let originalName: string;
+  try {
+    originalName = rawName ? decodeURIComponent(String(rawName)) : 'file';
+  } catch {
+    return undefined;
+  }
+  const rawType = headers['x-file-type'];
+  // A client-declared MIME type is only trusted when it looks like one; anything else falls back to a guess from
+  // the extension, same as when the header is absent.
+  const mime = typeof rawType === 'string' && rawType.length <= 100 && /^[\w.+-]+\/[\w.+-]+$/.test(rawType)
+    ? rawType.toLowerCase()
+    : guessMime(originalName);
+  return { originalName, mime };
+}
+
+/** Percent-encodes for RFC 5987's `filename*`: `encodeURIComponent` plus the few extra characters it leaves as-is. */
+function encodeFilenameStar(name: string): string {
+  return encodeURIComponent(name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+export interface StoredFileMeta {
+  originalName: string;
+  mime: string;
+}
+
+/**
+ * Sends a downloaded or previewed file: `X-Content-Type-Options: nosniff`, a locked-down CSP (SVG can carry a
+ * script, so even a plain download stays sandboxed; a PDF skips `sandbox`, which some browsers' own PDF viewer
+ * refuses to run under — it already runs any PDF script in its own sandbox, never on the app's origin), and an RFC
+ * 5987 `Content-Disposition` so an Arabic file name survives. Shared by the attachments and person-documents file
+ * routes.
+ */
+export function sendStoredFile(reply: FastifyReply, data: Buffer, file: StoredFileMeta, inline: boolean) {
+  const encoded = encodeFilenameStar(file.originalName);
+  reply.header('X-Content-Type-Options', 'nosniff');
+  const sandbox = file.mime.toLowerCase() === 'application/pdf' ? '' : '; sandbox';
+  reply.header('Content-Security-Policy', `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'${sandbox}`);
+  reply.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encoded}`);
+  return reply.type(file.mime).send(data);
 }

@@ -131,7 +131,12 @@ export function deletePersonDocumentRow(db: DatabaseSync, id: number): boolean {
   return Number(db.prepare('DELETE FROM person_documents WHERE id = ?').run(id).changes) > 0;
 }
 
-/** Every document expired, or expiring within `withinDays`, across everyone; feeds GET /api/people/expiring. */
+/**
+ * Every document expired, or expiring within `withinDays`, across everyone; feeds GET /api/people/expiring. Unlike
+ * `listPersonDocuments` (the person page's own card, always the fixed 30-day window), the state here is judged
+ * against the same `withinDays` the caller asked for, so a wider dashboard window ("within 60 days") shows those
+ * documents as "soon" too, not just as included-but-still-"fine".
+ */
 export function listExpiringDocuments(db: DatabaseSync, today: ISODate, withinDays: number): ExpiringItem[] {
   const rows = db
     .prepare(`${SELECT_DOCUMENTS} WHERE d.expiry_date IS NOT NULL AND d.expiry_date <= ? ${ORDER_DOCUMENTS}`)
@@ -143,6 +148,6 @@ export function listExpiringDocuments(db: DatabaseSync, today: ISODate, withinDa
     type: row.type_id === null ? null : { id: row.type_id, name: row.type_name!, nameAr: row.type_name_ar },
     name: row.original_name,
     expiryDate: row.expiry_date as ISODate,
-    state: expiryState(row.expiry_date as ISODate, today, DOCUMENT_WINDOW_DAYS)!,
+    state: expiryState(row.expiry_date as ISODate, today, withinDays)!,
   }));
 }
