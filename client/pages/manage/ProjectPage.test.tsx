@@ -308,7 +308,7 @@ describe('ProjectPage to-dos', () => {
         const record: ToDoRecord = {
           id: 900, projectId: 1, projectName: 'Portal', title: input.title, note: input.note,
           assignee: { id: 70, name: 'Sara Ahmed' }, dueDate: input.dueDate, done: false, doneDate: null,
-          phase: { id: 11, name: 'Requirements', phaseName: 'Requirements', subPhaseName: null }, formerPhase: null, createdAt: '2026-10-07T09:00:00.000Z',
+          phase: { id: 11, name: 'Requirements', phaseName: 'Requirements', subPhaseName: null }, formerPhase: null, sourceEntry: null, createdAt: '2026-10-07T09:00:00.000Z',
         };
         created = [record];
         return { status: 201, body: record };
@@ -441,7 +441,7 @@ describe('ProjectPage to-dos', () => {
       {
         id: 200, projectId: 1, projectName: 'Portal', title: 'Task with phase', note: null,
         assignee: { id: 70, name: 'Sara Ahmed' }, dueDate: '2026-10-01', done: false, doneDate: null,
-        phase: { id: 120, name: 'Increment 1', phaseName: 'Increment 1', subPhaseName: null }, formerPhase: null, createdAt: '2026-09-24T09:00:00.000Z',
+        phase: { id: 120, name: 'Increment 1', phaseName: 'Increment 1', subPhaseName: null }, formerPhase: null, sourceEntry: null, createdAt: '2026-09-24T09:00:00.000Z',
       },
     ];
     mockFetch({
@@ -466,7 +466,7 @@ describe('ProjectPage to-dos', () => {
       {
         id: 200, projectId: 1, projectName: 'Portal', title: 'Task with meta', note: null,
         assignee, dueDate: '2026-10-01', done: false, doneDate: null,
-        phase: { id: 120, name: 'Increment 1', phaseName: 'Increment 1', subPhaseName: null }, formerPhase: null, createdAt: '2026-09-24T09:00:00.000Z',
+        phase: { id: 120, name: 'Increment 1', phaseName: 'Increment 1', subPhaseName: null }, formerPhase: null, sourceEntry: null, createdAt: '2026-09-24T09:00:00.000Z',
       },
     ];
     mockFetch({

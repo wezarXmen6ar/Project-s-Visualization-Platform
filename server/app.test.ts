@@ -245,6 +245,160 @@ describe('to-dos', () => {
   });
 });
 
+describe('entries', () => {
+  async function setup() {
+    const db = openDb(':memory:');
+    const app = buildApp(db);
+    const sara = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Sara', side: 'tech' } })).json();
+    const ted = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Ted', side: 'tech' } })).json();
+    const out = (await app.inject({ method: 'POST', url: '/api/resources', payload: { name: 'Out', side: 'tech' } })).json();
+    const project = (
+      await app.inject({
+        method: 'POST', url: '/api/projects',
+        payload: {
+          name: 'Portal', color: '#3b82f6', startDate: '2026-09-25',
+          phases: [
+            {
+              name: 'Development', durationDays: 5,
+              subPhases: [{ name: 'Increment 1', durationDays: 5, assignments: [{ resourceId: ted.id, allocation: 50 }] }],
+            },
+            { name: 'QA', durationDays: 3 },
+          ],
+        },
+      })
+    ).json();
+    return { app, project, sara, ted, out };
+  }
+
+  it('creates a meeting with two attendees and two follow-ups, each linked back to it', async () => {
+    const { app, project, sara, ted } = await setup();
+    const res = await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/entries`,
+      payload: {
+        type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff', attendeeIds: [ted.id, sara.id],
+        followUps: [{ title: 'Send minutes' }, { title: 'Book room', assigneeId: ted.id }],
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.attendees).toEqual([{ id: sara.id, name: 'Sara' }, { id: ted.id, name: 'Ted' }]);
+    expect(body.followUpToDoIds).toHaveLength(2);
+
+    for (const id of body.followUpToDoIds) {
+      const todo = (await app.inject({ method: 'GET', url: '/api/todos?done=include' })).json().find((t: { id: number }) => t.id === id);
+      expect(todo.sourceEntry).toEqual({ id: body.id, title: 'Kickoff', effectiveDate: '2026-09-26' });
+    }
+  });
+
+  it('rejects a follow-up with an off-project assignee at followUps.1.assigneeId, and saves nothing', async () => {
+    const { app, project, out } = await setup();
+    const res = await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/entries`,
+      payload: { type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff', followUps: [{ title: 'OK' }, { title: 'Bad', assigneeId: out.id }] },
+    });
+    expect(res.statusCode).toBe(400);
+    const issues = res.json().issues as { path: string }[];
+    expect(issues.map((i) => i.path)).toContain('followUps.1.assigneeId');
+
+    const entries = await app.inject({ method: 'GET', url: `/api/projects/${project.id}/entries` });
+    expect(entries.json()).toEqual([]);
+    const todos = await app.inject({ method: 'GET', url: '/api/todos?done=include' });
+    expect(todos.json()).toEqual([]);
+  });
+
+  it('rejects an update with attendees', async () => {
+    const { app, project, ted } = await setup();
+    const res = await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/entries`,
+      payload: { type: 'update', effectiveDate: '2026-09-26', title: 'Status', attendeeIds: [ted.id] },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().issues).toContainEqual({
+      path: 'attendeeIds', message: 'Only meetings have attendees', code: 'validation.updateHasAttendees',
+    });
+  });
+
+  it('404s for a missing project', async () => {
+    const { app } = await setup();
+    const res = await app.inject({
+      method: 'POST', url: '/api/projects/999/entries', payload: { type: 'update', effectiveDate: '2026-09-26', title: 'Status' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("filters by phaseId, including a top-level phase's sub-phase entries, and sorts by effectiveDate descending", async () => {
+    const { app, project } = await setup();
+    const dev = project.phases[0];
+    const sub = dev.subPhases[0];
+    const qa = project.phases[1];
+    await app.inject({
+      method: 'POST', url: `/api/projects/${project.id}/entries`,
+      payload: { type: 'update', effectiveDate: '2026-09-20', title: 'Older on sub', phaseId: sub.id },
+    });
+    const newerOnSub = (
+      await app.inject({
+        method: 'POST', url: `/api/projects/${project.id}/entries`,
+        payload: { type: 'update', effectiveDate: '2026-09-26', title: 'Newer on sub', phaseId: sub.id },
+      })
+    ).json();
+    const onQa = (
+      await app.inject({
+        method: 'POST', url: `/api/projects/${project.id}/entries`,
+        payload: { type: 'update', effectiveDate: '2026-09-26', title: 'On QA', phaseId: qa.id },
+      })
+    ).json();
+
+    const forDev = await app.inject({ method: 'GET', url: `/api/projects/${project.id}/entries?phaseId=${dev.id}` });
+    const devIds = forDev.json().map((e: { id: number }) => e.id);
+    expect(devIds[0]).toBe(newerOnSub.id);
+    expect(devIds).not.toContain(onQa.id);
+
+    const forSub = await app.inject({ method: 'GET', url: `/api/projects/${project.id}/entries?phaseId=${sub.id}` });
+    expect(forSub.json().map((e: { id: number }) => e.id)).not.toContain(onQa.id);
+  });
+
+  it('PUT replaces the attendees and changes the phase', async () => {
+    const { app, project, ted, sara } = await setup();
+    const qa = project.phases[1];
+    const created = (
+      await app.inject({
+        method: 'POST', url: `/api/projects/${project.id}/entries`,
+        payload: { type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff', attendeeIds: [ted.id] },
+      })
+    ).json();
+
+    const res = await app.inject({
+      method: 'PUT', url: `/api/entries/${created.id}`,
+      payload: { type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff', attendeeIds: [sara.id], phaseId: qa.id },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.attendees).toEqual([{ id: sara.id, name: 'Sara' }]);
+    expect(body.phase).toEqual({ id: qa.id, name: 'QA', phaseName: 'QA', subPhaseName: null });
+  });
+
+  it("DELETE returns 204 and leaves the meeting's to-dos with sourceEntry null", async () => {
+    const { app, project } = await setup();
+    const created = (
+      await app.inject({
+        method: 'POST', url: `/api/projects/${project.id}/entries`,
+        payload: { type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff', followUps: [{ title: 'Follow up' }] },
+      })
+    ).json();
+    const todoId = created.followUpToDoIds[0];
+
+    const res = await app.inject({ method: 'DELETE', url: `/api/entries/${created.id}` });
+    expect(res.statusCode).toBe(204);
+
+    const todos = (await app.inject({ method: 'GET', url: '/api/todos?done=include' })).json();
+    const todo = todos.find((t: { id: number }) => t.id === todoId);
+    expect(todo.sourceEntry).toBeNull();
+
+    const again = await app.inject({ method: 'DELETE', url: `/api/entries/${created.id}` });
+    expect(again.statusCode).toBe(404);
+  });
+});
+
 describe('starter to-dos', () => {
   async function uatPhaseId(app: ReturnType<typeof buildApp>) {
     const lists = (await app.inject({ method: 'GET', url: '/api/lists' })).json();

@@ -84,7 +84,7 @@ describe('ManageDashboardPage', () => {
     function myToDo(overrides: Partial<ToDoRecord> & Pick<ToDoRecord, 'id' | 'title'>): ToDoRecord {
       return {
         projectId: 1, projectName: 'Portal', note: null, assignee: { id: 70, name: 'Sara Ahmed' }, dueDate: null,
-        done: false, doneDate: null, phase: null, formerPhase: null, createdAt: '2026-09-20T09:00:00.000Z', ...overrides,
+        done: false, doneDate: null, phase: null, formerPhase: null, sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z', ...overrides,
       };
     }
 

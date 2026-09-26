@@ -164,7 +164,7 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
     const todo: ToDoRecord = {
       id: 400, projectId: 91, projectName: 'Case Management', title: 'Write the API tests', note: null,
       assignee: { id: 72, name: 'Rami Saleh' }, dueDate: null, done: false, doneDate: null, formerPhase: null,
-      createdAt: '2026-09-20T09:00:00.000Z',
+      sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z',
       phase: { id: 901, name: 'Development', phaseName: 'Development', subPhaseName: null },
     };
     mockFetch({
@@ -207,7 +207,7 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
       ...sampleToDos(),
       {
         id: 301, projectId: 1, projectName: 'Portal', title: 'Kept from a removed phase', note: null, assignee: null,
-        dueDate: null, done: false, doneDate: null, phase: null, createdAt: '2026-09-20T09:00:00.000Z',
+        dueDate: null, done: false, doneDate: null, phase: null, sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z',
         formerPhase: { name: 'QA', phaseName: 'QA', subPhaseName: null, removedOn: '2026-10-02' },
       },
     ];

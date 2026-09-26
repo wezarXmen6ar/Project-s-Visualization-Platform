@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DatabaseSync } from 'node:sqlite';
 import { DEFAULT_CALENDAR } from '../../shared/calendar';
-import { newProjectSchema, resourceInputSchema, scheduleUpdateSchema, toDoInputSchema } from '../../shared/schemas';
+import { entryInputSchema, newProjectSchema, resourceInputSchema, scheduleUpdateSchema, toDoInputSchema } from '../../shared/schemas';
 import type { ProjectRecord } from '../../shared/types';
 import { openDb } from '../db';
+import { createEntry, deleteEntry } from '../entries/repo';
 import { createProject as createProjectRow, updateSchedule } from '../projects/repo';
 import { createResource } from '../resources/repo';
 import { setMe } from '../settings';
@@ -323,6 +324,27 @@ describe('deleting the project', () => {
     const created = createToDo(db, project.id, toDoInputSchema.parse({ title: 'Task' }), '2026-09-25');
     db.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
     expect(getToDo(db, created.id)).toBeUndefined();
+  });
+});
+
+describe('sourceEntry (M7)', () => {
+  it('carries the meeting it came from, and clears when the meeting is deleted', () => {
+    const entry = createEntry(
+      db, project.id,
+      entryInputSchema.parse({
+        type: 'meeting', effectiveDate: '2026-09-26', title: 'Kickoff', followUps: [{ title: 'Follow up' }],
+      }),
+    );
+    const todoId = entry.followUpToDoIds[0];
+    expect(getToDo(db, todoId)!.sourceEntry).toEqual({ id: entry.id, title: 'Kickoff', effectiveDate: '2026-09-26' });
+
+    deleteEntry(db, entry.id);
+    expect(getToDo(db, todoId)!.sourceEntry).toBeNull();
+  });
+
+  it('is null for a to-do created directly, not from a meeting', () => {
+    const created = createToDo(db, project.id, toDoInputSchema.parse({ title: 'Task' }), '2026-09-25');
+    expect(created.sourceEntry).toBeNull();
   });
 });
 

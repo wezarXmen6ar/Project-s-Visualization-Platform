@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Lists, ProjectRecord, ResourceRecord, ToDoRecord, WorkloadData } from '../../shared/types';
+import type { EntryRecord, Lists, ProjectRecord, ResourceRecord, ToDoRecord, WorkloadData } from '../../shared/types';
 
 export type MockHandler = (init?: RequestInit) => { status?: number; body: unknown };
 
@@ -160,6 +160,7 @@ export function sampleToDos(): ToDoRecord[] {
     doneDate: null,
     phase: null,
     formerPhase: null,
+    sourceEntry: null,
     createdAt: '2026-09-20T09:00:00.000Z',
     ...overrides,
   });
@@ -170,6 +171,30 @@ export function sampleToDos(): ToDoRecord[] {
     base({ id: 203, title: 'Confirm the sandbox is ready', done: true, doneDate: '2026-09-22' }),
     base({ id: 204, title: 'Review Increment 1 scope', phase: { id: 120, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' } }),
     base({ id: 205, title: 'Get sign-off from the business', assignee: { id: 80, name: 'Mariam Al Suwaidi' } }),
+  ];
+}
+
+/** One meeting with attendees and a follow-up, and one update, on the sample project. Newest first. */
+export function sampleEntries(): EntryRecord[] {
+  const base = (overrides: Partial<EntryRecord> & Pick<EntryRecord, 'id' | 'type' | 'title' | 'effectiveDate'>): EntryRecord => ({
+    projectId: 1,
+    body: '',
+    highlight: false,
+    phase: null,
+    attendees: [],
+    attachmentIds: [],
+    followUpToDoIds: [],
+    createdAt: '2026-09-20T09:00:00.000Z',
+    ...overrides,
+  });
+  return [
+    base({
+      id: 300, type: 'meeting', title: 'Kickoff', effectiveDate: '2026-09-24',
+      attendees: [{ id: 70, name: 'Sara Ahmed' }, { id: 71, name: 'Fatima Noor' }],
+      followUpToDoIds: [200],
+      phase: { id: 12, name: 'Development', phaseName: 'Development', subPhaseName: null },
+    }),
+    base({ id: 301, type: 'update', title: 'Weekly status', effectiveDate: '2026-09-18', body: 'On track.' }),
   ];
 }
 

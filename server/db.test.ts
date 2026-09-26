@@ -150,4 +150,26 @@ describe('migrate', () => {
       { title: 'none', former_phase_top: null, former_phase_sub: null },
     ]);
   });
+
+  it('adds entries, entry_attendees and source_entry_id, upgrading from version 12', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('PRAGMA foreign_keys = ON');
+    for (const m of MIGRATIONS.slice(0, 12)) db.exec(m);
+    db.exec('PRAGMA user_version = 12');
+    db.prepare("INSERT INTO projects (name, color, start_date, created_at) VALUES ('P', '#000000', '2026-01-05', 'x')").run();
+    db.prepare("INSERT INTO todos (project_id, title, created_at) VALUES (1, 'Task', 'x')").run();
+
+    migrate(db);
+
+    const version = db.prepare('PRAGMA user_version').get() as unknown as { user_version: number };
+    expect(version.user_version).toBe(MIGRATIONS.length);
+    const todoColumns = (db.prepare('PRAGMA table_info(todos)').all() as unknown as { name: string }[]).map((c) => c.name);
+    expect(todoColumns).toContain('source_entry_id');
+    const entriesColumns = (db.prepare('PRAGMA table_info(entries)').all() as unknown as { name: string }[]).map((c) => c.name);
+    expect(entriesColumns).toEqual(
+      expect.arrayContaining(['id', 'project_id', 'phase_id', 'type', 'effective_date', 'created_at', 'title', 'body', 'highlight']),
+    );
+    const check = db.prepare('PRAGMA integrity_check').get() as unknown as { integrity_check: string };
+    expect(check.integrity_check).toBe('ok');
+  });
 });

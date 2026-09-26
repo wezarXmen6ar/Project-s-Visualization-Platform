@@ -187,7 +187,7 @@ function arabicToDos(): ToDoRecord[] {
     note: t.id === 201 ? 'بالتنسيق مع مالك العملية' : t.note,
   })).concat({
     id: 206, projectId: 1, projectName: PROJECT, title: 'مهمة من مرحلة محذوفة', note: null, assignee: null, dueDate: null,
-    done: false, doneDate: null, phase: null, createdAt: '2026-09-20T09:00:00.000Z',
+    done: false, doneDate: null, phase: null, sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z',
     formerPhase: { name: 'Design', phaseName: 'Design', subPhaseName: null, removedOn: '2026-10-02' },
   });
 }

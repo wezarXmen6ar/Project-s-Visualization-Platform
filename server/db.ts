@@ -237,6 +237,26 @@ export const MIGRATIONS: string[] = [
       ELSE substr(former_phase, instr(former_phase, ' › ') + 3) END
   WHERE former_phase IS NOT NULL;
   `,
+  `
+  CREATE TABLE entries (
+    id INTEGER PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    phase_id INTEGER REFERENCES phases(id) ON DELETE SET NULL,
+    type TEXT NOT NULL CHECK (type IN ('meeting', 'update')),
+    effective_date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    highlight INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX entries_project ON entries(project_id, effective_date);
+  CREATE TABLE entry_attendees (
+    entry_id INTEGER NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+    resource_id INTEGER NOT NULL REFERENCES resources(id),
+    PRIMARY KEY (entry_id, resource_id)
+  );
+  ALTER TABLE todos ADD COLUMN source_entry_id INTEGER REFERENCES entries(id) ON DELETE SET NULL;
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

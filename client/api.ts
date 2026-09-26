@@ -2,12 +2,12 @@ import type { WorkCalendar } from '../shared/calendar';
 import type { MessageKey } from '../shared/i18n/en';
 import type { Params } from '../shared/i18n/types';
 import type {
-  AssignmentInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput,
-  StarterToDoInput, ToDoInput, ValidationIssue,
+  AssignmentInput, EntryInput, LeaveInput, NewProjectInput, OverloadDecisionInput, ProjectDetailsInput, ResourceInput,
+  ScheduleUpdateInput, StarterToDoInput, ToDoInput, ValidationIssue,
 } from '../shared/schemas';
 import type {
-  BackupStatus, LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision, PortfolioResponse, ProjectRecord, ResourceRecord,
-  ScheduleSaved, StarterSuggestion, StarterToDo, ToDoRecord, WorkloadData,
+  BackupStatus, EntryRecord, LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision, PortfolioResponse, ProjectRecord,
+  ResourceRecord, ScheduleSaved, StarterSuggestion, StarterToDo, ToDoRecord, WorkloadData,
 } from '../shared/types';
 
 export class ApiError extends Error {
@@ -109,4 +109,9 @@ export const api = {
   acceptStarters: (projectId: number, items: { phaseId: number; title: string }[]) =>
     request<ToDoRecord[]>(`/api/projects/${projectId}/todos/from-starters`, withBody('POST', { items })),
   getBackupStatus: () => request<BackupStatus>('/api/backups'),
+  listEntries: (projectId: number, phaseId?: number) =>
+    request<EntryRecord[]>(`/api/projects/${projectId}/entries${phaseId !== undefined ? `?phaseId=${phaseId}` : ''}`),
+  createEntry: (projectId: number, input: EntryInput) => request<EntryRecord>(`/api/projects/${projectId}/entries`, withBody('POST', input)),
+  updateEntry: (id: number, input: EntryInput) => request<EntryRecord>(`/api/entries/${id}`, withBody('PUT', input)),
+  deleteEntry: (id: number) => request<void>(`/api/entries/${id}`, { method: 'DELETE' }),
 };

@@ -3,7 +3,7 @@ import { dayOfWeek, isISODate } from './calendar';
 import type { MessageKey } from './i18n/en';
 import { isMessageKey, translate } from './i18n/translate';
 import type { Params } from './i18n/types';
-import { ASSIGNMENT_ROLES, CATEGORIES, OVERLOAD_DECISIONS, PRIORITIES, SCOPE_KINDS, SIDES, SPECIALISATIONS } from './types';
+import { ASSIGNMENT_ROLES, CATEGORIES, ENTRY_TYPES, OVERLOAD_DECISIONS, PRIORITIES, SCOPE_KINDS, SIDES, SPECIALISATIONS } from './types';
 
 export const isoDate = z.string().refine(isISODate, 'validation.invalidDate');
 
@@ -278,6 +278,31 @@ export const toDoInputSchema = z.object({
 export const meInputSchema = z.object({ resourceId: z.number().int().positive().nullable() });
 export type ToDoInput = z.input<typeof toDoInputSchema>;
 export type ToDoData = z.output<typeof toDoInputSchema>;
+
+export const followUpInputSchema = z.object({
+  title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200, 'validation.titleUnder200'),
+  assigneeId: optionalId,
+  dueDate: isoDate.nullish().transform((v) => v ?? null),
+});
+
+export const entryInputSchema = z.object({
+  type: z.enum(ENTRY_TYPES),
+  effectiveDate: isoDate,
+  title: z.string().trim().min(1, 'validation.entryTitleRequired').max(200, tooLong(200)),
+  body: z.string().trim().max(20000, tooLong(20000)).default(''),
+  phaseId: optionalId,
+  highlight: z.boolean().default(false),
+  attendeeIds: z.array(z.number().int().positive()).max(100).default([]),
+  /** On create only; ignored on update. */
+  followUps: z.array(followUpInputSchema).max(50).default([]),
+  /** Used from Task 2 on. */
+  attachmentIds: z.array(z.number().int().positive()).max(50).default([]),
+});
+
+export type FollowUpInput = z.input<typeof followUpInputSchema>;
+export type FollowUpData = z.output<typeof followUpInputSchema>;
+export type EntryInput = z.input<typeof entryInputSchema>;
+export type EntryData = z.output<typeof entryInputSchema>;
 
 export const starterToDoInputSchema = z.object({
   phaseListId: z.number().int().positive(),

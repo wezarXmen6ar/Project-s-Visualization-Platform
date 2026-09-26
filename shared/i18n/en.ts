@@ -70,6 +70,8 @@ export const en = {
   'validation.weekMustBeMonday': 'Week must start on a Monday',
   'validation.writeWhatNeedsDoing': 'Write what needs doing',
   'validation.titleUnder200': 'Keep the title under 200 characters',
+  'validation.entryTitleRequired': 'Write a title',
+  'validation.updateHasAttendees': 'Only meetings have attendees',
   // Any other string field's own length limit (see `tooLong` in shared/schemas.ts): {max} is that field's limit.
   'validation.tooLong': 'Keep it under {max} characters',
 
@@ -83,6 +85,7 @@ export const en = {
   'error.projectNotFound': 'Project not found',
   'error.phaseNotFound': 'Phase not found',
   'error.todoNotFound': 'To-do not found',
+  'error.entryNotFound': 'Entry not found',
   'error.starterNotFound': 'Starter to-do not found',
   'error.chooseTechTeamMember': 'Choose someone from your tech team',
   'error.invalidYear': 'year must be a whole number between 2000 and 2100',

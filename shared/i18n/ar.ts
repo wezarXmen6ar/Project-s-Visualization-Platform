@@ -69,6 +69,8 @@ export const ar: Record<MessageKey, Message> = {
   'validation.weekMustBeMonday': 'يجب أن يبدأ الأسبوع يوم الاثنين',
   'validation.writeWhatNeedsDoing': 'اكتب المطلوب تنفيذه',
   'validation.titleUnder200': 'يجب أن يكون العنوان أقل من 200 حرف',
+  'validation.entryTitleRequired': 'اكتب عنواناً',
+  'validation.updateHasAttendees': 'الحضور خاص بالاجتماعات فقط',
   'validation.tooLong': {
     one: 'يجب ألا يتجاوز النص حرفاً واحداً',
     two: 'يجب ألا يتجاوز النص حرفين',
@@ -85,6 +87,7 @@ export const ar: Record<MessageKey, Message> = {
   'error.projectNotFound': 'المشروع غير موجود',
   'error.phaseNotFound': 'المرحلة غير موجودة',
   'error.todoNotFound': 'المهمة غير موجودة',
+  'error.entryNotFound': 'العنصر غير موجود',
   'error.starterNotFound': 'المهمة الجاهزة غير موجودة',
   'error.chooseTechTeamMember': 'اختر شخصاً من الفريق التقني',
   'error.invalidYear': 'يجب أن تكون السنة رقماً صحيحاً بين 2000 و2100',

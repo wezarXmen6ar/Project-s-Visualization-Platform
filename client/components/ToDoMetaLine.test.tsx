@@ -25,7 +25,7 @@ describe('ToDoMetaLine', () => {
       doneDate: null,
       phase: null,
       formerPhase: null,
-      createdAt: '2026-09-20T09:00:00.000Z',
+      sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z',
     };
 
     renderWithRouter(<ToDoMetaLine todo={todo} today="2026-09-26" showAssignee={true} />);
@@ -47,7 +47,7 @@ describe('ToDoMetaLine', () => {
       doneDate: null,
       phase: null,
       formerPhase: null,
-      createdAt: '2026-09-20T09:00:00.000Z',
+      sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z',
     };
 
     renderWithRouter(<ToDoMetaLine todo={todo} today="2026-09-26" showAssignee={true} />);
@@ -72,7 +72,7 @@ describe('ToDoMetaLine', () => {
       doneDate: null,
       phase: null,
       formerPhase: null,
-      createdAt: '2026-09-20T09:00:00.000Z',
+      sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z',
     };
 
     renderWithRouter(<ToDoMetaLine todo={todo} today="2026-09-26" showAssignee={false} />);
@@ -85,7 +85,7 @@ describe('ToDoMetaLine', () => {
       id: 4, projectId: 1, projectName: 'Test Project', title: 'Test to-do', note: null,
       assignee: { id: 11, name: 'Rami Saleh' }, dueDate: '2026-09-25', done: false, doneDate: null,
       phase: { id: 120, name: 'Development › Increment 1', phaseName: 'Development', subPhaseName: 'Increment 1' },
-      formerPhase: null, createdAt: '2026-09-20T09:00:00.000Z',
+      formerPhase: null, sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z',
     };
     render(
       <LanguageProvider lang="ar">
@@ -102,7 +102,7 @@ describe('ToDoMetaLine', () => {
   it('writes Unassigned in Arabic', () => {
     const todo: ToDoRecord = {
       id: 5, projectId: 1, projectName: 'Test Project', title: 'Test to-do', note: null, assignee: null, dueDate: null,
-      done: false, doneDate: null, phase: null, formerPhase: null, createdAt: '2026-09-20T09:00:00.000Z',
+      done: false, doneDate: null, phase: null, formerPhase: null, sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z',
     };
     render(<LanguageProvider lang="ar"><MemoryRouter><ToDoMetaLine todo={todo} today="2026-09-26" /></MemoryRouter></LanguageProvider>);
     expect(screen.getByText('بدون تكليف')).toBeInTheDocument();

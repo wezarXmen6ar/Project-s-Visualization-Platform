@@ -5,9 +5,9 @@ import { translate } from '../shared/i18n/translate';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
-  assignmentsUpdateSchema, leaveInputSchema, listValueInputSchema, meInputSchema, newProjectSchema, overloadDecisionSchema,
-  projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, starterAcceptSchema, starterTitleSchema, starterToDoInputSchema,
-  toDoInputSchema, toIssues,
+  assignmentsUpdateSchema, entryInputSchema, leaveInputSchema, listValueInputSchema, meInputSchema, newProjectSchema,
+  overloadDecisionSchema, projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, starterAcceptSchema, starterTitleSchema,
+  starterToDoInputSchema, toDoInputSchema, toIssues,
 } from '../shared/schemas';
 import type { PortfolioResponse } from '../shared/types';
 import { backupStatus } from './backup';
@@ -15,6 +15,7 @@ import {
   checkAssignmentPeople, isTechPerson, phaseAssignmentResourceIds, phaseProjectId, recordDecision, saveAssignments, workloadData,
 } from './assignments/repo';
 import { transaction } from './db';
+import { checkEntry, createEntry, deleteEntry, getEntry, listEntries, updateEntry } from './entries/repo';
 import { addListValue, deleteListValue, getLists, isListName, renameListValue } from './lists/repo';
 import { checkRefs, createProject, getProject, listProjects, updateProjectDetails, updateSchedule } from './projects/repo';
 import {
@@ -33,7 +34,8 @@ export interface AppOptions {
 
 /** A plain error body from one of this route's own message keys (not from a repo result, which already carries one). */
 function err(key: 'error.unknownList' | 'error.personNotFound' | 'error.leaveNotFound' | 'error.projectNotFound' |
-  'error.phaseNotFound' | 'error.todoNotFound' | 'error.starterNotFound' | 'error.chooseTechTeamMember' | 'error.invalidYear') {
+  'error.phaseNotFound' | 'error.todoNotFound' | 'error.starterNotFound' | 'error.chooseTechTeamMember' | 'error.invalidYear' |
+  'error.entryNotFound') {
   return { error: translate('en', key), code: key };
 }
 
@@ -206,6 +208,38 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
 
   app.delete<{ Params: { id: string } }>('/api/todos/:id', async (req, reply) =>
     deleteToDo(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send(err('error.todoNotFound')));
+
+  app.get<{ Params: { id: string }; Querystring: { phaseId?: string } }>('/api/projects/:id/entries', async (req, reply) => {
+    const projectId = Number(req.params.id);
+    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send(err('error.projectNotFound'));
+    const phaseId = Number(req.query.phaseId);
+    const filter = Number.isInteger(phaseId) && phaseId > 0 ? { phaseId } : {};
+    return listEntries(db, projectId, filter);
+  });
+
+  app.post<{ Params: { id: string } }>('/api/projects/:id/entries', async (req, reply) => {
+    const projectId = Number(req.params.id);
+    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send(err('error.projectNotFound'));
+    const parsed = entryInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid entry', issues: toIssues(parsed.error) });
+    const issues = checkEntry(db, projectId, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid entry', issues });
+    return reply.code(201).send(createEntry(db, projectId, parsed.data));
+  });
+
+  app.put<{ Params: { id: string } }>('/api/entries/:id', async (req, reply) => {
+    const id = Number(req.params.id);
+    const existing = getEntry(db, id);
+    if (!existing) return reply.code(404).send(err('error.entryNotFound'));
+    const parsed = entryInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid entry', issues: toIssues(parsed.error) });
+    const issues = checkEntry(db, existing.projectId, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid entry', issues });
+    return updateEntry(db, id, parsed.data);
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/entries/:id', async (req, reply) =>
+    deleteEntry(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send(err('error.entryNotFound')));
 
   app.get('/api/starter-todos', async () => listStarters(db));
 

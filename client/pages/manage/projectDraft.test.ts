@@ -129,7 +129,7 @@ describe('projectDraft', () => {
     });
     const todo = (overrides: Partial<ToDoRecord> & Pick<ToDoRecord, 'id'>): ToDoRecord => ({
       projectId: 1, projectName: 'Portal', title: 'x', note: null, assignee: null, dueDate: null, done: false,
-      doneDate: null, phase: null, formerPhase: null, createdAt: '2026-09-20T09:00:00.000Z', ...overrides,
+      doneDate: null, phase: null, formerPhase: null, sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z', ...overrides,
     });
 
     it('lists a removed sub-phase with its people', () => {

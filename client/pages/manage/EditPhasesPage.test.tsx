@@ -44,7 +44,7 @@ function project() {
 function todo(overrides: Partial<ToDoRecord> & Pick<ToDoRecord, 'id' | 'title'>): ToDoRecord {
   return {
     projectId: 1, projectName: 'Portal', note: null, assignee: null, dueDate: null, done: false, doneDate: null,
-    phase: null, formerPhase: null, createdAt: '2026-09-20T09:00:00.000Z', ...overrides,
+    phase: null, formerPhase: null, sourceEntry: null, createdAt: '2026-09-20T09:00:00.000Z', ...overrides,
   };
 }
 

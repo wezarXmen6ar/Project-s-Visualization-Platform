@@ -25,18 +25,23 @@ interface ToDoRow {
   former_phase_sub: string | null;
   former_phase_removed_on: string | null;
   created_at: string;
+  source_entry_id: number | null;
+  source_entry_title: string | null;
+  source_entry_date: string | null;
 }
 
 const SELECT_TODOS = `
   SELECT t.*, pr.name AS project_name, r.name AS assignee_name,
     CASE WHEN parent.id IS NULL THEN p.name ELSE parent.name || ' › ' || p.name END AS phase_name,
     COALESCE(parent.name, p.name) AS phase_top_name,
-    CASE WHEN parent.id IS NULL THEN NULL ELSE p.name END AS phase_sub_name
+    CASE WHEN parent.id IS NULL THEN NULL ELSE p.name END AS phase_sub_name,
+    se.title AS source_entry_title, se.effective_date AS source_entry_date
   FROM todos t
   JOIN projects pr ON pr.id = t.project_id
   LEFT JOIN resources r ON r.id = t.assignee_id
   LEFT JOIN phases p ON p.id = t.phase_id
-  LEFT JOIN phases parent ON parent.id = p.parent_id`;
+  LEFT JOIN phases parent ON parent.id = p.parent_id
+  LEFT JOIN entries se ON se.id = t.source_entry_id`;
 
 /**
  * Open before done; open ones by due date (undated last), ties by id; done ones by done date, newest first, with a
@@ -75,6 +80,10 @@ function toToDo(row: ToDoRow): ToDoRecord {
           subPhaseName: row.former_phase_sub,
           removedOn: row.former_phase_removed_on!,
         },
+    sourceEntry:
+      row.source_entry_id === null
+        ? null
+        : { id: row.source_entry_id, title: row.source_entry_title!, effectiveDate: row.source_entry_date! as ISODate },
     createdAt: row.created_at,
   };
 }

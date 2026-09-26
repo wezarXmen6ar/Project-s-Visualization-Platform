@@ -213,7 +213,32 @@ export interface ToDoRecord {
   phase: (Ref & PhaseNameParts) | null;
   /** Set when the phase it was linked to was removed and the to-do was kept; cleared once it is linked again. */
   formerPhase: ({ name: string; removedOn: ISODate } & PhaseNameParts) | null;
+  /** The meeting or update this follow-up to-do came from, when it still has that link (M7); null otherwise. */
+  sourceEntry: { id: number; title: string; effectiveDate: ISODate } | null;
   createdAt: string;
+}
+
+/** A meeting or an update recorded against a project (M7). */
+export const ENTRY_TYPES = ['meeting', 'update'] as const;
+export type EntryType = (typeof ENTRY_TYPES)[number];
+
+export interface EntryRecord {
+  id: number;
+  projectId: number;
+  type: EntryType;
+  /** The day it happened; may be in the past. */
+  effectiveDate: ISODate;
+  createdAt: string;
+  title: string;
+  body: string;
+  highlight: boolean;
+  /** Phase or sub-phase, with the structured names (M6). */
+  phase: (Ref & PhaseNameParts) | null;
+  /** Meetings only; [] for updates, ordered by name. */
+  attendees: Ref[];
+  /** Filled from Task 2 on; [] until then. */
+  attachmentIds: number[];
+  followUpToDoIds: number[];
 }
 
 /** A phase reference's name in parts: the top-level phase's stored name, and a sub-phase's own name (or null). */
