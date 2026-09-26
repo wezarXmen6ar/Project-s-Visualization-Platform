@@ -233,7 +233,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (!existing) return reply.code(404).send(err('error.entryNotFound'));
     const parsed = entryInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid entry', issues: toIssues(parsed.error) });
-    const issues = checkEntry(db, existing.projectId, parsed.data);
+    const issues = checkEntry(db, existing.projectId, parsed.data, { skipFollowUps: true });
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid entry', issues });
     return updateEntry(db, id, parsed.data);
   });

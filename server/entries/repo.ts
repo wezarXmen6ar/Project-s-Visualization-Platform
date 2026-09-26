@@ -5,6 +5,7 @@ import type { Params } from '../../shared/i18n/types';
 import type { EntryData, ValidationIssue } from '../../shared/schemas';
 import type { EntryRecord, EntryType, Ref } from '../../shared/types';
 import { transaction } from '../db';
+import { PHASE_JOIN_SQL, PHASE_NAME_COLUMNS_SQL, phaseRefFromRow } from '../phaseRef';
 import { projectPeopleIds } from '../todos/repo';
 
 interface EntryRow {
@@ -23,13 +24,10 @@ interface EntryRow {
 }
 
 const SELECT_ENTRIES = `
-  SELECT e.*,
-    CASE WHEN parent.id IS NULL THEN p.name ELSE parent.name || ' › ' || p.name END AS phase_name,
-    COALESCE(parent.name, p.name) AS phase_top_name,
-    CASE WHEN parent.id IS NULL THEN NULL ELSE p.name END AS phase_sub_name
+  SELECT e.*,${PHASE_NAME_COLUMNS_SQL}
   FROM entries e
   LEFT JOIN phases p ON p.id = e.phase_id
-  LEFT JOIN phases parent ON parent.id = p.parent_id`;
+  ${PHASE_JOIN_SQL}`;
 
 /** Newest effective_date first, ties broken by id descending. */
 const ORDER_ENTRIES = 'ORDER BY e.effective_date DESC, e.id DESC';
@@ -77,10 +75,7 @@ function toEntry(row: EntryRow, attendees: Ref[], followUpToDoIds: number[]): En
     title: row.title,
     body: row.body,
     highlight: row.highlight === 1,
-    phase:
-      row.phase_id === null
-        ? null
-        : { id: row.phase_id, name: row.phase_name!, phaseName: row.phase_top_name!, subPhaseName: row.phase_sub_name },
+    phase: phaseRefFromRow(row),
     attendees,
     attachmentIds: [],
     followUpToDoIds,
@@ -127,9 +122,12 @@ export function listEntries(db: DatabaseSync, projectId: number, filter: EntryFi
 
 /**
  * Validates a phase (belongs to the project, top-level or sub-phase), attendees (meetings only, each an existing
- * person) and follow-ups (the assignee rule from `checkToDo`: on the project, or "I am"). Nothing is saved.
+ * person) and, unless `skipFollowUps` is set, follow-ups (the assignee rule from `checkToDo`: on the project, or
+ * "I am"). Pass `skipFollowUps: true` on an update, since `updateEntry` ignores `followUps`. Nothing is saved.
  */
-export function checkEntry(db: DatabaseSync, projectId: number, data: EntryData): ValidationIssue[] {
+export function checkEntry(
+  db: DatabaseSync, projectId: number, data: EntryData, options: { skipFollowUps?: boolean } = {},
+): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   if (data.phaseId !== null) {
     const phase = db.prepare('SELECT id FROM phases WHERE id = ? AND project_id = ?').get(data.phaseId, projectId);
@@ -148,7 +146,7 @@ export function checkEntry(db: DatabaseSync, projectId: number, data: EntryData)
       if (!person) issues.push({ path: `attendeeIds.${i}`, message: translate('en', 'error.unknownPerson'), code: 'error.unknownPerson' });
     });
   }
-  data.followUps.forEach((f, i) => {
+  if (!options.skipFollowUps) data.followUps.forEach((f, i) => {
     if (f.assigneeId === null) return;
     const person = db.prepare('SELECT name FROM resources WHERE id = ?').get(f.assigneeId) as unknown as { name: string } | undefined;
     if (!person) {

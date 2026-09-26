@@ -4,6 +4,7 @@ import { translate } from '../../shared/i18n/translate';
 import type { Params } from '../../shared/i18n/types';
 import type { ToDoData, ValidationIssue } from '../../shared/schemas';
 import type { ToDoRecord } from '../../shared/types';
+import { PHASE_JOIN_SQL, PHASE_NAME_COLUMNS_SQL, phaseRefFromRow } from '../phaseRef';
 import { getMe } from '../settings';
 
 interface ToDoRow {
@@ -31,16 +32,13 @@ interface ToDoRow {
 }
 
 const SELECT_TODOS = `
-  SELECT t.*, pr.name AS project_name, r.name AS assignee_name,
-    CASE WHEN parent.id IS NULL THEN p.name ELSE parent.name || ' › ' || p.name END AS phase_name,
-    COALESCE(parent.name, p.name) AS phase_top_name,
-    CASE WHEN parent.id IS NULL THEN NULL ELSE p.name END AS phase_sub_name,
+  SELECT t.*, pr.name AS project_name, r.name AS assignee_name,${PHASE_NAME_COLUMNS_SQL},
     se.title AS source_entry_title, se.effective_date AS source_entry_date
   FROM todos t
   JOIN projects pr ON pr.id = t.project_id
   LEFT JOIN resources r ON r.id = t.assignee_id
   LEFT JOIN phases p ON p.id = t.phase_id
-  LEFT JOIN phases parent ON parent.id = p.parent_id
+  ${PHASE_JOIN_SQL}
   LEFT JOIN entries se ON se.id = t.source_entry_id`;
 
 /**
@@ -67,10 +65,7 @@ function toToDo(row: ToDoRow): ToDoRecord {
     dueDate: row.due_date,
     done: row.done_date !== null,
     doneDate: row.done_date,
-    phase:
-      row.phase_id === null
-        ? null
-        : { id: row.phase_id, name: row.phase_name!, phaseName: row.phase_top_name!, subPhaseName: row.phase_sub_name },
+    phase: phaseRefFromRow(row),
     formerPhase:
       row.former_phase === null
         ? null

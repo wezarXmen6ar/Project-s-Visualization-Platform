@@ -377,6 +377,29 @@ describe('entries', () => {
     expect(body.phase).toEqual({ id: qa.id, name: 'QA', phaseName: 'QA', subPhaseName: null });
   });
 
+  it('PUT succeeds despite an invalid follow-up row, and creates no to-do (followUps are ignored on update)', async () => {
+    const { app, project, out } = await setup();
+    const created = (
+      await app.inject({
+        method: 'POST', url: `/api/projects/${project.id}/entries`,
+        payload: { type: 'update', effectiveDate: '2026-09-26', title: 'Status' },
+      })
+    ).json();
+
+    const res = await app.inject({
+      method: 'PUT', url: `/api/entries/${created.id}`,
+      payload: {
+        type: 'update', effectiveDate: '2026-09-26', title: 'Status',
+        followUps: [{ title: 'Bad one', assigneeId: out.id }],
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().followUpToDoIds).toEqual([]);
+
+    const todos = (await app.inject({ method: 'GET', url: '/api/todos?done=include' })).json();
+    expect(todos.find((t: { title: string }) => t.title === 'Bad one')).toBeUndefined();
+  });
+
   it("DELETE returns 204 and leaves the meeting's to-dos with sourceEntry null", async () => {
     const { app, project } = await setup();
     const created = (

@@ -87,7 +87,7 @@ export const ar: Record<MessageKey, Message> = {
   'error.projectNotFound': 'المشروع غير موجود',
   'error.phaseNotFound': 'المرحلة غير موجودة',
   'error.todoNotFound': 'المهمة غير موجودة',
-  'error.entryNotFound': 'العنصر غير موجود',
+  'error.entryNotFound': 'هذا البند غير موجود في السجل',
   'error.starterNotFound': 'المهمة الجاهزة غير موجودة',
   'error.chooseTechTeamMember': 'اختر شخصاً من الفريق التقني',
   'error.invalidYear': 'يجب أن تكون السنة رقماً صحيحاً بين 2000 و2100',

@@ -228,6 +228,7 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | Retry | إعادة المحاولة |
 | Attachment types: Meeting Minutes, Approval, Change Request, Business Analysis Document, BRD, Documentation, Design, Test Report, Contract, Other | محضر اجتماع، اعتماد، Change Request، الدراسة التحليلية، وثيقة متطلبات الأعمال (BRD)، وثائق المشروع، التصميم، تقرير الاختبار، العقد، أخرى |
 | Contract | العقد (user) |
+| Entry not found | هذا البند غير موجود في السجل |
 
 ## M7: outsourced people and person documents
 | English | Arabic | Note |
