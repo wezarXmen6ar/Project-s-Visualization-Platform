@@ -205,6 +205,16 @@ describe('phaseRows with sub-phases', () => {
     ]);
   });
 
+  it('carries the phase id on a phase bar, and the sub-phase id on its segments and lane bars', () => {
+    const rows = phaseRows(eServices);
+    const dev = rows[1].bars[0];
+    expect(dev.phaseId).toBe(2);
+    expect(dev.segments?.map((s) => s.phaseId)).toEqual(dev.segments?.map((s) => Number(s.id)));
+    expect(rows[2].bars[0].phaseId).toBe(22);
+    // A phase without an id (the wizard's preview) carries none.
+    expect(phaseRows({ phases: [{ order: 0, name: 'A', start: '2026-01-01', end: '2026-01-02' }] })[0].bars[0].phaseId).toBeUndefined();
+  });
+
   it('gives a phase with only sequential sub-phases no lane row', () => {
     const rows = phaseRows(eServices);
     expect(rows.filter((r) => r.kind === 'lane').map((r) => r.id)).toEqual(['2-lane-1']);

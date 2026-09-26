@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router';
 import { DEFAULT_CALENDAR, todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
 import { api } from '../../api';
+import { PhasePanel, usePhaseParam } from '../../components/PhasePanel';
 import { messagesOf } from '../../errors';
 import { Gantt } from '../../gantt/Gantt';
 import { phaseRows, rangeFor } from '../../gantt/rows';
@@ -22,6 +23,7 @@ export function FocusPage() {
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
   const today = todayLocal();
   const cal = calendar.data ?? DEFAULT_CALENDAR;
+  const phasePanel = usePhaseParam();
 
   if (project.error) {
     return (
@@ -35,8 +37,9 @@ export function FocusPage() {
 
   const p = project.data;
   const span = projectSpan(p.phases);
+  const nameFor = (name: string) => phaseName(name, lists, lang);
   // No people: the presentation side shows no names.
-  const rows = phaseRows(p, { calendar: cal, lang, nameFor: (name) => phaseName(name, lists, lang) });
+  const rows = phaseRows(p, { calendar: cal, lang, nameFor });
   const backYear = span ? span.start.slice(0, 4) : today.slice(0, 4);
   // English keeps the ISO dates it always showed; Arabic reads them as "الاثنين 5 أكتوبر 2026".
   const spanDate = (d: string) => (lang === 'ar' ? formatDate(lang, d) : d);
@@ -60,9 +63,21 @@ export function FocusPage() {
             calendar={cal}
             detail="weeks"
             showDates
+            onPieceOpen={phasePanel.open}
           />
         </div>
       </section>
+      {/* Read-only: only highlighted entries and their files; no to-dos, people's names or editing controls. */}
+      {phasePanel.phaseId !== null ? (
+        <PhasePanel
+          project={p}
+          phaseId={phasePanel.phaseId}
+          mode="present"
+          calendar={cal}
+          nameFor={nameFor}
+          onClose={phasePanel.close}
+        />
+      ) : null}
     </main>
   );
 }

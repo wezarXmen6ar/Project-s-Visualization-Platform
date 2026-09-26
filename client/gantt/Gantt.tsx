@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent } from 'react';
 import { addDays, countWorkingDays, DEFAULT_CALENDAR, isWorkingDay, type DateRange, type ISODate, type WorkCalendar } from '../../shared/calendar';
 import type { Lang } from '../../shared/i18n/types';
 import { useLang } from '../i18n/LanguageProvider';
@@ -19,6 +19,8 @@ export interface GanttSegment {
   end: ISODate;
   label: string;
   detail?: GanttDetail;
+  /** The sub-phase this segment is, so a click can open it (see `GanttProps.onPieceOpen`). */
+  phaseId?: number;
 }
 
 export interface GanttBar {
@@ -32,6 +34,8 @@ export interface GanttBar {
   segments?: GanttSegment[];
   /** Shown in a card on hover, focus or tap. A bar or segment with a detail is focusable. */
   detail?: GanttDetail;
+  /** The phase (or, for a lane bar, the sub-phase) this bar is, so a click can open it (see `GanttProps.onPieceOpen`). */
+  phaseId?: number;
 }
 
 export interface GanttRow {
@@ -51,6 +55,12 @@ export interface GanttProps {
   width: number;
   today?: ISODate;
   onRowClick?: (rowId: string) => void;
+  /**
+   * Opens a phase or sub-phase: called with a piece's `phaseId` when its bar, segment or lane bar (or the phase's name
+   * label) is clicked or tapped, or Enter or Space is pressed on it. Given, a tap on a no-hover device calls this
+   * instead of pinning the details card. Hover and focus still show the card.
+   */
+  onPieceOpen?: (phaseId: number) => void;
   /** The working calendar, used to place work-week lines when `detail="weeks"`. Falls back to `DEFAULT_CALENDAR`. */
   calendar?: WorkCalendar;
   /** 'weeks' adds a third header row with work-week day numbers and faint week lines. Default 'months'. */
@@ -183,7 +193,9 @@ function workingDayGaps(bar: GanttBar, segments: GanttSegment[], cal: WorkCalend
   return spans.filter((g) => hasWorkingDay(g.start, g.end, cal));
 }
 
-export function Gantt({ rows, range, width, today, onRowClick, calendar, detail = 'months', showDates = false, dir }: GanttProps) {
+export function Gantt({
+  rows, range, width, today, onRowClick, onPieceOpen, calendar, detail = 'months', showDates = false, dir,
+}: GanttProps) {
   const { lang, dir: langDir } = useLang();
   const rtl = (dir ?? langDir) === 'rtl';
   const cal = calendar ?? DEFAULT_CALENDAR;
@@ -268,9 +280,25 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
     card.style.top = `${Math.round(top)}px`;
   }, [active, height, totalW]);
 
-  /** `logicalBox` is in logical coordinates; the card is placed from where the piece is actually drawn. */
-  function pieceProps(key: string, pieceDetail: GanttDetail | undefined, logicalBox: PieceBox) {
-    if (!pieceDetail) return {};
+  /**
+   * `logicalBox` is in logical coordinates; the card is placed from where the piece is actually drawn. `phaseId`, with
+   * `onPieceOpen`, makes the piece open that phase on click, tap, Enter or Space.
+   */
+  function pieceProps(key: string, pieceDetail: GanttDetail | undefined, logicalBox: PieceBox, phaseId?: number) {
+    const open = onPieceOpen && phaseId !== undefined ? () => onPieceOpen(phaseId) : undefined;
+    const openProps: Record<string, unknown> = open
+      ? {
+          'data-phase-id': phaseId,
+          onKeyDown: (e: ReactKeyboardEvent<Element>) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            open();
+          },
+        }
+      : {};
+    if (!pieceDetail) {
+      return open ? { ...openProps, tabIndex: 0, onClick: open } : {};
+    }
     const drawn = box(logicalBox);
     const make = (x: number, pinned: boolean): ActiveDetail => ({
       key, detail: pieceDetail, x, top: drawn.top, bottom: drawn.bottom, pinned,
@@ -290,6 +318,15 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
       onFocus: () => setActive((a) => (a?.key === key ? a : make(drawn.x + drawn.w / 2, false))),
       onBlur: () => setActive((a) => (a?.key === key ? null : a)),
     };
+    if (open) {
+      // Opening the phase replaces pinning: on a touch device the tap's emulated hover card is closed, since the
+      // panel shows the same details at its top.
+      props.onClick = () => {
+        if (noHoverDevice) setActive(null);
+        open();
+      };
+      return { ...props, ...openProps };
+    }
     // On a device that can hover, hover already shows the card, so a click would only "pin" it with no visible
     // change on the first click and close it unexpectedly on the second. Toggling by click/tap is for touch devices.
     if (noHoverDevice) {
@@ -373,7 +410,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                     x={X(row.kind === 'child' ? 22 : 8)}
                     y={textY}
                     className={['gantt-label', labelDetail ? 'gantt-piece' : ''].filter(Boolean).join(' ')}
-                    {...pieceProps(`label-${row.id}`, labelDetail, { x: 0, w: LABEL_W, top: y, bottom: y + rowH })}
+                    {...pieceProps(`label-${row.id}`, labelDetail, { x: 0, w: LABEL_W, top: y, bottom: y + rowH }, labelBar?.phaseId)}
                   >
                     <title>{row.label}</title>
                     {userText(truncate(row.label, row.kind === 'child' ? 26 : 28))}
@@ -442,7 +479,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                         isGroup ? 'gantt-summary' : '',
                         barDetail ? 'gantt-piece' : '',
                       ].filter(Boolean).join(' ')}
-                      {...pieceProps(`bar-${row.id}-${bar.id}`, barDetail, { x, w, top: barY, bottom: barY + barH })}
+                      {...pieceProps(`bar-${row.id}-${bar.id}`, barDetail, { x, w, top: barY, bottom: barY + barH }, isGroup ? undefined : bar.phaseId)}
                     >
                       <title>{bar.title ?? bar.label ?? ''}</title>
                     </rect>
@@ -470,7 +507,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                         fill={bar.color}
                         clipPath={`url(#${clipId})`}
                         className={seg.detail ? 'gantt-segment gantt-piece' : 'gantt-segment'}
-                        {...pieceProps(`segment-${seg.id}`, seg.detail, { x: sx, w: sw, top: barY, bottom: barY + barH })}
+                        {...pieceProps(`segment-${seg.id}`, seg.detail, { x: sx, w: sw, top: barY, bottom: barY + barH }, seg.phaseId)}
                       >
                         <title>{seg.detail ? barTitle(lang, seg.detail.title, seg.start, seg.end) : seg.label}</title>
                       </rect>

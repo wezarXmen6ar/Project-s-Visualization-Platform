@@ -150,6 +150,7 @@ export function phaseRows(project: { phases: PhaseLike[] }, options: PhaseRowOpt
     const displayName = nameFor(p.name);
     const bar: GanttBar = {
       id,
+      phaseId: p.id,
       start: p.start,
       end: p.end,
       color,
@@ -176,7 +177,9 @@ export function phaseRows(project: { phases: PhaseLike[] }, options: PhaseRowOpt
 
     bar.segments = pieces
       .filter((x) => x.lane === 0)
-      .map((x): GanttSegment => ({ id: x.subId, start: x.s.start, end: x.s.end, label: x.s.name, detail: x.detail }));
+      .map((x): GanttSegment => ({
+        id: x.subId, phaseId: x.s.id, start: x.s.start, end: x.s.end, label: x.s.name, detail: x.detail,
+      }));
 
     const laneCount = Math.max(...lanes) + 1;
     const laneRows: GanttRow[] = [];
@@ -187,7 +190,9 @@ export function phaseRows(project: { phases: PhaseLike[] }, options: PhaseRowOpt
         kind: 'lane',
         bars: pieces
           .filter((x) => x.lane === n)
-          .map((x) => ({ id: x.subId, start: x.s.start, end: x.s.end, color, label: x.s.name, title: x.title, detail: x.detail })),
+          .map((x) => ({
+            id: x.subId, phaseId: x.s.id, start: x.s.start, end: x.s.end, color, label: x.s.name, title: x.title, detail: x.detail,
+          })),
       });
     }
     return [own, ...laneRows];

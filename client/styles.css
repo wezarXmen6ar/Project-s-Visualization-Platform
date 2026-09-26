@@ -970,3 +970,130 @@ button.heat:hover { border-color: var(--border-strong); }
 .file-preview-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-preview-body { flex: 1; min-height: 0; padding: var(--sp-2); display: flex; }
 .file-preview-body iframe, .file-preview-body img { width: 100%; height: min(70vh, 40rem); border: 0; object-fit: contain; }
+
+/* ---------------------------------------------------------------------- *
+ * The phase side panel (opened from a Gantt bar). Fixed to the inline end: the right in English, the left in
+ * Arabic. Non-modal, so the chart stays usable and another bar switches it.
+ * ---------------------------------------------------------------------- */
+.phase-panel {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 40;
+  inline-size: 420px;
+  max-inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-inline-start: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  animation: phase-panel-in 200ms var(--ease-out);
+}
+.phase-panel[dir='rtl'] { animation-name: phase-panel-in-rtl; }
+@keyframes phase-panel-in { from { transform: translateX(100%); } }
+@keyframes phase-panel-in-rtl { from { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) { .phase-panel { animation: none; } }
+@media (max-width: 640px) { .phase-panel { inline-size: 100%; border-inline-start: none; } }
+
+.phase-panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-block-end: 1px solid var(--border);
+}
+.phase-panel-head h2 { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.phase-panel-close {
+  flex: none;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.phase-panel-close:hover { background: var(--surface-2); color: var(--ink); }
+
+.phase-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-4);
+  display: grid;
+  align-content: start;
+  gap: var(--sp-4);
+}
+.phase-panel-summary p { margin: 0; }
+.phase-panel-people { margin-block-start: var(--sp-3); }
+.phase-panel-people h3 { font-size: var(--fs-sm); color: var(--muted); font-weight: 600; margin-block-end: var(--sp-1); }
+.phase-panel-people ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; }
+.phase-panel-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+.phase-panel-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-block-end: var(--sp-2);
+}
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.segmented label {
+  padding: 0.25rem var(--sp-3);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  color: var(--muted);
+}
+.segmented label + label { border-inline-start: 1px solid var(--border); }
+.segmented label.active { background: var(--primary-wash); color: var(--primary); font-weight: 600; }
+.segmented label:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+.phase-panel-group { border-block-start: 1px solid var(--border); padding-block: var(--sp-2); }
+.phase-panel-group summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  cursor: pointer;
+  font-weight: 600;
+  padding-block: var(--sp-1);
+}
+.phase-panel-group summary::-webkit-details-marker { display: none; }
+/* A chevron pointing down when open, and toward the text's end when collapsed (mirrored in Arabic). */
+.phase-panel-group summary::before {
+  content: '';
+  inline-size: 0.45rem;
+  block-size: 0.45rem;
+  border-inline-end: 2px solid var(--muted);
+  border-block-end: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform var(--dur) var(--ease-out);
+  margin-inline: 0.15rem 0.25rem;
+}
+.phase-panel-group:not([open]) summary::before { transform: rotate(-45deg); }
+/* In Arabic the inline-end border is the left one, so the same corner needs the opposite turns. */
+.phase-panel[dir='rtl'] .phase-panel-group summary::before { transform: rotate(-45deg); }
+.phase-panel[dir='rtl'] .phase-panel-group:not([open]) summary::before { transform: rotate(-135deg); }
+.phase-panel-group-count {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 0 0.5rem;
+}
+.phase-panel-items { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: var(--sp-3); }
+.phase-panel-items > .entry-item { padding-block-end: var(--sp-3); }
+.phase-panel-file { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-2) var(--sp-3); }
+.phase-panel-file > svg { width: 1.25rem; height: 1.25rem; flex: none; margin-top: 0.15rem; color: var(--muted); }
+.phase-panel-file-text { flex: 1; min-width: 0; }
+.phase-panel-file-name { font-weight: 600; overflow-wrap: anywhere; }
+.phase-panel .attachment-table { width: 100%; }

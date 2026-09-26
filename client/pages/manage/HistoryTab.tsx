@@ -24,17 +24,19 @@ interface HistoryTabProps {
   highlightEntryId?: number | null;
   /** Called once the highlight has been applied (or the entry couldn't be found), so the caller can clear it. */
   onHighlighted?: () => void;
+  /** Bumped by the page when something changed elsewhere (e.g. the phase side panel), so the list loads again. */
+  refreshKey?: number;
 }
 
 /** The History tab: meetings and updates, filterable by phase, with an inline add/edit form. */
 export function HistoryTab({
-  project, me, people, todos, toggleDone, nameFor, attachmentTypes, highlightEntryId, onHighlighted,
+  project, me, people, todos, toggleDone, nameFor, attachmentTypes, highlightEntryId, onHighlighted, refreshKey = 0,
 }: HistoryTabProps) {
   const t = useT();
   const [phaseFilter, setPhaseFilter] = useState<number | null>(null);
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => setVersion((v) => v + 1), []);
-  const loaded = useAsync(() => api.listEntries(project.id, phaseFilter ?? undefined), [project.id, phaseFilter, version]);
+  const loaded = useAsync(() => api.listEntries(project.id, phaseFilter ?? undefined), [project.id, phaseFilter, version, refreshKey]);
   const entries = loaded.data ?? [];
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
 
@@ -55,7 +57,7 @@ export function HistoryTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [highlightEntryId, loaded.data]);
   // Every entry's attachments are shown inline, so the whole project's list is loaded once and grouped by entryId.
-  const attachmentsLoaded = useAsync(() => api.listAttachments(project.id), [project.id, version]);
+  const attachmentsLoaded = useAsync(() => api.listAttachments(project.id), [project.id, version, refreshKey]);
   const attachmentsByEntry = new Map<number, AttachmentRecord[]>();
   for (const a of attachmentsLoaded.data ?? []) {
     if (a.entryId === null) continue;

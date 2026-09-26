@@ -686,3 +686,49 @@ describe('ProjectPage tabs', () => {
     expect(screen.getByRole('tab', { name: 'History' })).toHaveFocus();
   });
 });
+
+describe('ProjectPage: the phase side panel', () => {
+  function panelRoutes() {
+    return {
+      'GET /api/projects/1': () => ({ body: projectWithSubPhase() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: sampleToDos() }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+      'GET /api/projects/1/entries': () => ({ body: [] }),
+      'GET /api/projects/1/entries?phaseId=12': () => ({ body: [] }),
+      'GET /api/projects/1/entries?phaseId=120': () => ({ body: [] }),
+      'GET /api/projects/1/attachments': () => ({ body: [] }),
+    };
+  }
+
+  it('opens the panel from a bar click, keeping the phase in the URL, and closes it back to the bar', async () => {
+    mockFetch(panelRoutes());
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1?tab=todos');
+    await screen.findByTestId('gantt-segment-120');
+
+    await user.click(screen.getByTestId('gantt-segment-120'));
+    const panel = await screen.findByRole('dialog', { name: 'Development › Increment 1' });
+    expect(screen.getByTestId('location')).toHaveTextContent('phase=120');
+    expect(screen.getByTestId('location')).toHaveTextContent('tab=todos');
+    // Its to-do (on Increment 1) shows in the panel's history.
+    expect(await within(panel).findByText('Review Increment 1 scope')).toBeInTheDocument();
+
+    // Another bar switches it: still one panel.
+    await user.click(screen.getByTestId('gantt-bar-11').querySelector('rect')!);
+    expect(await screen.findByRole('dialog', { name: 'Requirements' })).toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getByTestId('location')).toHaveTextContent('phase=11');
+
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByTestId('location')).not.toHaveTextContent('phase=');
+    expect(screen.getByTestId('gantt-bar-11').querySelector('rect')).toHaveFocus();
+  });
+
+  it('opens the panel when loaded with ?phase=<id>', async () => {
+    mockFetch(panelRoutes());
+    renderAt('/manage/projects/1?phase=12');
+    expect(await screen.findByRole('dialog', { name: 'Development' })).toBeInTheDocument();
+  });
+});

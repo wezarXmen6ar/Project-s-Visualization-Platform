@@ -263,6 +263,87 @@ describe('Gantt', () => {
     });
   });
 
+  describe('opening a phase with onPieceOpen', () => {
+    const openRows: GanttRow[] = [
+      {
+        id: '12', label: 'Development',
+        bars: [{
+          id: '12', phaseId: 12, start: '2026-10-05', end: '2026-10-23', color: '#3b82f6', label: 'Development',
+          detail: { title: 'Development', lines: ['Mon 5 Oct 2026 – Fri 23 Oct 2026 · 15 working days'] },
+          segments: [
+            {
+              id: '21', phaseId: 21, start: '2026-10-05', end: '2026-10-09', label: 'Inc 1',
+              detail: { title: 'Development › Inc 1', lines: ['Mon 5 Oct 2026 – Fri 9 Oct 2026 · 5 working days'] },
+            },
+          ],
+        }],
+      },
+      {
+        id: '12-lane-1', label: '', kind: 'lane',
+        bars: [{
+          id: '22', phaseId: 22, start: '2026-10-05', end: '2026-10-09', color: '#3b82f6', label: 'Inc 2',
+          detail: { title: 'Development › Inc 2', lines: ['Mon 5 Oct 2026 – Fri 9 Oct 2026 · 5 working days'] },
+        }],
+      },
+    ];
+
+    it('calls onPieceOpen with the sub-phase id for a segment, and the phase id for the phase bar', async () => {
+      const onPieceOpen = vi.fn();
+      const user = userEvent.setup();
+      render(<Gantt rows={openRows} range={octoberRange} width={1200} onPieceOpen={onPieceOpen} />);
+      await user.click(screen.getByTestId('gantt-segment-21'));
+      expect(onPieceOpen).toHaveBeenLastCalledWith(21);
+      await user.click(screen.getByTestId('gantt-bar-12').querySelector('rect.gantt-bar')!);
+      expect(onPieceOpen).toHaveBeenLastCalledWith(12);
+      await user.click(screen.getByTestId('gantt-bar-22').querySelector('rect')!);
+      expect(onPieceOpen).toHaveBeenLastCalledWith(22);
+      expect(onPieceOpen).toHaveBeenCalledTimes(3);
+    });
+
+    it('calls it on Enter or Space on a focused piece', async () => {
+      const onPieceOpen = vi.fn();
+      const user = userEvent.setup();
+      render(<Gantt rows={openRows} range={octoberRange} width={1200} onPieceOpen={onPieceOpen} />);
+      act(() => screen.getByTestId('gantt-segment-21').focus());
+      await user.keyboard('{Enter}');
+      expect(onPieceOpen).toHaveBeenLastCalledWith(21);
+      act(() => (screen.getByTestId('gantt-bar-22').querySelector('rect') as unknown as HTMLElement).focus());
+      await user.keyboard(' ');
+      expect(onPieceOpen).toHaveBeenLastCalledWith(22);
+    });
+
+    it("keeps the name label's hover card, and a click on the label opens the phase", async () => {
+      const onPieceOpen = vi.fn();
+      const user = userEvent.setup();
+      render(<Gantt rows={openRows} range={octoberRange} width={1200} onPieceOpen={onPieceOpen} />);
+      const label = screen.getByText('Development', { selector: '.gantt-label' });
+      await user.hover(label);
+      expect(screen.getByRole('tooltip')).toHaveTextContent('15 working days');
+      await user.click(label);
+      expect(onPieceOpen).toHaveBeenCalledWith(12);
+    });
+
+    it('on a no-hover (touch) device, a tap opens the phase instead of pinning the card', async () => {
+      stubHover(false);
+      const onPieceOpen = vi.fn();
+      const user = userEvent.setup();
+      render(<Gantt rows={openRows} range={octoberRange} width={1200} onPieceOpen={onPieceOpen} />);
+      await user.click(screen.getByTestId('gantt-bar-22').querySelector('rect')!);
+      expect(onPieceOpen).toHaveBeenCalledWith(22);
+      expect(screen.queryByRole('tooltip')).toBeNull();
+    });
+
+    it('without onPieceOpen, a click does nothing and does not throw', async () => {
+      const user = userEvent.setup();
+      render(<Gantt rows={openRows} range={octoberRange} width={1200} />);
+      await user.click(screen.getByTestId('gantt-segment-21'));
+      await user.click(screen.getByTestId('gantt-bar-12').querySelector('rect.gantt-bar')!);
+      act(() => screen.getByTestId('gantt-segment-21').focus());
+      await user.keyboard('{Enter}');
+      expect(screen.getByTestId('gantt-segment-21')).toBeInTheDocument();
+    });
+  });
+
   describe('weekend-only gaps', () => {
     const gapRow = (s2Start: string): GanttRow[] => [{
       id: 'dev', label: 'Development',

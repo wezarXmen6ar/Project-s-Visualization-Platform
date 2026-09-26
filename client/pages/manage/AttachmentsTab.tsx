@@ -16,10 +16,12 @@ interface AttachmentsTabProps {
   nameFor?: PhaseNameFor;
   /** Opens the History tab, for the "From" column's link. Passed the entry id so History can land on it and highlight it. */
   onOpenHistory: (entryId?: number) => void;
+  /** Bumped by the page when something changed elsewhere (e.g. the phase side panel), so the list loads again. */
+  refreshKey?: number;
 }
 
 /** The Attachments tab: upload, filter, preview, download, edit and delete a project's files. */
-export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistory }: AttachmentsTabProps) {
+export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistory, refreshKey = 0 }: AttachmentsTabProps) {
   const t = useT();
   const { lang } = useLang();
   const [typeFilter, setTypeFilter] = useState<number | null>(null);
@@ -28,13 +30,13 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   const loaded = useAsync(
     () => api.listAttachments(project.id, { typeId: typeFilter ?? undefined, phaseId: phaseFilter ?? undefined }),
-    [project.id, typeFilter, phaseFilter, version],
+    [project.id, typeFilter, phaseFilter, version, refreshKey],
   );
   const attachments = loaded.data ?? [];
   const phases = phaseChoices(project, nameFor);
 
   // Loaded so the "From" column can show the meeting/update's own title and date, not just a generic link.
-  const entriesLoaded = useAsync(() => api.listEntries(project.id), [project.id, version]);
+  const entriesLoaded = useAsync(() => api.listEntries(project.id), [project.id, version, refreshKey]);
   const entryById = new Map<number, EntryRecord>((entriesLoaded.data ?? []).map((e) => [e.id, e]));
   const entryFor = (entryId: number) => entryById.get(entryId);
 

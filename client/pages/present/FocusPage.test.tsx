@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { describe, expect, it } from 'vitest';
+import type { AttachmentRecord, EntryRecord } from '../../../shared/types';
 import { mockFetch, sampleProject } from '../../testing/mockFetch';
 import { FocusPage } from './FocusPage';
 
@@ -63,5 +64,56 @@ describe('FocusPage', () => {
 
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('opens a read-only side panel from a bar, with only highlighted entries and their files', async () => {
+    const DEV = { id: 12, name: 'Development', phaseName: 'Development', subPhaseName: null };
+    const entry = (id: number, title: string, highlight: boolean): EntryRecord => ({
+      id, projectId: 1, type: 'meeting', effectiveDate: '2026-09-29', createdAt: '2026-09-29T09:00:00.000Z', title,
+      body: ['Line one.', 'Line two.', 'Line three.', 'Line four.'].join('\n'), highlight, phase: DEV,
+      attendees: [{ id: 70, name: 'Sara Ahmed' }], attachmentIds: [], followUpToDoIds: [800],
+    });
+    const attachment = (id: number, name: string, entryId: number | null): AttachmentRecord => ({
+      id, projectId: 1, phase: entryId === null ? DEV : null, entryId, type: null, name, mime: 'application/pdf', size: 1000,
+      documentDate: '2026-09-29', uploadedAt: '2026-09-29T09:00:00.000Z', previewable: true,
+    });
+    const fetchMock = mockFetch({
+      'GET /api/projects/1': () => ({
+        body: sampleProject({
+          assignments: [{ id: 300, phaseId: 12, resource: { id: 71, name: 'Fatima Noor' }, allocation: 60, role: 'responsible' }],
+        }),
+      }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/projects/1/entries?phaseId=12': () => ({
+        body: [entry(501, 'Steering committee', true), entry(502, 'Internal sync', false)],
+      }),
+      'GET /api/projects/1/attachments': () => ({
+        body: [attachment(701, 'Minutes.pdf', 501), attachment(702, 'Internal notes.pdf', 502), attachment(703, 'Draft.pdf', null)],
+      }),
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/present/projects/1']}>
+        <Routes>
+          <Route path="/present/projects/:id" element={<FocusPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await user.click((await screen.findByTestId('gantt-bar-12')).querySelector('rect.gantt-bar')!);
+    const panel = await screen.findByRole('dialog', { name: 'Development' });
+    expect(await within(panel).findByText('Steering committee')).toBeInTheDocument();
+    expect(within(panel).getByText('Minutes.pdf')).toBeInTheDocument();
+    expect(within(panel).queryByText('Internal sync')).toBeNull();
+    expect(within(panel).queryByText('Internal notes.pdf')).toBeNull();
+    expect(within(panel).queryByText('Draft.pdf')).toBeNull();
+    expect(document.body.textContent).not.toContain('Fatima Noor');
+    expect(document.body.textContent).not.toContain('Sara Ahmed');
+    // No to-dos are ever asked for under /present.
+    expect(fetchMock.mock.calls.map(([url]) => String(url)).some((url) => url.includes('/todos'))).toBe(false);
+    const buttons = within(panel).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent);
+    expect(buttons).toEqual(['Close', 'Preview Minutes.pdf']);
+    expect(within(panel).getByRole('link', { name: 'Download Minutes.pdf' })).toBeInTheDocument();
+    // Outside the panel the page still has no buttons.
+    expect(screen.getAllByRole('button').every((b) => panel.contains(b))).toBe(true);
   });
 });

@@ -15,13 +15,15 @@ interface ToDoFormProps {
   onCancel: () => void;
   /** Maps a top-level phase's stored name to its display name (e.g. its Arabic name), for the Phase choices. */
   nameFor?: PhaseNameFor;
+  /** The phase a new to-do starts on, e.g. the phase side panel's own phase. Ignored when editing. */
+  presetPhaseId?: number | null;
 }
 
 /** Add or edit a to-do: title, assignee, due date, phase and note. */
-export function ToDoForm({ project, me, initial, onSave, onCancel, nameFor }: ToDoFormProps) {
+export function ToDoForm({ project, me, initial, onSave, onCancel, nameFor, presetPhaseId = null }: ToDoFormProps) {
   const defaults: ToDoInput = initial
     ? toDoToInput(initial)
-    : { title: '', note: null, assigneeId: me.resourceId, dueDate: null, phaseId: null, done: false };
+    : { title: '', note: null, assigneeId: me.resourceId, dueDate: null, phaseId: presetPhaseId, done: false };
 
   const [title, setTitle] = useState(defaults.title);
   const [assigneeId, setAssigneeId] = useState<number | null>(defaults.assigneeId ?? null);

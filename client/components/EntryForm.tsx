@@ -31,10 +31,14 @@ interface EntryFormProps {
   attachmentTypes: ListValue[];
   onSave: (input: EntryInput) => Promise<void>;
   onCancel: () => void;
+  /** The phase a new entry starts on, e.g. the phase side panel's own phase. Ignored when editing. */
+  presetPhaseId?: number | null;
 }
 
 /** Add or edit a meeting or an update: title, date, phase, notes, attendees (meetings), highlight and follow-ups (new meetings). */
-export function EntryForm({ project, me, people, type, initial, nameFor, attachmentTypes, onSave, onCancel }: EntryFormProps) {
+export function EntryForm({
+  project, me, people, type, initial, nameFor, attachmentTypes, onSave, onCancel, presetPhaseId = null,
+}: EntryFormProps) {
   const t = useT();
   const { lang } = useLang();
   const entryType: EntryType = initial?.type ?? type;
@@ -42,7 +46,7 @@ export function EntryForm({ project, me, people, type, initial, nameFor, attachm
   const isNew = !initial;
 
   const defaults: EntryInput = initial ? entryToInput(initial) : {
-    type: entryType, effectiveDate: todayLocal(), title: '', body: '', phaseId: null, highlight: false,
+    type: entryType, effectiveDate: todayLocal(), title: '', body: '', phaseId: presetPhaseId, highlight: false,
     attendeeIds: [], followUps: [], attachmentIds: [],
   };
 

@@ -28,11 +28,16 @@ interface EntryItemProps {
   };
   /** Briefly marks this entry, e.g. right after the Attachments tab's "From" column linked to it. */
   highlighted?: boolean;
+  /**
+   * For stakeholders (the presentation's phase side panel): no people's names (attendees), no follow-up to-dos, no
+   * "Shown in presentation" badge, and the whole note with no Show more button.
+   */
+  presentation?: boolean;
 }
 
 /** One meeting or update in the History tab's list: its icon, title, date, phase, attendees, notes and follow-ups. */
 export function EntryItem({
-  entry, nameFor, followUps = [], onToggleFollowUp, attachments = [], actions, highlighted,
+  entry, nameFor, followUps = [], onToggleFollowUp, attachments = [], actions, highlighted, presentation = false,
 }: EntryItemProps) {
   const t = useT();
   const { formatDate } = useFormat();
@@ -40,7 +45,7 @@ export function EntryItem({
   const [confirming, setConfirming] = useState(false);
 
   const bodyLines = entry.body.split('\n');
-  const isLong = bodyLines.length > NOTE_LINES;
+  const isLong = !presentation && bodyLines.length > NOTE_LINES;
   const shownBody = expanded || !isLong ? entry.body : bodyLines.slice(0, NOTE_LINES).join('\n');
 
   return (
@@ -49,12 +54,12 @@ export function EntryItem({
         {entry.type === 'meeting' ? <MeetingIcon /> : <UpdateIcon />}
         <div className="entry-item-title-block">
           <span className="entry-item-title" dir="auto" data-user-content="">{entry.title}</span>
-          {entry.highlight ? <span className="badge">{t('history.shownBadge')}</span> : null}
+          {entry.highlight && !presentation ? <span className="badge">{t('history.shownBadge')}</span> : null}
           <div className="entry-item-meta">
             <span>{formatDate(entry.effectiveDate)}</span>
             {entry.phase ? <span> · {phaseRefLabel(entry.phase, nameFor)}</span> : null}
           </div>
-          {entry.type === 'meeting' && entry.attendees.length > 0 ? (
+          {!presentation && entry.type === 'meeting' && entry.attendees.length > 0 ? (
             <div className="entry-item-meta">
               {t('history.attendeesLabel')}:{' '}
               {entry.attendees.map((a, i) => (
@@ -118,7 +123,7 @@ export function EntryItem({
         />
       ) : null}
 
-      {followUps.length > 0 ? (
+      {!presentation && followUps.length > 0 ? (
         <ul className="entry-followups">
           {followUps.map((f) => (
             <li key={f.id}>

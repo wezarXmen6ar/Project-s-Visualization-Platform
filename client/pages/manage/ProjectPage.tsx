@@ -4,6 +4,7 @@ import { DEFAULT_CALENDAR, countWorkingDays, todayLocal } from '../../../shared/
 import { projectSpan } from '../../../shared/scheduler';
 import type { ProjectRecord } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon } from '../../icons';
+import { PhasePanel, usePhaseParam } from '../../components/PhasePanel';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
 import { Gantt } from '../../gantt/Gantt';
@@ -67,6 +68,13 @@ export function ProjectPage() {
   const { todos, reload: reloadToDos, toggleDone, toggleErrors } = useProjectToDos(id);
   const [saved, setSaved] = useState<ProjectRecord | null>(null);
   const today = todayLocal();
+  const phasePanel = usePhaseParam();
+  // Bumped when the phase side panel adds something, so the History and Attachments tabs load again.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const onPanelChanged = useCallback(() => {
+    reloadToDos();
+    setRefreshKey((k) => k + 1);
+  }, [reloadToDos]);
 
   if (project.error) {
     return (
@@ -135,6 +143,7 @@ export function ProjectPage() {
           attachmentTypes={lists.attachmentType}
           highlightEntryId={highlightEntryId}
           onHighlighted={clearHighlightParam}
+          refreshKey={refreshKey}
         />
       ),
     },
@@ -177,6 +186,7 @@ export function ProjectPage() {
           attachmentTypes={lists.attachmentType}
           nameFor={nameFor}
           onOpenHistory={(entryId) => setActiveTab('history', entryId)}
+          refreshKey={refreshKey}
         />
       ),
     },
@@ -233,11 +243,29 @@ export function ProjectPage() {
             calendar={cal}
             detail="weeks"
             showDates
+            onPieceOpen={phasePanel.open}
           />
         </div>
       </section>
 
       <ProjectTabs tabs={tabs} activeKey={activeTab} onChange={setActiveTab} />
+
+      {phasePanel.phaseId !== null ? (
+        <PhasePanel
+          project={p}
+          phaseId={phasePanel.phaseId}
+          mode="manage"
+          calendar={cal}
+          nameFor={nameFor}
+          onClose={phasePanel.close}
+          me={me ?? { resourceId: null, name: null }}
+          people={people}
+          todos={todos}
+          onToggleToDo={(x) => void toggleDone(x)}
+          attachmentTypes={lists.attachmentType}
+          onChanged={onPanelChanged}
+        />
+      ) : null}
     </main>
   );
 }

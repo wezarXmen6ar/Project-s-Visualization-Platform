@@ -264,6 +264,8 @@ function arabicRoutes(): Record<string, MockHandler> {
     'GET /api/todos?done=include': () => ({ body: todos }),
     'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
     'GET /api/projects/1/entries': () => ({ body: arabicEntries() }),
+    'GET /api/projects/1/entries?phaseId=12': () => ({ body: arabicEntries() }),
+    'GET /api/projects/1/entries?phaseId=13': () => ({ body: [] }),
     'GET /api/projects/1/attachments': () => ({ body: arabicAttachments() }),
     'GET /api/todos?assigneeId=70': () => ({ body: todos.filter((t) => t.assignee?.id === 70) }),
     'GET /api/todos?assigneeId=72': () => ({ body: [{ ...todos[1], assignee: { id: 72, name: RAMI } }] }),
@@ -391,6 +393,45 @@ describe('no English left in the Arabic pages', () => {
 
     await user.click(screen.getByRole('tab', { name: 'التفاصيل' }));
     expectNoEnglish('the project page on the Details tab');
+  });
+
+  it('the phase side panel on the project page, grouped both ways and with each form open', async () => {
+    const user = userEvent.setup();
+    renderApp('/manage/projects/1?phase=12');
+    const panel = await screen.findByRole('dialog', { name: 'التطوير' });
+    await within(panel).findByText('اجتماع الانطلاق');
+    await within(panel).findByText('خطاب الاعتماد.pdf');
+    await settled();
+    expectNoEnglish('the project page with the phase side panel open');
+
+    await user.click(within(panel).getByRole('radio', { name: 'حسب النوع' }));
+    expectNoEnglish('the phase side panel grouped by type');
+
+    await user.click(within(panel).getByRole('button', { name: 'إضافة اجتماع' }));
+    expectNoEnglish('the phase side panel with the add-meeting form open');
+    await user.click(within(panel).getByRole('button', { name: 'إلغاء' }));
+
+    await user.click(within(panel).getByRole('button', { name: 'إضافة مهمة' }));
+    expectNoEnglish('the phase side panel with the to-do form open');
+    await user.click(within(panel).getByRole('button', { name: 'إلغاء' }));
+
+    await user.click(within(panel).getByRole('button', { name: 'رفع ملف' }));
+    expectNoEnglish('the phase side panel with the uploader open');
+  });
+
+  it('the read-only phase side panel in the focus view', async () => {
+    renderApp('/present/projects/1?phase=12');
+    const panel = await screen.findByRole('dialog', { name: 'التطوير' });
+    await within(panel).findByText('اجتماع الانطلاق');
+    await settled();
+    expectNoEnglish('the focus view with the phase side panel open');
+  });
+
+  it('the read-only phase side panel with nothing to show', async () => {
+    renderApp('/present/projects/1?phase=13');
+    await screen.findByText('لا يوجد ما يُعرض لهذه المرحلة بعد.');
+    await settled();
+    expectNoEnglish('the focus view with an empty phase side panel');
   });
 
   it('the project page offering starter to-dos', async () => {
