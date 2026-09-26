@@ -10,7 +10,16 @@ import { computeWorkload } from '../shared/capacity';
 import { phaseName } from '../client/i18n/listNames';
 import { workloadData } from './assignments/repo';
 import { openDb } from './db';
-import { DEMO_ARABIC_PROJECT, DEMO_PEOPLE, DEMO_PROJECTS, seedDemo, toProjectInput } from './demoData';
+import { DEMO_ARABIC_PROJECT, DEMO_PEOPLE, DEMO_PROJECTS, makeDemoPdf, seedDemo, toProjectInput } from './demoData';
+
+describe('makeDemoPdf', () => {
+  it('writes plain-ASCII text, even for an Arabic file name, and escapes brackets', () => {
+    const arabic = makeDemoPdf('محضر ورشة المتطلبات.pdf').toString('latin1');
+    expect(arabic).toContain('(PVP demo document) Tj');
+    expect([...arabic].every((c) => c.charCodeAt(0) < 128)).toBe(true);
+    expect(makeDemoPdf('UAT (final).pdf').toString('latin1')).toContain(String.raw`(UAT \(final\).pdf) Tj`);
+  });
+});
 import { getLists } from './lists/repo';
 import { listProjects } from './projects/repo';
 import { listResources } from './resources/repo';
@@ -196,7 +205,7 @@ describe('seedDemo', () => {
       const workshop = entries.find((e) => e.title === 'Requirements workshop')!;
       expect(workshop.highlight).toBe(true);
       expect(workshop.attendees.map((a) => a.name).sort()).toEqual(['Aisha Khan', 'Mariam Al Suwaidi', 'Sara Ahmed']);
-      expect(workshop.guests).toEqual(['Khalid Al Mansoori (Dubai Police IT)']);
+      expect(workshop.guests).toEqual(['Saeed Al Nuaimi (Dubai Police IT)']);
       expect(workshop.followUpToDoIds).toHaveLength(1);
       const followUp = listToDos(db, { includeDone: true }).find((t) => t.id === workshop.followUpToDoIds[0])!;
       expect(followUp).toMatchObject({ title: 'Share the draft requirements list', dueDate: '2026-10-14' });
@@ -231,7 +240,7 @@ describe('seedDemo', () => {
       expect(highlighted).toHaveLength(4);
     });
 
-    it('every demo attachment and person-document file exists on disk and starts with %PDF', () => {
+    it('every demo attachment file exists on disk and starts with %PDF', () => {
       for (const p of listProjects(db)) {
         for (const a of listAttachments(db, p.id)) {
           const file = getAttachmentFile(db, a.id)!;

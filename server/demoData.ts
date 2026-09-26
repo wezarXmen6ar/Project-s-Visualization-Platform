@@ -27,7 +27,11 @@ import { checkToDo, createToDo } from './todos/repo';
  * tests write real PDFs through the same attachments code paths as an upload.
  */
 export function makeDemoPdf(title: string): Buffer {
-  const text = title.replace(/[\\()]/g, (c) => `\\${c}`);
+  // The PDF's own text must be plain ASCII: the built-in font has no Arabic glyphs, and non-ASCII bytes could break
+  // the content stream. The stored file name can still be Arabic.
+  const ascii = title.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
+  const safe = /^\.?pdf$/i.test(ascii) || ascii === '' ? 'PVP demo document' : ascii;
+  const text = safe.replace(/[\\()]/g, (c) => `\\${c}`);
   const stream = `BT /F1 16 Tf 40 760 Td (${text}) Tj ET`;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
@@ -488,7 +492,7 @@ export const DEMO_ENTRIES: DemoEntry[] = [
     effectiveDate: '2026-10-07',
     phase: 'Requirements gathering',
     attendees: ['Aisha Khan', 'Sara Ahmed', 'Mariam Al Suwaidi'],
-    guestNames: ['Khalid Al Mansoori (Dubai Police IT)'],
+    guestNames: ['Saeed Al Nuaimi (Dubai Police IT)'],
     body:
       'Walked through the current e-services and the requests customers raise most often. The business confirmed ' +
       'push notifications and request tracking are the top priorities for the first release. Dubai Police IT ' +
@@ -773,7 +777,7 @@ export function seedDemo(db: DatabaseSync, cal: WorkCalendar, attachmentsDir = '
     const supportEnd = keyDateInputSchema.parse({ typeId: idFor('keyDateType', 'Support end'), date: '2026-09-20', attachmentId: null });
     createKeyDate(db, caseMgmtId, supportEnd, new Date().toISOString(), todayLocal());
 
-    // Person documents and work accounts (M7 Task 8), with files written the same way as attachments.
+    // Person documents and work accounts (demo data for the M7 Task 8 features), with files written the same way as attachments.
     for (const d of DEMO_PERSON_DOCUMENTS) {
       const resourceId = personId(d.person);
       const pdf = makeDemoPdf(d.fileName);
