@@ -105,7 +105,7 @@
 | Working on | يعمل حالياً على | |
 | I am (Settings) | المستخدم الحالي | "set who you are" becomes "حدِّد المستخدم الحالي" |
 
-### Default roles (proposed in M6 Task 3, waiting for the user's approval)
+### Default roles (approved by the user with M6, 2026-09-26)
 | English | Arabic |
 |---|---|
 | Project manager | مدير المشروع |
