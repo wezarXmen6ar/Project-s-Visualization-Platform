@@ -171,3 +171,80 @@ describe('/present renders no key dates', () => {
     expect(JSON.stringify(portfolio.json())).not.toContain('Only in management');
   });
 });
+
+describe('GET /api/key-dates/upcoming: state is judged against the fixed window, not withinDays', () => {
+  it('with withinDays=60, a date 40 days out is listed but still "fine"', async () => {
+    const item = (await addKeyDate(projectId, { date: '2026-11-05' })).json(); // 40 days ahead
+    const res = await app.inject({ method: 'GET', url: '/api/key-dates/upcoming?withinDays=60' });
+    expect(res.statusCode).toBe(200);
+    const found = res.json().find((k: { id: number }) => k.id === item.id);
+    expect(found).toBeDefined();
+    expect(found.state).toBe('fine');
+  });
+});
+
+describe('PUT /api/attachments/:id/key-dates: saving a file\'s key dates atomically', () => {
+  it('replaces the whole set in one go: keeps an updated row, adds a new one, drops one left out', async () => {
+    const attachment = await upload(projectId, 'contract.pdf');
+    const licenseType = await keyDateType('License expiry');
+    const contractEndType = await keyDateType('Contract end');
+    const kept = (await addKeyDate(projectId, { typeId: licenseType, date: '2026-10-10', attachmentId: attachment.id })).json();
+    const dropped = (await addKeyDate(projectId, { date: '2026-11-01', attachmentId: attachment.id })).json();
+
+    const res = await app.inject({
+      method: 'PUT', url: `/api/attachments/${attachment.id}/key-dates`,
+      payload: [
+        { id: kept.id, typeId: licenseType, date: '2026-10-15', note: 'Renewed' },
+        { typeId: contractEndType, date: '2026-12-01' },
+      ],
+    });
+    expect(res.statusCode).toBe(200);
+    const saved = res.json();
+    expect(saved).toHaveLength(2);
+    expect(saved.find((k: { id: number }) => k.id === kept.id)).toMatchObject({ date: '2026-10-15', note: 'Renewed' });
+    expect(saved.some((k: { date: string }) => k.date === '2026-12-01')).toBe(true);
+
+    const listed = (await app.inject({ method: 'GET', url: `/api/projects/${projectId}/key-dates` })).json();
+    expect(listed).toHaveLength(2);
+    expect(listed.some((k: { date: string }) => k.date === dropped.date)).toBe(false);
+  });
+
+  it('changes nothing when one row is invalid (an unknown key date type)', async () => {
+    const attachment = await upload(projectId, 'contract.pdf');
+    const existing = (await addKeyDate(projectId, { date: '2026-10-10', attachmentId: attachment.id })).json();
+
+    const res = await app.inject({
+      method: 'PUT', url: `/api/attachments/${attachment.id}/key-dates`,
+      payload: [{ id: existing.id, date: '2026-11-20' }, { typeId: 999999, date: '2026-12-01' }],
+    });
+    expect(res.statusCode).toBe(400);
+
+    const listed = (await app.inject({ method: 'GET', url: `/api/projects/${projectId}/key-dates` })).json();
+    expect(listed).toEqual([existing]);
+  });
+
+  it('rejects an id that belongs to another attachment\'s (and project\'s) key date, changing nothing', async () => {
+    const attachment = await upload(projectId, 'contract.pdf');
+    const own = (await addKeyDate(projectId, { date: '2026-10-10', attachmentId: attachment.id })).json();
+
+    const other = await otherProject();
+    const otherAttachment = await upload(other, 'other-contract.pdf');
+    const otherKeyDate = (await addKeyDate(other, { date: '2026-10-20', attachmentId: otherAttachment.id })).json();
+
+    const res = await app.inject({
+      method: 'PUT', url: `/api/attachments/${attachment.id}/key-dates`,
+      payload: [{ id: own.id, date: '2026-10-11' }, { id: otherKeyDate.id, date: '2026-12-01' }],
+    });
+    expect(res.statusCode).toBe(400);
+
+    const listed = (await app.inject({ method: 'GET', url: `/api/projects/${projectId}/key-dates` })).json();
+    expect(listed).toEqual([own]);
+    const otherListed = (await app.inject({ method: 'GET', url: `/api/projects/${other}/key-dates` })).json();
+    expect(otherListed).toEqual([otherKeyDate]);
+  });
+
+  it('404s for an unknown attachment', async () => {
+    const res = await app.inject({ method: 'PUT', url: '/api/attachments/999999/key-dates', payload: [{ date: '2026-10-10' }] });
+    expect(res.statusCode).toBe(404);
+  });
+});

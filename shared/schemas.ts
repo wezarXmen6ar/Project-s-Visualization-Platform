@@ -421,6 +421,24 @@ export const keyDateInputSchema = z.object({
 export type KeyDateInput = z.input<typeof keyDateInputSchema>;
 export type KeyDateData = z.output<typeof keyDateInputSchema>;
 
+/** One row of PUT /api/attachments/:id/key-dates's body: an existing key date (by id) or a new one. */
+export const keyDateItemSchema = z.object({
+  id: z.number().int().positive().optional(),
+  typeId: optionalId,
+  date: isoDate,
+  note: optionalText(2000),
+});
+export type KeyDateItemInput = z.input<typeof keyDateItemSchema>;
+export type KeyDateItemData = z.output<typeof keyDateItemSchema>;
+
+/**
+ * PUT /api/attachments/:id/key-dates: the file's whole set of key dates, replacing what is saved for it in one
+ * transaction (M7 review fix, so an upload's typed rows are never lost to a partial save).
+ */
+export const keyDateReplaceSchema = z.array(keyDateItemSchema).max(50);
+export type KeyDateReplaceInput = z.input<typeof keyDateReplaceSchema>;
+export type KeyDateReplaceData = z.output<typeof keyDateReplaceSchema>;
+
 export const starterToDoInputSchema = z.object({
   phaseListId: z.number().int().positive(),
   title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200, tooLong(200)),

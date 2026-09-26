@@ -239,21 +239,21 @@ describe('AttachmentsTab', () => {
       { id: 321, list: 'keyDateType' as const, name: 'License expiry', order: 1, nameAr: 'انتهاء الترخيص' },
     ];
 
-    it('opens the Key dates section for a Contract, and saves its key dates linked to the uploaded file', async () => {
+    it('opens the Key dates section for a Contract, and saves its key dates atomically, linked to the uploaded file', async () => {
       const { requests } = installMockXhr();
       const created = {
         id: 500, projectId: 1, phase: null, entryId: null, type: { id: 108, name: 'Contract', nameAr: 'العقد' }, name: 'contract.pdf',
         mime: 'application/pdf', size: 10, documentDate: null, uploadedAt: '2026-09-26T09:00:00.000Z', previewable: true,
       };
-      const keyDatesPosted: { date: string; attachmentId?: number }[] = [];
+      const replacePuts: { url: string; body: { date: string }[] }[] = [];
       mockFetch({
         'GET /api/projects/1/attachments': () => ({ body: [] }),
         'GET /api/projects/1/entries': () => ({ body: [] }),
         'GET /api/projects/1/key-dates': () => ({ body: [] }),
-        'POST /api/projects/1/key-dates': (init) => {
-          const body = JSON.parse(init!.body as string);
-          keyDatesPosted.push(body);
-          return { status: 201, body: { id: 900, projectId: 1, type: null, date: body.date, note: null, attachment: null, createdAt: 'x', state: 'soon' } };
+        'PUT /api/attachments/500/key-dates': (init) => {
+          const body = JSON.parse(init!.body as string) as { date: string }[];
+          replacePuts.push({ url: '/api/attachments/500/key-dates', body });
+          return { status: 200, body: body.map((r, i) => ({ id: 900 + i, projectId: 1, type: null, date: r.date, note: null, attachment: { id: 500, name: 'contract.pdf', mime: 'application/pdf', previewable: true }, createdAt: 'x', state: 'soon' })) };
         },
       });
       const user = userEvent.setup();
@@ -276,8 +276,53 @@ describe('AttachmentsTab', () => {
       await user.upload(input, file);
       requests[0].respond(201, created);
 
-      await waitFor(() => expect(keyDatesPosted).toHaveLength(1));
-      expect(keyDatesPosted[0]).toMatchObject({ date: '2026-12-01', attachmentId: 500 });
+      await waitFor(() => expect(replacePuts).toHaveLength(1));
+      expect(replacePuts[0].body).toMatchObject([{ date: '2026-12-01' }]);
+    });
+
+    it('keeps the typed key dates and shows Retry when saving them fails after the upload; Retry succeeds and clears them', async () => {
+      const { requests } = installMockXhr();
+      const created = {
+        id: 500, projectId: 1, phase: null, entryId: null, type: { id: 108, name: 'Contract', nameAr: 'العقد' }, name: 'contract.pdf',
+        mime: 'application/pdf', size: 10, documentDate: null, uploadedAt: '2026-09-26T09:00:00.000Z', previewable: true,
+      };
+      let fail = true;
+      mockFetch({
+        'GET /api/projects/1/attachments': () => ({ body: [] }),
+        'GET /api/projects/1/entries': () => ({ body: [] }),
+        'GET /api/projects/1/key-dates': () => ({ body: [] }),
+        'PUT /api/attachments/500/key-dates': (init) => {
+          if (fail) {
+            fail = false;
+            return { status: 500, body: { error: 'Server error' } };
+          }
+          const body = JSON.parse(init!.body as string) as { date: string }[];
+          return { status: 200, body: body.map((r, i) => ({ id: 900 + i, projectId: 1, type: null, date: r.date, note: null, attachment: { id: 500, name: 'contract.pdf', mime: 'application/pdf', previewable: true }, createdAt: 'x', state: 'soon' })) };
+        },
+      });
+      const user = userEvent.setup();
+      render(
+        <AttachmentsTab
+          project={sampleProject()} attachmentTypes={TYPES_WITH_CONTRACT} keyDateTypes={KEY_DATE_TYPES} onOpenHistory={vi.fn()}
+        />,
+      );
+      await screen.findByText('No files yet.');
+      await user.click(screen.getByRole('button', { name: 'Upload file' }));
+      await user.selectOptions(screen.getByLabelText('Type'), 'Contract');
+      fireEvent.change(screen.getAllByLabelText('Date')[0], { target: { value: '2026-12-01' } });
+
+      const input = screen.getByLabelText('Upload file', { selector: 'input' });
+      const file = new File(['x'], 'contract.pdf', { type: 'application/pdf' });
+      await user.upload(input, file);
+      requests[0].respond(201, created);
+
+      const retryButton = await screen.findByRole('button', { name: 'Retry' });
+      // The typed row is kept, and the section stays open, rather than being silently lost.
+      expect(screen.getByDisplayValue('2026-12-01')).toBeInTheDocument();
+
+      await user.click(retryButton);
+      await waitFor(() => expect(screen.queryByDisplayValue('2026-12-01')).not.toBeInTheDocument());
+      expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
     });
 
     it('leaves the Key dates section collapsed for a non-Contract type', async () => {
@@ -297,6 +342,30 @@ describe('AttachmentsTab', () => {
       await user.selectOptions(screen.getByLabelText('Type'), 'Approval');
       expect(screen.queryByLabelText('Date')).toBeNull();
       expect(screen.getByRole('button', { name: 'Key dates' })).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('accepts only one file while the Key dates section has rows, with a hint, and allows several again once cleared', async () => {
+      mockFetch({
+        'GET /api/projects/1/attachments': () => ({ body: [] }),
+        'GET /api/projects/1/entries': () => ({ body: [] }),
+        'GET /api/projects/1/key-dates': () => ({ body: [] }),
+      });
+      const user = userEvent.setup();
+      render(
+        <AttachmentsTab
+          project={sampleProject()} attachmentTypes={TYPES_WITH_CONTRACT} keyDateTypes={KEY_DATE_TYPES} onOpenHistory={vi.fn()}
+        />,
+      );
+      await screen.findByText('No files yet.');
+      await user.click(screen.getByRole('button', { name: 'Upload file' }));
+
+      // No Contract chosen yet, so no key date rows: several files are still allowed.
+      expect(screen.getByLabelText('Upload file', { selector: 'input' })).toHaveAttribute('multiple');
+      expect(screen.queryByText('Key dates attach to one contract file at a time.')).toBeNull();
+
+      await user.selectOptions(screen.getByLabelText('Type'), 'Contract');
+      expect(screen.getByLabelText('Upload file', { selector: 'input' })).not.toHaveAttribute('multiple');
+      expect(screen.getByText('Key dates attach to one contract file at a time.')).toBeInTheDocument();
     });
 
     it('editing a Contract shows and edits its own key dates', async () => {

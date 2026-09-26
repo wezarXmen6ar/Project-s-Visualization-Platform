@@ -1,8 +1,8 @@
 import { useCallback, useState, type DragEvent } from 'react';
-import type { AttachmentRecord, EntryRecord, KeyDateRecord, ListValue, ProjectRecord } from '../../../shared/types';
+import type { AttachmentRecord, EntryRecord, ListValue, ProjectRecord } from '../../../shared/types';
 import { api } from '../../api';
 import { AttachmentList } from '../../components/AttachmentList';
-import { KeyDateRows, newKeyDateDraft, type KeyDateDraft } from '../../components/KeyDateRows';
+import { draftFrom, KeyDateRows, newKeyDateDraft, toKeyDateInput, type KeyDateDraft } from '../../components/KeyDateRows';
 import { Uploader } from '../../components/Uploader';
 import { messagesOf } from '../../errors';
 import { AlertIcon, PlusIcon } from '../../icons';
@@ -22,11 +22,6 @@ interface AttachmentsTabProps {
   onOpenHistory: (entryId?: number) => void;
   /** Bumped by the page when something changed elsewhere (e.g. the phase side panel), so the list loads again. */
   refreshKey?: number;
-}
-
-/** Key dates entered against a row (either not yet saved for a new file, or already saved for an existing one). */
-function draftFrom(k: KeyDateRecord): KeyDateDraft {
-  return newKeyDateDraft({ typeId: k.type?.id ?? null, date: k.date, note: k.note ?? '', existingId: k.id });
 }
 
 /** The Attachments tab: upload, filter, preview, download, edit and delete a project's files. */
@@ -66,10 +61,13 @@ export function AttachmentsTab({
   const [dragActive, setDragActive] = useState(false);
 
   // The upload row's Key dates section (M7 Task 9): open by default for a Contract, collapsed for anything else.
-  // The rows are saved, linked to the file, only once the file itself has uploaded successfully.
+  // The rows are saved, atomically and linked to the file, only once the file itself has uploaded successfully.
+  // A failed save keeps the rows and the uploaded file's id, so Retry can send them again without re-uploading
+  // (M7 review fix — losing typed rows to a failed save, silently, was the bug).
   const [uploadKeyDatesOpen, setUploadKeyDatesOpen] = useState(false);
   const [uploadKeyDateRows, setUploadKeyDateRows] = useState<KeyDateDraft[]>([]);
-  const [keyDatesSavedForUpload, setKeyDatesSavedForUpload] = useState(false);
+  const [keyDatesRetryAttachmentId, setKeyDatesRetryAttachmentId] = useState<number | null>(null);
+  const [savingKeyDates, setSavingKeyDates] = useState(false);
 
   const [editing, setEditing] = useState<AttachmentRecord | null>(null);
   const [editTypeId, setEditTypeId] = useState<number | null>(null);
@@ -91,23 +89,39 @@ export function AttachmentsTab({
     }
   }
 
-  // Called once per file that finishes uploading; the upload row's key date rows are linked to the first one only
-  // (uploading a contract is a single-file action), then cleared so a second file doesn't get them too.
-  function onUploaded(attachment: AttachmentRecord) {
-    if (!keyDatesSavedForUpload) {
-      setKeyDatesSavedForUpload(true);
-      const rows = uploadKeyDateRows.filter((r) => r.date !== '');
-      if (rows.length > 0) {
-        void Promise.all(
-          rows.map((r) => api.addKeyDate(project.id, {
-            typeId: r.typeId ?? undefined, date: r.date, note: r.note === '' ? undefined : r.note, attachmentId: attachment.id,
-          })),
-        ).then(reload, (err) => setActionErrors(messagesOf(err, t)));
-      }
+  // Saves the upload row's key dates, atomically and linked to the just-uploaded (or already-uploaded, on Retry)
+  // file, via the one PUT that replaces its whole set (M7 review fix). Only on success are the rows cleared and
+  // the section closed; on failure they, and the attachment id, are kept so Retry can send them again — the file
+  // itself is already uploaded and is never re-sent.
+  async function saveUploadKeyDates(attachmentId: number) {
+    const rows = uploadKeyDateRows.filter((r) => r.date !== '');
+    if (rows.length === 0) {
       setUploadKeyDateRows([]);
       setUploadKeyDatesOpen(false);
+      setKeyDatesRetryAttachmentId(null);
+      return;
     }
+    setSavingKeyDates(true);
+    setActionErrors([]);
+    try {
+      await api.replaceAttachmentKeyDates(attachmentId, rows.map(toKeyDateInput));
+      setUploadKeyDateRows([]);
+      setUploadKeyDatesOpen(false);
+      setKeyDatesRetryAttachmentId(null);
+      reload();
+    } catch (err) {
+      setActionErrors(messagesOf(err, t));
+      setKeyDatesRetryAttachmentId(attachmentId);
+    } finally {
+      setSavingKeyDates(false);
+    }
+  }
+
+  // Called once per file that finishes uploading; the uploader accepts a single file while the Key dates section
+  // has rows (M7 review fix), so this fires at most once for them.
+  function onUploaded(attachment: AttachmentRecord) {
     reload();
+    void saveUploadKeyDates(attachment.id);
   }
 
   function startEditing(a: AttachmentRecord) {
@@ -127,22 +141,9 @@ export function AttachmentsTab({
         phaseId: editPhaseId ?? undefined,
         documentDate: editDocumentDate === '' ? null : editDocumentDate,
       });
-      const originalIds = allKeyDates.filter((k) => k.attachment?.id === editing.id).map((k) => k.id);
-      const keptIds = new Set(editKeyDateRows.map((r) => r.existingId).filter((id): id is number => id !== undefined));
-      await Promise.all([
-        ...originalIds.filter((id) => !keptIds.has(id)).map((id) => api.deleteKeyDate(id)),
-        ...editKeyDateRows
-          .filter((r) => r.date !== '')
-          .map((r) => (
-            r.existingId !== undefined
-              ? api.updateKeyDate(r.existingId, {
-                typeId: r.typeId ?? undefined, date: r.date, note: r.note === '' ? undefined : r.note, attachmentId: editing.id,
-              })
-              : api.addKeyDate(project.id, {
-                typeId: r.typeId ?? undefined, date: r.date, note: r.note === '' ? undefined : r.note, attachmentId: editing.id,
-              })
-          )),
-      ]);
+      // One atomic replace of the file's whole set of key dates (M7 review fix), instead of several independent
+      // add/update/delete calls that could each succeed or fail on their own.
+      await api.replaceAttachmentKeyDates(editing.id, editKeyDateRows.filter((r) => r.date !== '').map(toKeyDateInput));
       setEditing(null);
       reload();
     } catch (err) {
@@ -187,9 +188,9 @@ export function AttachmentsTab({
             type="button" className="button secondary"
             onClick={() => {
               setUploading(true);
-              setKeyDatesSavedForUpload(false);
               setUploadKeyDatesOpen(false);
               setUploadKeyDateRows([]);
+              setKeyDatesRetryAttachmentId(null);
             }}
           >
             <PlusIcon />{t('attachments.uploadFile')}
@@ -220,6 +221,14 @@ export function AttachmentsTab({
         <div className="errors" role="alert">
           <AlertIcon />
           <ul>{actionErrors.map((m) => <li key={m}>{m}</li>)}</ul>
+          {keyDatesRetryAttachmentId !== null ? (
+            <button
+              type="button" className="button secondary" disabled={savingKeyDates}
+              onClick={() => void saveUploadKeyDates(keyDatesRetryAttachmentId)}
+            >
+              {t('common.retry')}
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -252,6 +261,8 @@ export function AttachmentsTab({
             onUploaded={onUploaded}
             initialFiles={droppedFiles}
             onInitialFilesConsumed={() => setDroppedFiles(null)}
+            singleFile={uploadKeyDateRows.length > 0}
+            singleFileHint={t('attachments.keyDatesSingleFileHint')}
           />
           <button type="button" className="button secondary" onClick={() => setUploading(false)}>{t('attachments.cancelUpload')}</button>
 
@@ -263,7 +274,10 @@ export function AttachmentsTab({
               {t('keyDates.sectionTitle')}
             </button>
             {uploadKeyDatesOpen ? (
-              <KeyDateRows types={keyDateTypes} rows={uploadKeyDateRows} onChange={setUploadKeyDateRows} />
+              <>
+                <p className="muted">{t('keyDates.sectionHint')}</p>
+                <KeyDateRows types={keyDateTypes} rows={uploadKeyDateRows} onChange={setUploadKeyDateRows} />
+              </>
             ) : null}
           </div>
         </div>

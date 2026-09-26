@@ -960,6 +960,7 @@ export const ar: Record<MessageKey, Message> = {
   'keyDates.confirmDelete': 'حذف هذا التاريخ المهم؟',
   'keyDates.sectionTitle': 'التواريخ المهمة',
   'keyDates.sectionHint': 'تاريخ انتهاء العقد، وأي تواريخ أخرى: انتهاء الترخيص، انتهاء التطوير…',
+  'attachments.keyDatesSingleFileHint': 'تُرفق التواريخ المهمة بملف عقد واحد في كل مرة.',
 
   // The dashboard's key-dates notice (M7 Task 9).
   'dashboard.keyDateOne': {

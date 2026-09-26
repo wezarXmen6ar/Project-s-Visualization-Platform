@@ -6,7 +6,8 @@ import { translate } from '../shared/i18n/translate';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
-  assignmentsUpdateSchema, attachmentUpdateSchema, attachmentUploadQuerySchema, entryInputSchema, keyDateInputSchema, leaveInputSchema,
+  assignmentsUpdateSchema, attachmentUpdateSchema, attachmentUploadQuerySchema, entryInputSchema, keyDateInputSchema, keyDateReplaceSchema,
+  leaveInputSchema,
   listValueInputSchema, meInputSchema, newProjectSchema, overloadDecisionSchema, personAccountInputSchema, personDocumentUpdateSchema,
   personDocumentUploadQuerySchema, projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, starterAcceptSchema, starterTitleSchema,
   starterToDoInputSchema, toDoInputSchema, toIssues,
@@ -38,7 +39,10 @@ import {
   listPersonDocuments, updatePersonDocument,
 } from './people/documents';
 import { listExpiring } from './people/expiring';
-import { checkKeyDateRefs, createKeyDate, deleteKeyDateRow, getKeyDate, listKeyDates, listUpcomingKeyDates, updateKeyDate } from './keyDates/repo';
+import {
+  checkKeyDateRefs, createKeyDate, deleteKeyDateRow, getKeyDate, listKeyDates, listUpcomingKeyDates, replaceAttachmentKeyDates,
+  updateKeyDate,
+} from './keyDates/repo';
 import { getCalendar, getMe, setMe } from './settings';
 import { acceptStarters, addStarter, deleteStarter, listStarters, renameStarter, starterSuggestions } from './starters/repo';
 import { checkToDo, createToDo, deleteToDo, getToDo, listToDos, updateToDo } from './todos/repo';
@@ -540,6 +544,18 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.get<{ Querystring: { withinDays?: string } }>('/api/key-dates/upcoming', async (req) => {
     const withinDays = Number(req.query.withinDays);
     return listUpcomingKeyDates(db, today(), Number.isInteger(withinDays) && withinDays > 0 ? withinDays : 30);
+  });
+
+  // Replaces a file's whole set of key dates in one transaction (M7 review fix), so an upload's typed rows are
+  // saved atomically with it. Used both right after an upload and from the Attachments tab's edit row.
+  app.put<{ Params: { id: string } }>('/api/attachments/:id/key-dates', async (req, reply) => {
+    const id = Number(req.params.id);
+    const parsed = keyDateReplaceSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid key dates', issues: toIssues(parsed.error) });
+    const result = replaceAttachmentKeyDates(db, id, parsed.data, new Date().toISOString(), today());
+    if (!result) return reply.code(404).send(err('error.attachmentNotFound'));
+    if ('issues' in result) return reply.code(400).send({ error: 'Invalid key dates', issues: result.issues });
+    return result.keyDates;
   });
 
   app.get('/api/starter-todos', async () => listStarters(db));

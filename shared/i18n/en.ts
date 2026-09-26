@@ -853,6 +853,7 @@ export const en = {
   'keyDates.confirmDelete': 'Delete this key date?',
   'keyDates.sectionTitle': 'Key dates',
   'keyDates.sectionHint': 'The contract’s end date, and any others: licence expiry, development end…',
+  'attachments.keyDatesSingleFileHint': 'Key dates attach to one contract file at a time.',
 
   // The dashboard's key-dates notice (M7 Task 9).
   'dashboard.keyDateOne': {

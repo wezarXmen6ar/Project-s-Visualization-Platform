@@ -2,9 +2,10 @@ import type { DatabaseSync } from 'node:sqlite';
 import { addDays, type ISODate } from '../../shared/calendar';
 import { expiryState } from '../../shared/expiry';
 import { translate } from '../../shared/i18n/translate';
-import type { KeyDateData, ValidationIssue } from '../../shared/schemas';
+import type { KeyDateData, KeyDateItemData, ValidationIssue } from '../../shared/schemas';
 import type { KeyDateRecord, UpcomingKeyDate } from '../../shared/types';
 import { isPreviewable } from '../attachments/files';
+import { transaction } from '../db';
 
 /** Key dates are never shown as "soon" more than 30 days ahead; the same window a passed one stays reminded for. */
 const KEY_DATE_WINDOW_DAYS = 30;
@@ -106,7 +107,9 @@ export function deleteKeyDateRow(db: DatabaseSync, id: number): boolean {
 
 /**
  * Every key date, across every project, that has passed within the last 30 days or falls within `withinDays`
- * ahead, with its project's name; feeds GET /api/key-dates/upcoming and the dashboard notice.
+ * ahead, with its project's name; feeds GET /api/key-dates/upcoming and the dashboard notice. `state` is judged
+ * against the fixed `KEY_DATE_WINDOW_DAYS` (like the card and every other key date), never against `withinDays`:
+ * the list's own window only decides which dates are returned at all, not how urgent each one reads (review fix).
  */
 export function listUpcomingKeyDates(db: DatabaseSync, today: ISODate, withinDays: number): UpcomingKeyDate[] {
   const from = addDays(today, -KEY_DATE_WINDOW_DAYS);
@@ -119,6 +122,54 @@ export function listUpcomingKeyDates(db: DatabaseSync, today: ISODate, withinDay
     project: { id: row.project_id, name: row.project_name! },
     type: row.type_id === null ? null : { id: row.type_id, name: row.type_name!, nameAr: row.type_name_ar },
     date: row.date as ISODate,
-    state: expiryState(row.date as ISODate, today, withinDays)!,
+    state: expiryState(row.date as ISODate, today, KEY_DATE_WINDOW_DAYS)!,
   }));
+}
+
+/**
+ * Replaces an attachment's whole set of key dates in one transaction (M7 review fix): a row with `id` is updated
+ * only when that id is one of this attachment's own key dates (never another attachment's or project's — the id
+ * is trusted only as far as it is found here), a row with no `id` is inserted, and any of the attachment's own key
+ * dates left out of `items` is deleted. Every row is validated before anything is written, so an invalid row
+ * changes nothing. Returns the saved list (soonest first) on success, `{ issues }` with nothing changed for an
+ * invalid row, and undefined when the attachment itself does not exist.
+ */
+export function replaceAttachmentKeyDates(
+  db: DatabaseSync, attachmentId: number, items: KeyDateItemData[], createdAt: string, today: ISODate,
+): { issues: ValidationIssue[] } | { keyDates: KeyDateRecord[] } | undefined {
+  const attachment = db.prepare('SELECT project_id FROM attachments WHERE id = ?').get(attachmentId) as { project_id: number } | undefined;
+  if (!attachment) return undefined;
+  const projectId = attachment.project_id;
+
+  const ownIds = new Set(
+    (db.prepare('SELECT id FROM key_dates WHERE attachment_id = ?').all(attachmentId) as { id: number }[]).map((r) => r.id),
+  );
+
+  const issues: ValidationIssue[] = [];
+  items.forEach((item, i) => {
+    for (const issue of checkKeyDateRefs(db, projectId, { typeId: item.typeId })) {
+      issues.push({ ...issue, path: `${i}.${issue.path}` });
+    }
+    if (item.id !== undefined && !ownIds.has(item.id)) {
+      issues.push({ path: `${i}.id`, message: translate('en', 'error.keyDateNotFound'), code: 'error.keyDateNotFound' });
+    }
+  });
+  if (issues.length > 0) return { issues };
+
+  return transaction(db, () => {
+    const keptIds = new Set(items.map((item) => item.id).filter((id): id is number => id !== undefined));
+    for (const id of ownIds) {
+      if (!keptIds.has(id)) db.prepare('DELETE FROM key_dates WHERE id = ?').run(id);
+    }
+    for (const item of items) {
+      if (item.id !== undefined) {
+        db.prepare('UPDATE key_dates SET type_id = ?, date = ?, note = ? WHERE id = ?').run(item.typeId, item.date, item.note, item.id);
+      } else {
+        db.prepare('INSERT INTO key_dates (project_id, type_id, attachment_id, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(projectId, item.typeId, attachmentId, item.date, item.note, createdAt);
+      }
+    }
+    const rows = db.prepare(`${SELECT_KEY_DATES} WHERE k.attachment_id = ? ${ORDER_KEY_DATES}`).all(attachmentId) as unknown as KeyDateRow[];
+    return { keyDates: rows.map((row) => toKeyDate(row, today)) };
+  });
 }

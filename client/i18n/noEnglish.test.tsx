@@ -315,6 +315,7 @@ function arabicKeyDates(): KeyDateRecord[] {
 function arabicUpcomingKeyDates(): UpcomingKeyDate[] {
   return [
     { id: 700, project: { id: 1, name: PROJECT }, type: { id: 320, name: 'License expiry', nameAr: 'انتهاء الترخيص' }, date: '2026-10-19', state: 'soon' },
+    { id: 701, project: { id: 1, name: PROJECT }, type: { id: 321, name: 'Contract end', nameAr: 'انتهاء العقد' }, date: '2026-09-30', state: 'expired' },
   ];
 }
 
@@ -421,7 +422,11 @@ describe('no English left in the Arabic pages', () => {
     await screen.findAllByRole('link', { name: PROJECT });
     await screen.findByRole('link', { name: 'عرض عبء العمل' });
     await screen.findByText('تنتهي صلاحية جواز السفر لفاطمة نور خلال 12 يوماً');
-    await screen.findByText(`${PROJECT}: انتهاء الترخيص خلال 12 يوماً`);
+    // Two upcoming key dates: the notice reads as the Arabic dual plural, not the single-date wording.
+    const notice = await screen.findByText('تاريخان مهمان قريبان أو فاتا');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'عرض التواريخ المهمة' }));
+    within(notice.closest('.notice')!).getByText('انتهاء الترخيص');
     await settled();
     expectNoEnglish('the dashboard');
   });

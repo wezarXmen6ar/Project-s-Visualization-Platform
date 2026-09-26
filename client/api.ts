@@ -2,9 +2,9 @@ import type { WorkCalendar } from '../shared/calendar';
 import type { MessageKey } from '../shared/i18n/en';
 import type { Params } from '../shared/i18n/types';
 import type {
-  AssignmentInput, AttachmentUpdateInput, EntryInput, KeyDateInput, LeaveInput, NewProjectInput, OverloadDecisionInput,
-  PersonAccountInput, PersonDocumentUpdateInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput, StarterToDoInput, ToDoInput,
-  ValidationIssue,
+  AssignmentInput, AttachmentUpdateInput, EntryInput, KeyDateInput, KeyDateReplaceInput, LeaveInput, NewProjectInput,
+  OverloadDecisionInput, PersonAccountInput, PersonDocumentUpdateInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput,
+  StarterToDoInput, ToDoInput, ValidationIssue,
 } from '../shared/schemas';
 import type {
   AttachmentRecord, BackupStatus, EntryRecord, ExpiringItem, KeyDateRecord, LeaveRecord, ListName, ListValue, Lists, Me,
@@ -218,4 +218,7 @@ export const api = {
   updateKeyDate: (id: number, input: KeyDateInput) => request<KeyDateRecord>(`/api/key-dates/${id}`, withBody('PUT', input)),
   deleteKeyDate: (id: number) => request<void>(`/api/key-dates/${id}`, { method: 'DELETE' }),
   listUpcomingKeyDates: (withinDays = 30) => request<UpcomingKeyDate[]>(`/api/key-dates/upcoming?withinDays=${withinDays}`),
+  /** Replaces a file's whole set of key dates atomically (M7 review fix): used after an upload and from its edit row. */
+  replaceAttachmentKeyDates: (attachmentId: number, items: KeyDateReplaceInput) =>
+    request<KeyDateRecord[]>(`/api/attachments/${attachmentId}/key-dates`, withBody('PUT', items)),
 };

@@ -1,4 +1,4 @@
-import type { ListValue } from '../../shared/types';
+import type { KeyDateRecord, ListValue } from '../../shared/types';
 import { useLang, useT } from '../i18n/LanguageProvider';
 import { listName } from '../i18n/listNames';
 import { PlusIcon, TrashIcon } from '../icons';
@@ -19,6 +19,29 @@ let seq = 0;
 export function newKeyDateDraft(overrides: Partial<KeyDateDraft> = {}): KeyDateDraft {
   seq += 1;
   return { key: `kd-${Date.now()}-${seq}`, typeId: null, date: '', note: '', ...overrides };
+}
+
+/**
+ * A draft row for an already-saved key date (M7 review fix — shared by the Attachments tab and the Key dates
+ * card, which each used to keep their own copy of this).
+ */
+export function draftFrom(k: KeyDateRecord): KeyDateDraft {
+  return newKeyDateDraft({ typeId: k.type?.id ?? null, date: k.date, note: k.note ?? '', existingId: k.id });
+}
+
+/**
+ * A draft row's payload for the server, normalised the same way everywhere (M7 review fix): a blank type or note
+ * becomes `undefined` rather than an empty value, and the row's `existingId`, when set, becomes `id` — the shape
+ * `PUT /api/attachments/:id/key-dates` takes for an existing row. Harmless as an extra field on the single-row
+ * `POST`/`PUT /api/key-dates` calls, which simply ignore a key they don't declare.
+ */
+export function toKeyDateInput(draft: KeyDateDraft): { id?: number; typeId?: number; date: string; note?: string } {
+  return {
+    ...(draft.existingId !== undefined ? { id: draft.existingId } : {}),
+    typeId: draft.typeId ?? undefined,
+    date: draft.date,
+    note: draft.note === '' ? undefined : draft.note,
+  };
 }
 
 export interface KeyDateRowsProps {

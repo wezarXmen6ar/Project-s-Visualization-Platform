@@ -4,7 +4,7 @@ import type { ISODate } from '../../../shared/calendar';
 import type { KeyDateRecord, ListValue } from '../../../shared/types';
 import { api } from '../../api';
 import { FileActions } from '../../components/FileActions';
-import { KeyDateRows, newKeyDateDraft, type KeyDateDraft } from '../../components/KeyDateRows';
+import { draftFrom, KeyDateRows, newKeyDateDraft, toKeyDateInput, type KeyDateDraft } from '../../components/KeyDateRows';
 import { messagesOf } from '../../errors';
 import { AlertIcon, PlusIcon, TrashIcon } from '../../icons';
 import { useFormat } from '../../i18n/format';
@@ -18,10 +18,6 @@ export interface KeyDatesCardProps {
   today: string;
   /** Bumped by the page when something else changed (e.g. a key date was added from the Attachments tab), to reload. */
   refreshKey?: number;
-}
-
-function draftFrom(k: KeyDateRecord): KeyDateDraft {
-  return newKeyDateDraft({ typeId: k.type?.id ?? null, date: k.date, note: k.note ?? '' });
 }
 
 /** "in 12 days" / "passed 3 days ago" / "today", against the fixed 30-day window (M7 Task 9). */
@@ -56,9 +52,7 @@ export function KeyDatesCard({ projectId, keyDateTypes, today, refreshKey = 0 }:
   async function saveAdd() {
     setErrors([]);
     try {
-      await api.addKeyDate(projectId, {
-        typeId: addRow.typeId ?? undefined, date: addRow.date, note: addRow.note === '' ? undefined : addRow.note,
-      });
+      await api.addKeyDate(projectId, toKeyDateInput(addRow));
       setAdding(false);
       reload();
     } catch (err) {
@@ -75,10 +69,9 @@ export function KeyDatesCard({ projectId, keyDateTypes, today, refreshKey = 0 }:
     if (!editing) return;
     setErrors([]);
     try {
-      await api.updateKeyDate(editing.id, {
-        typeId: editRow.typeId ?? undefined, date: editRow.date, note: editRow.note === '' ? undefined : editRow.note,
-        attachmentId: editing.attachment?.id,
-      });
+      // The card's own edit form never touches the link to a file: it always sends the file back unchanged, even
+      // when there is none, so editing a key date here can never unlink it from its contract (M7 review fix).
+      await api.updateKeyDate(editing.id, { ...toKeyDateInput(editRow), attachmentId: editing.attachment?.id });
       setEditing(null);
       reload();
     } catch (err) {

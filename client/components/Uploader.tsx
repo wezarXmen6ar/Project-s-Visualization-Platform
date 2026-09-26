@@ -34,6 +34,13 @@ export interface UploaderProps {
    */
   initialFiles?: File[] | null;
   onInitialFilesConsumed?: () => void;
+  /**
+   * Restricts the picker and drop target to one file at a time (M7 review fix): set while the Key dates section
+   * has rows, since those rows are only ever linked to the single file being uploaded.
+   */
+  singleFile?: boolean;
+  /** Shown under the picker only while `singleFile` is set, explaining the restriction. */
+  singleFileHint?: string;
 }
 
 /**
@@ -42,7 +49,7 @@ export interface UploaderProps {
  */
 export function Uploader({
   projectId, typeId, phaseId, documentDate, entryId, buttonLabel, onUploaded, onBusyChange, disabled,
-  initialFiles, onInitialFilesConsumed,
+  initialFiles, onInitialFilesConsumed, singleFile, singleFileHint,
 }: UploaderProps) {
   const t = useT();
   const { fileSize } = useFormat();
@@ -91,7 +98,10 @@ export function Uploader({
 
   function addFiles(list: FileList | File[] | null) {
     if (!list || list.length === 0) return;
-    const added: PendingFile[] = Array.from(list).map((file, i) => ({
+    // Only the first file when restricted to one (M7 review fix): dropping several onto a single-file target
+    // picks the first, rather than silently uploading the rest.
+    const chosen = singleFile ? Array.from(list).slice(0, 1) : Array.from(list);
+    const added: PendingFile[] = chosen.map((file, i) => ({
       key: `${Date.now()}-${i}-${file.name}`, file, status: 'uploading', progress: 0,
     }));
     applyFiles([...filesRef.current, ...added]);
@@ -128,7 +138,7 @@ export function Uploader({
       <input
         ref={inputRef}
         type="file"
-        multiple
+        multiple={!singleFile}
         className="visually-hidden"
         aria-label={buttonLabel}
         disabled={disabled}
@@ -141,6 +151,8 @@ export function Uploader({
         <UploadIcon />
         {buttonLabel}
       </button>
+
+      {singleFile && singleFileHint ? <p className="muted">{singleFileHint}</p> : null}
 
       {files.length > 0 ? (
         <ul className="uploader-files">
