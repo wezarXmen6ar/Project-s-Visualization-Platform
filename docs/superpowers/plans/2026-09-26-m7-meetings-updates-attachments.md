@@ -46,6 +46,8 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
 - **Person documents** (added 2026-09-26):
   - Each person has their own documents, with types NDA, Police clearance, UAE ID, Passport, Company contract, Information Security Approval and Other.
   - Each document has an **optional expiry date**. The person's page and the dashboard warn 30 days ahead and mark expired ones in red.
+- **Key dates** (added 2026-09-26, user): a contract often carries several end dates (contract end, license expiry, development end, and others). Uploading a Contract asks for them; they are tracked on the project's Details tab, turn amber 30 days before and red once passed, and are reminded on the dashboard. Private to project management.
+- **Outsourced engagement states** (controller, 2026-09-26): *upcoming* (starts after today) and *engaged* people are both shown in the Outsourced section and can be assigned, so the team can plan ahead; only *past* (the end date is before today) moves to Past outsourced.
 - **Attachment types:** Approval → اعتماد, Documentation → وثائق المشروع, and **Contract → العقد** is added (user).
 
 **Deliberate choices (flag if you disagree):**
@@ -107,7 +109,7 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
   - **Never commit to `main`.**
   - On merge, every branch (`main`, `design/portfolio-spec`, `build/m1-m2`, `build/m2`…`build/m7`) is fast-forwarded.
 - **No new npm dependencies.**
-- **Database:** `node:sqlite`, with raw parameterised SQL. **Append migrations only.** Migrations 1–12 exist; M7 adds 13, 14, 15 and 16. Multi-row writes run in `transaction(db, …)`.
+- **Database:** `node:sqlite`, with raw parameterised SQL. **Append migrations only.** Migrations 1–12 exist; M7 adds 13 to 17. Multi-row writes run in `transaction(db, …)`.
 - **Files:**
   - They live under a configurable `attachmentsDir` (the `buildApp` option, default `'attachments'`), which is gitignored.
   - Stored names are `<uuid>-<sanitised original name>` inside `<attachmentsDir>/<projectId>/`, and are never overwritten.
@@ -157,7 +159,10 @@ client/gantt/Gantt.tsx                  onPieceOpen(phaseId)                    
 server/people/documents.ts              NEW: person documents (reuses attachments/files.ts)  (Task 8)
 client/pages/manage/PersonDocuments.tsx NEW: the Documents card on a person's page          (Task 8)
 client/pages/manage/ExpiringDocumentsNotice.tsx NEW: the dashboard notice                  (Task 8)
-server/demoData.ts                      demo meetings, updates, files, outsourced people, documents (Task 9)
+server/keyDates/repo.ts                 NEW: key dates on a project                          (Task 9)
+client/pages/manage/KeyDatesCard.tsx    NEW: the Key dates card on the Details tab           (Task 9)
+client/pages/manage/KeyDatesNotice.tsx  NEW: the dashboard notice for key dates              (Task 9)
+server/demoData.ts                      demo meetings, updates, files, outsourced people, documents, key dates (Task 10)
 ```
 
 ---
@@ -650,7 +655,76 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
 
 ---
 
-### Task 9: Demo meetings, updates, files, outsourced people and documents (completes M7)
+### Task 9: Key dates on a project — contract end, license expiry and more, with reminders
+
+**Why (user, 2026-09-26):** a contract often carries several end dates: the contract end, the license expiry, the development end, and others. The user wants to enter them when uploading the contract and track them on the project, with reminders.
+
+**Files:**
+- Create: `server/keyDates/repo.ts`, `client/pages/manage/KeyDatesCard.tsx`, `client/components/KeyDateRows.tsx`, `client/pages/manage/KeyDatesNotice.tsx`
+- Modify: `server/db.ts` (migration 17), `shared/types.ts` (`ListName` gains `'keyDateType'`; `KeyDateRecord`), `shared/schemas.ts`, `server/app.ts`, `server/lists/repo.ts` (the in-use rule), `server/attachments/repo.ts` (deleting an attachment keeps its key dates, unlinked), `shared/i18n/*`, `client/api.ts`, `client/pages/manage/AttachmentsTab.tsx` (the upload row and Edit), `client/pages/manage/ProjectDetailsTab.tsx`, `client/pages/manage/ManageDashboardPage.tsx`, `client/pages/manage/SettingsPage.tsx`, `client/styles.css`
+- Test: `server/keyDates/keyDates.test.ts` (new), `client/pages/manage/KeyDatesCard.test.tsx` (new), `AttachmentsTab.test.tsx`, `ManageDashboardPage.test.tsx`, `SettingsPage.test.tsx`, plus Arabic tests and the no-English guard
+
+**Migration 17:**
+```sql
+CREATE TABLE key_dates (
+  id INTEGER PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  type_id INTEGER REFERENCES list_values(id),
+  attachment_id INTEGER REFERENCES attachments(id) ON DELETE SET NULL,
+  date TEXT NOT NULL,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX key_dates_project ON key_dates(project_id);
+INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
+  ('keyDateType', 'Contract end', 'انتهاء العقد', 0),
+  ('keyDateType', 'License expiry', 'انتهاء الترخيص', 1),
+  ('keyDateType', 'Development end', 'انتهاء التطوير', 2),
+  ('keyDateType', 'Warranty end', 'انتهاء الضمان', 3),
+  ('keyDateType', 'Support end', 'انتهاء الدعم الفني', 4),
+  ('keyDateType', 'Other', 'أخرى', 5);
+```
+
+**Rules:**
+- **A key date** belongs to a project. It has a type (from the editable **Key date types** list), a date, an optional note, and optionally the file it comes from.
+- **Routes:**
+
+  | Route | Behaviour |
+  |---|---|
+  | `GET /api/projects/:id/key-dates` | List, soonest first. |
+  | `POST /api/projects/:id/key-dates` | Create. Body: `typeId`, `date`, `note`, `attachmentId` (same project only, `error.unknownAttachment`). |
+  | `PUT /api/key-dates/:id` | Update. |
+  | `DELETE /api/key-dates/:id` | Delete. |
+  | `GET /api/key-dates/upcoming?withinDays=30` | Every key date, across projects, that has passed within the last 30 days or falls within the window, with its project's name. |
+
+- **States:** *passed* when the date is before today (red); *soon* when it is within 30 days (amber); otherwise normal. A passed key date stays listed on the project, marked as passed.
+- **Deleting the file** keeps its key dates on the project, no longer linked to a file.
+- **Private to project management:** key dates never appear on the presentation side.
+
+**What the user sees:**
+- **Uploading in the Attachments tab:** when the chosen type is **Contract** (العقد), the upload row shows a **Key dates** section already open, asking for the contract's end date first, with **+ Add key date** for more (for example License expiry and Development end). Each row has a type, a date and an optional note. For other file types the section is there but collapsed. The key dates are saved after the file uploads, linked to it. Editing a file shows and edits its key dates.
+- **The project's Details tab** gets a **Key dates** card (التواريخ المهمة), soonest first: type, date (with the weekday), how long until it or since it passed ("in 12 days" / "خلال 12 يوماً", "passed 3 days ago" / "مضى عليه 3 أيام", with Arabic plurals), the note, and the linked file with Preview and Download. It has **+ Add key date** (a key date doesn't need a file), and Edit and Delete on each row.
+- **The dashboard** gets a notice when key dates are soon or have recently passed: one date reads "E-Services Mobile App: License expiry in 12 days" / "بوابة الخدمات: ينتهي الترخيص خلال 12 يوماً"; several read "3 project dates are due soon or have passed" / "3 تواريخ مهمة قريبة أو فاتت", and expand into a list with links to each project's Details tab.
+- **Settings** gets a **Key date types** list, bilingual.
+
+- [ ] **Step 1: Write the failing tests:**
+  - migration 17 upgrades a version-16 database and seeds the six types;
+  - creating a key date with an attachment from another project answers 400 `error.unknownAttachment`;
+  - `upcoming?withinDays=30` with today fixed returns a soon one and one that passed last week, but not one 60 days ahead or one that passed 2 months ago;
+  - deleting the linked attachment keeps the key date with `attachment: null`;
+  - uploading a Contract in the Attachments tab shows the Key dates section open; saving creates the file and then two key dates linked to it;
+  - the Key dates card shows a passed date in red and a soon one in amber, with the Arabic plural;
+  - the dashboard notice shows the single and the plural forms, in both languages;
+  - `/present` shows no key dates;
+  - Arabic render tests, and the no-English guard extended to the card and the upload row.
+- [ ] **Step 2:** Run the tests and confirm they FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
+- [ ] **Step 5:** Commit with `feat: key dates on a project, entered with the contract, tracked on the Details tab and reminded on the dashboard`.
+
+---
+
+### Task 10: Demo meetings, updates, files, outsourced people, documents and key dates (completes M7)
 
 **Files:**
 - Modify: `server/demoData.ts`, `server/demoData.test.ts`, `server/seed.ts` (pass the attachments folder)
@@ -679,13 +753,16 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
 - **`seedDemo`** takes an `attachmentsDir` parameter. `npm run seed` uses `'attachments'`, and tests use a temporary folder.
 - **Outsourced people:**
   - A company, **TechNova Solutions**, whose Arabic name is **تك نوفا للحلول**.
-  - **Omar Farid**, a developer, outsourced to E-Services Mobile App from 2026-11-01 to 2027-03-31. He's assigned at 60% to Increment 4 – Notifications. He doesn't appear on the heatmap.
+  - **Omar Farid**, a developer, outsourced to E-Services Mobile App from 2026-09-01 to 2027-03-31. He's assigned at 60% to Increment 4 – Notifications. He doesn't appear on the heatmap.
   - **Lena Park**, a QA engineer, outsourced to Customer Portal Revamp from 2026-03-01 to 2026-06-30. Her engagement is past, so she's in "Past outsourced".
 - **Person documents:**
   - **Fatima Noor:** a Passport expiring **2026-10-20** (expires soon), and an NDA with no expiry.
   - **Omar Farid:** a Company contract expiring 2027-03-31, and a Police clearance that **expired 2026-09-01**.
   - Hassan Ali: a UAE ID expiring 2028-05-01.
   - The files are tiny generated PDFs, as for the attachments.
+- **Key dates:**
+  - **E-Services Mobile App:** a **Contract** file "E-Services contract.pdf" with three key dates linked to it: Contract end 2027-06-30, License expiry **2026-10-15** (soon), and Development end 2027-03-31.
+  - **Case Management System:** a Support end key date on **2026-09-20** (passed last week), with no file.
 - **The M4/M5/M6 demo assertions** stay unchanged. If a count of to-dos changes because of the new follow-up, filter it in the test the way M6 did, keeping the expected values.
 
 - [ ] **Step 1: Write the failing test:**
@@ -694,11 +771,12 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
   - the Arabic project's meeting has an Arabic title, and an attachment with an Arabic file name;
   - the highlighted entries total 4;
   - Omar Farid is outsourced, engaged and absent from `workloadData`, and Lena Park is past;
-  - `expiring?withinDays=30` (today 2026-09-26) returns Fatima's passport and Omar's police clearance.
+  - `expiring?withinDays=30` (today 2026-09-26) returns Fatima's passport and Omar's police clearance;
+  - `key-dates/upcoming?withinDays=30` returns E-Services' license expiry and Case Management's support end.
 - [ ] **Step 2:** Run the test and confirm it FAILS.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run `npm test` and `npm run typecheck`, and confirm both pass.
-- [ ] **Step 5:** Commit with `feat: demo meetings, updates and files in English and Arabic`.
+- [ ] **Step 5:** Commit with `feat: demo meetings, updates, files, outsourced people, person documents and key dates`.
 
 ---
 
@@ -710,7 +788,7 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
 3. **The Attachments tab:** upload any file (a Word or Excel file, for example), filter by type, preview a PDF, download, and delete it (it goes to `attachments/_deleted`).
 4. **Click the Development bar,** then an increment. The side panel slides in from the right in English and from the left in Arabic, with that phase's history. Switch By week / By type, add an update from the panel, and close it with Escape.
 5. **To-dos from a meeting** show "من اجتماع …" / "From the meeting on …".
-6. **Settings** has the **Attachment types**, **Companies** and **Person document types** lists, in both languages.
+6. **Settings** has the **Attachment types**, **Companies**, **Person document types** and **Key date types** lists, in both languages.
 7. **Presentation → focus view:** clicking a bar shows only highlighted entries and their files, with no to-dos and no editing.
 7a. **Resources:**
    - the **Outsourced** section shows Omar Farid (TechNova) and a collapsed **Past outsourced (1)** with Lena Park;
@@ -719,6 +797,10 @@ INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
 7b. **Person documents:**
    - **Fatima Noor's page** shows her passport in amber (expires soon). Upload a UAE ID with an expiry, preview it, then delete it.
    - The **dashboard** shows the expiring-documents notice: Fatima's passport and Omar's expired police clearance.
+7c. **Key dates:**
+   - **E-Services → Details** shows the Key dates card: the license expiry in amber, the contract and development ends, each linked to the contract PDF.
+   - Upload another **Contract**: the Key dates section is open and asks for the end date; add a license expiry too.
+   - The **dashboard** shows the key-dates notice: the E-Services license and Case Management's support end.
 8. **Arabic:** the whole flow reads naturally. Review the new glossary terms.
 
 **When M7 is approved, fast-forward every branch to `build/m7`. Then write the M8 plan (progress and decisions) on `design/portfolio-spec`.**

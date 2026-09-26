@@ -247,3 +247,16 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | Outsourced (section) / Past outsourced | المتعاقدون الخارجيون / المتعاقدون السابقون | approved |
 | Company / Companies | الشركة / الشركات | approved |
 | Engagement start / end | بداية التعاقد / نهاية التعاقد | approved |
+
+## M7: key dates (proposed, 2026-09-26)
+| English | Arabic | Note |
+|---|---|---|
+| Key dates | التواريخ المهمة | proposed |
+| Key date type | نوع التاريخ | proposed |
+| Add key date | إضافة تاريخ مهم | proposed |
+| Contract end | انتهاء العقد | proposed |
+| License expiry | انتهاء الترخيص | proposed |
+| Development end | انتهاء التطوير | proposed |
+| Warranty end | انتهاء الضمان | proposed |
+| Support end | انتهاء الدعم الفني | proposed |
+| In {n} days / Passed {n} days ago | خلال {n} يوماً / مضى عليه {n} أيام (Arabic plurals) | proposed |

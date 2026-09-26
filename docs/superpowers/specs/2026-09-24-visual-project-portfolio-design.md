@@ -24,6 +24,8 @@ Feature 2 is the more important of the two, but it depends entirely on the data 
 | Cross-project ripple | Only through explicit links. Overloads **prompt a decision**: pause one project (creates a linked hold), delay a phase, split allocation, reassign, or accept the risk. Each decision is recorded as a dated event with its cause. |
 | Baselines | Baseline 1 at kickoff, and a new baseline for every approved change request, with its cause attributed. |
 | Progress | Manual % per phase. Expected % is calculated from working days elapsed, and the gap shows as a soft pace indicator. **"Late" only when the planned end passes without the phase finishing.** Early finish is allowed. |
+| Confirming done (M8, user 2026-09-26) | **Every phase and sub-phase must be confirmed as done**; reaching 100% alone does not finish it. **Mark done** asks for the date it was really finished: **today**, or **an earlier date**, because the work may have finished on time and only been recorded late. That date is the actual end: it drives early/late detection and the stakeholder charts, and a phase finished on time but recorded late is not counted as late. A phase with sub-phases is done when its last sub-phase is confirmed, with that date. |
+| Lateness warnings (M8, user 2026-09-26) | Four kinds, on the dashboard ("Needs your decision"), the project page and the phase side panel: **(1) Overdue:** a phase's planned end has passed and it is not confirmed done; it asks for the reason (cause and responsibility) and a new expected end date. **(2) Behind schedule:** % complete is clearly behind the working time used (for example 70% of the time gone and 40% done; the gap threshold is a setting), so the warning comes before the date passes, and the reason can be recorded then. **(3) Project end at risk:** from the slips so far, the likely project end date is worked out and compared with the committed end date; the warning says how many working days late and which recorded reasons caused them. **(4) Reminder before the end:** a set number of days (default 14, a setting) before each phase's and the project's planned end, whatever the progress. |
 | Effective dates | Every entry has an effective date (when it happened) separate from the date it was typed in. |
 | Early or late finish | The tool asks each time whether to shift the phases that follow: Yes / No / Partially. Late finishes also ask for the cause of the slip. |
 | Holidays | Individual dated entries or ranges, added whenever they are announced (no recurring rules). Adding one prompts to shift affected phases, and the cause is recorded as "Public holiday". |
@@ -69,6 +71,12 @@ client/   React + Vite
 - Each person keeps their own documents: NDA, police clearance, UAE ID, passport, company contract, information security approval, and others. The types are an editable list.
 - Each document has an optional expiry date. The person's page and the dashboard warn 30 days before it expires, and mark expired documents.
 - Person documents are private: they never appear on the presentation side.
+
+**Key dates (M7, user 2026-09-26):**
+- A project keeps its **key dates**: contract end, license expiry, development end, warranty end, support end, and others. The types are an editable list.
+- Uploading a **Contract** asks for its key dates (the end date first, then any more). A key date can also be added without a file.
+- They show on the project's Details tab, soonest first. Each turns amber 30 days before and red once passed, and the dashboard reminds about dates that are soon or recently passed.
+- Private to project management: never on the presentation side.
 - `Holiday`: name, start date, end date. `Leave`: resource, start date, end date. Weekend days are a setting.
 
 **Projects**
@@ -170,6 +178,12 @@ Saving creates Baseline 1.
 - Work in progress on a requirement with no approved change request is flagged as **"unapproved work in progress"**.
 - Summary line on the Requirements tab: original count and days vs added-later count and days (+%).
 - The Gantt chart marks requirements added later with an orange edge and tag.
+- **Requirements from meetings (M11, user 2026-09-26):** a meeting can record the **requirements raised** in it. Each one keeps the meeting as its source and the meeting's date as its date received, and the meeting lists the requirements it raised.
+- **Requirements bank (M11, user 2026-09-26):** a requirement that comes in during the project goes first into the project's **requirements bank** (بنك المتطلبات), whether it is within scope or out of scope, so it can be scheduled later, sent for approval, or turned into a change request. From the bank it is later **scheduled** into the plan (a development sub-phase, or an existing one), or declined and kept for the record. Each banked requirement is classed:
+  - **Within scope:** it details something already agreed. Scheduling it needs no approval.
+  - **Out of scope:** new work. It can be scheduled only with a change request (one click drafts one); until the change request is approved it counts as unapproved work.
+  - **Not decided yet:** recorded now and classed later.
+- **Three looks on the Gantt chart (M11, user 2026-09-26):** original requirements look as they do today; a requirement **added later within scope** has its own mark (for example a blue edge and tag, "added later"); a requirement **out of scope, added with a change request** has a different mark (the orange edge and a CR tag, "change request"). The hover details and the legend name each one, so stakeholders can see which work came in later and why.
 
 ### 3.6 Requirement readiness
 - Status is **Incomplete** (the default) or **Ready**.
