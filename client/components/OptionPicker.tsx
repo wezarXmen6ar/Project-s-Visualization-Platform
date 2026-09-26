@@ -109,7 +109,10 @@ export function OptionPicker({
           else onChange(e.target.value === NONE ? null : Number(e.target.value));
         }}
       >
-        {required ? null : <option value={NONE}>{noneLabel}</option>}
+        {required ? (
+          // A required field with nothing chosen yet shows a disabled prompt, rather than looking like its first choice.
+          value === null ? <option value={NONE} disabled>{t('common.choose')}</option> : null
+        ) : <option value={NONE}>{noneLabel}</option>}
         {options.map((o) => (
           <option key={o.id} value={String(o.id)}>{listName(o, lang)}</option>
         ))}

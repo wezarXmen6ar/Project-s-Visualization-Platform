@@ -39,7 +39,7 @@ export function PersonPicker({
   const [saving, setSaving] = useState(false);
 
   const options = people
-    .filter((p) => p.side === side && (p.active || p.id === value) && (!staffOnly || p.employment !== 'outsourced'))
+    .filter((p) => p.side === side && (p.active || p.id === value) && (!staffOnly || p.employment !== 'outsourced' || p.id === value))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   function closeAdd() {

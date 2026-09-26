@@ -84,7 +84,11 @@ const PERSON_REFS: { field: 'projectManagerId' | 'businessPmId'; side: Side; key
 ];
 
 /** Every chosen list value must exist in the right list, and every chosen person must exist on the right side. */
-export function checkRefs(db: DatabaseSync, details: ProjectDetails): ValidationIssue[] {
+/**
+ * `currentPmId` is the project manager already stored on the project being updated: they stay valid even if they have
+ * since become outsourced, so an unrelated edit still saves. Only choosing a new outsourced project manager is refused.
+ */
+export function checkRefs(db: DatabaseSync, details: ProjectDetails, currentPmId: number | null = null): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const { field, list, key } of LIST_REFS) {
     const id = details[field];
@@ -99,7 +103,7 @@ export function checkRefs(db: DatabaseSync, details: ProjectDetails): Validation
       | undefined;
     if (person?.side !== side) {
       issues.push({ path: field, message: translate('en', key), code: key });
-    } else if (field === 'projectManagerId' && person.employment === 'outsourced') {
+    } else if (field === 'projectManagerId' && person.employment === 'outsourced' && id !== currentPmId) {
       issues.push({ path: field, message: translate('en', 'error.pmMustBeStaff'), code: 'error.pmMustBeStaff' });
     }
   }

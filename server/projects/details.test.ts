@@ -186,6 +186,18 @@ describe('project details', () => {
     ]);
   });
 
+  it('keeps a project manager who has since become outsourced, so an unrelated edit still saves', async () => {
+    const companyId = (await app.inject({ method: 'POST', url: '/api/lists/company', payload: { name: 'TechNova' } })).json().id;
+    const created = (await app.inject({ method: 'POST', url: '/api/projects', payload: fullBody() })).json();
+    const pm = created.projectManager.id;
+    db.prepare("UPDATE resources SET employment = 'outsourced', company_id = ? WHERE id = ?").run(companyId, pm);
+    const res = await app.inject({
+      method: 'PUT', url: `/api/projects/${created.id}/details`, payload: { ...fullBody(), name: 'Renamed' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().name).toBe('Renamed');
+  });
+
   it('will not delete a person who manages a project', async () => {
     await app.inject({ method: 'POST', url: '/api/projects', payload: fullBody() });
     const res = await app.inject({ method: 'DELETE', url: `/api/resources/${ids.sara}` });

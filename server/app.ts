@@ -172,7 +172,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
   app.put<{ Params: { id: string } }>('/api/projects/:id/details', async (req, reply) => {
     const parsed = projectDetailsSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid project', issues: toIssues(parsed.error) });
-    const issues = checkRefs(db, parsed.data);
+    const issues = checkRefs(db, parsed.data, getProject(db, Number(req.params.id))?.projectManager?.id ?? null);
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid project', issues });
     const project = updateProjectDetails(db, Number(req.params.id), parsed.data, today());
     if (!project) return reply.code(404).send(err('error.projectNotFound'));
