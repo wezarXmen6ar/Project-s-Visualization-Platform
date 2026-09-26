@@ -1,17 +1,53 @@
+import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { todayLocal, type ISODate, type WorkCalendar } from '../shared/calendar';
 import {
-  leaveInputSchema, newProjectSchema, resourceInputSchema, starterToDoInputSchema, toDoInputSchema,
-  type NewProjectInput,
+  entryInputSchema, keyDateInputSchema, keyDateItemSchema, leaveInputSchema, newProjectSchema,
+  personAccountInputSchema, resourceInputSchema, starterToDoInputSchema, toDoInputSchema,
+  type EntryData, type NewProjectInput,
 } from '../shared/schemas';
-import type { AssignmentRole, ListName, Side, Specialisation } from '../shared/types';
+import type { AssignmentRole, Employment, ListName, Residence, Side, Specialisation } from '../shared/types';
+import { checkAttachmentRefs, createAttachment } from './attachments/repo';
+import { makeStoredName, writeAttachmentFile } from './attachments/files';
 import { transaction } from './db';
+import { checkEntry, createEntry } from './entries/repo';
+import { createKeyDate, replaceAttachmentKeyDates } from './keyDates/repo';
 import { addListValue } from './lists/repo';
+import { createPersonAccount } from './people/accounts';
+import { createPersonDocument } from './people/documents';
 import { createProject, getProject, listProjects } from './projects/repo';
-import { addLeave, createResource } from './resources/repo';
+import { addLeave, createResource, updateResource } from './resources/repo';
 import { setMe } from './settings';
 import { addStarter } from './starters/repo';
 import { checkToDo, createToDo } from './todos/repo';
+
+/**
+ * Builds a tiny, valid one-page PDF whose page shows `title` as text (Latin-safe; parentheses and backslashes are
+ * escaped since PDF strings use them as delimiters). Used for every demo file, so `npm run seed` and the demo
+ * tests write real PDFs through the same attachments code paths as an upload.
+ */
+export function makeDemoPdf(title: string): Buffer {
+  const text = title.replace(/[\\()]/g, (c) => `\\${c}`);
+  const stream = `BT /F1 16 Tf 40 760 Td (${text}) Tj ET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objects.forEach((obj, i) => {
+    offsets.push(Buffer.byteLength(pdf, 'latin1'));
+    pdf += `${i + 1} 0 obj\n${obj}\nendobj\n`;
+  });
+  const xrefOffset = Buffer.byteLength(pdf, 'latin1');
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return Buffer.from(pdf, 'latin1');
+}
 
 /** A person the demo projects name; seedDemo adds them to Resources first. */
 export interface DemoPerson {
@@ -22,6 +58,16 @@ export interface DemoPerson {
   capacity?: number;
   email?: string;
   phone?: string;
+  /** Defaults to 'staff'. An 'outsourced' person needs `company` and, once engaged, `engagementProject`. */
+  employment?: Employment;
+  /** Who they're contracted through: required for an outsourced person, optional for our own team. */
+  company?: string;
+  /** Resolved to an id once every demo project exists (seedDemo's second pass over DEMO_PEOPLE). */
+  engagementProject?: string;
+  engagementStart?: ISODate;
+  engagementEnd?: ISODate;
+  /** Tech side only; information only. */
+  residence?: Residence;
 }
 
 export const DEMO_PEOPLE: DemoPerson[] = [
@@ -33,13 +79,24 @@ export const DEMO_PEOPLE: DemoPerson[] = [
   { name: 'Mariam Al Suwaidi', side: 'business', phone: '+971 50 123 4567', email: 'mariam.alsuwaidi@example.com' },
   { name: 'Noura Al Hammadi', side: 'business', phone: '055 234 5678' },
   { name: 'Ahmed Al Zaabi', side: 'business', email: 'ahmed.alzaabi@example.com' },
-  { name: 'Hassan Ali', side: 'tech', role: 'Tech lead', specialisation: 'full-stack', email: 'hassan.ali@example.com' },
-  { name: 'Fatima Noor', side: 'tech', role: 'Developer', specialisation: 'front-end' },
+  {
+    name: 'Hassan Ali', side: 'tech', role: 'Tech lead', specialisation: 'full-stack', email: 'hassan.ali@example.com',
+    company: 'TechNova Solutions', residence: 'abroad',
+  },
+  { name: 'Fatima Noor', side: 'tech', role: 'Developer', specialisation: 'front-end', residence: 'uae' },
   { name: 'Rami Saleh', side: 'tech', role: 'Developer', specialisation: 'back-end', capacity: 80 },
   { name: 'Aisha Khan', side: 'tech', role: 'Business analyst' },
   { name: 'Mei Chen', side: 'tech', role: 'Designer' },
   { name: 'Priya Das', side: 'tech', role: 'QA' },
   { name: 'Jonas Weber', side: 'tech', role: 'InfoSec' },
+  {
+    name: 'Omar Farid', side: 'tech', role: 'Developer', employment: 'outsourced', company: 'TechNova Solutions',
+    engagementProject: 'E-Services Mobile App', engagementStart: '2026-09-01', engagementEnd: '2027-03-31', residence: 'abroad',
+  },
+  {
+    name: 'Lena Park', side: 'tech', role: 'QA', employment: 'outsourced', company: 'TechNova Solutions',
+    engagementProject: 'Customer Portal Revamp', engagementStart: '2026-03-01', engagementEnd: '2026-06-30',
+  },
 ];
 
 /** Leave booked for the demo team. */
@@ -125,6 +182,7 @@ export const DEMO_NAMES_AR: Record<string, string> = {
   'mainProject:Records Modernisation': 'تحديث السجلات',
   'mainProject:Digital Services': 'الخدمات الرقمية',
   [`goal:${CUSTOMER_EXPERIENCE}`]: 'تحسين تجربة المتعاملين',
+  'company:TechNova Solutions': 'تك نوفا للحلول',
 };
 
 /** The demo's one fully Arabic project, so right-to-left and mixed-direction text can be reviewed. */
@@ -295,7 +353,10 @@ export const DEMO_PROJECTS: DemoProject[] = [
           },
           {
             name: 'Increment 4 – Notifications', durationDays: 20,
-            team: [{ person: 'Fatima Noor', allocation: 60, role: 'responsible' }],
+            team: [
+              { person: 'Fatima Noor', allocation: 60, role: 'responsible' },
+              { person: 'Omar Farid', allocation: 60, role: 'contributor' },
+            ],
           },
         ],
       },
@@ -384,6 +445,168 @@ export const DEMO_STARTERS: Record<string, string[]> = {
   Deployment: ['Confirm the release window with operations', 'Prepare the rollback plan'],
 };
 
+/** A meeting-minutes or similar file, named by its attachment type from the Attachment types list. */
+export interface DemoEntryAttachment {
+  fileName: string;
+  typeName: string;
+  documentDate?: ISODate | null;
+}
+
+export interface DemoFollowUp {
+  title: string;
+  assignee: string | null;
+  due: ISODate | null;
+}
+
+/** A meeting or update seeded on a project's History tab. */
+export interface DemoEntry {
+  project: string;
+  type: 'meeting' | 'update';
+  title: string;
+  effectiveDate: ISODate;
+  phase?: string | null;
+  /** Meetings only: people from Resources. */
+  attendees?: string[];
+  /** Meetings only: anyone typed in who isn't in Resources. */
+  guestNames?: string[];
+  body?: string;
+  highlight?: boolean;
+  /** Meetings only, created in the same save as the entry. */
+  followUps?: DemoFollowUp[];
+  attachment?: DemoEntryAttachment;
+}
+
+/**
+ * Meetings and updates seeded across the demo (M7 Task 10). Each meeting's own file, when it has one, is
+ * uploaded first and linked when the entry is created, the same order the entry form itself uses.
+ */
+export const DEMO_ENTRIES: DemoEntry[] = [
+  {
+    project: 'E-Services Mobile App',
+    type: 'meeting',
+    title: 'Requirements workshop',
+    effectiveDate: '2026-10-07',
+    phase: 'Requirements gathering',
+    attendees: ['Aisha Khan', 'Sara Ahmed', 'Mariam Al Suwaidi'],
+    guestNames: ['Khalid Al Mansoori (Dubai Police IT)'],
+    body:
+      'Walked through the current e-services and the requests customers raise most often. The business confirmed ' +
+      'push notifications and request tracking are the top priorities for the first release. Dubai Police IT ' +
+      "joined to discuss the identity check on the app's sign-in flow.",
+    highlight: true,
+    followUps: [{ title: 'Share the draft requirements list', assignee: 'Aisha Khan', due: '2026-10-14' }],
+    attachment: { fileName: 'Requirements workshop minutes.pdf', typeName: 'Meeting Minutes' },
+  },
+  {
+    project: 'E-Services Mobile App',
+    type: 'update',
+    title: 'Requirements gathering on track',
+    effectiveDate: '2026-10-16',
+    body: 'The draft requirements list from the workshop is being reviewed with the business; no open risks so far.',
+    highlight: false,
+  },
+  {
+    project: 'Case Management System',
+    type: 'update',
+    title: 'UAT signed off by the business',
+    effectiveDate: '2026-10-09',
+    phase: 'UAT',
+    body: 'The business completed User Acceptance Testing and signed off; deployment planning starts next.',
+    highlight: true,
+  },
+  {
+    project: 'Customer Portal Revamp',
+    type: 'meeting',
+    title: 'Launch go/no-go',
+    effectiveDate: '2026-06-16',
+    phase: 'Launch',
+    attendees: ['Sara Ahmed', 'Mariam Al Suwaidi'],
+    body: 'Reviewed the go-live checklist and the outstanding defects. The team gave a go for launch this week.',
+    highlight: true,
+  },
+  {
+    project: DEMO_ARABIC_PROJECT,
+    type: 'meeting',
+    title: 'ورشة جمع المتطلبات',
+    effectiveDate: '2027-01-13',
+    phase: 'Requirements gathering',
+    attendees: ['Aisha Khan', 'Mariam Al Suwaidi'],
+    body:
+      'استعرض الفريق مع ممثلي الجهات المستفيدة قائمة الخدمات المرشحة للإطلاق الأول، واتُّفق على أن يكون الدخول ' +
+      'الموحّد عبر الهوية الرقمية أولوية قصوى قبل بدء التصميم.',
+    highlight: true,
+    attachment: { fileName: 'محضر ورشة المتطلبات.pdf', typeName: 'Meeting Minutes' },
+  },
+];
+
+/** A standalone file (not attached to any meeting or update) seeded on a project. */
+export interface DemoAttachment {
+  project: string;
+  phase?: string | null;
+  typeName: string;
+  fileName: string;
+  documentDate?: ISODate | null;
+}
+
+export const DEMO_ATTACHMENTS: DemoAttachment[] = [
+  { project: 'Case Management System', phase: 'UAT', typeName: 'Approval', fileName: 'UAT sign-off.pdf', documentDate: '2026-10-09' },
+  { project: 'Customer Portal Revamp', phase: 'QA', typeName: 'Test Report', fileName: 'QA test report.pdf' },
+];
+
+/** A person document seeded on the demo team (M7 Task 10), with types from the Person document types list. */
+export interface DemoPersonDocument {
+  person: string;
+  typeName: string;
+  fileName: string;
+  expiryDate: ISODate | null;
+}
+
+export const DEMO_PERSON_DOCUMENTS: DemoPersonDocument[] = [
+  { person: 'Fatima Noor', typeName: 'Passport', fileName: 'Fatima Noor passport.pdf', expiryDate: '2026-10-20' },
+  { person: 'Fatima Noor', typeName: 'NDA', fileName: 'Fatima Noor NDA.pdf', expiryDate: null },
+  { person: 'Omar Farid', typeName: 'Company contract', fileName: 'Omar Farid company contract.pdf', expiryDate: '2027-03-31' },
+  { person: 'Omar Farid', typeName: 'Police clearance', fileName: 'Omar Farid police clearance.pdf', expiryDate: '2026-09-01' },
+  { person: 'Hassan Ali', typeName: 'UAE ID', fileName: 'Hassan Ali UAE ID.pdf', expiryDate: '2028-05-01' },
+];
+
+/** A person's work account seeded on the demo team (M7 Task 10), with types from the Account types list. */
+export interface DemoPersonAccount {
+  person: string;
+  typeName: string;
+  expiryDate: ISODate;
+  remindDays: number;
+}
+
+export const DEMO_PERSON_ACCOUNTS: DemoPersonAccount[] = [
+  { person: 'Fatima Noor', typeName: 'Network account', expiryDate: '2026-10-16', remindDays: 30 },
+  { person: 'Hassan Ali', typeName: 'VPN', expiryDate: '2026-12-20', remindDays: 45 },
+];
+
+/**
+ * Builds a demo PDF, writes it under `dir`'s attachments folder, and creates the attachment row, validating the
+ * given references first (the same order the upload route follows). Returns the new attachment's id.
+ */
+function addDemoAttachment(
+  db: DatabaseSync, attachmentsDir: string, projectId: number,
+  data: { phaseId: number | null; entryId: number | null; typeId: number | null; fileName: string; documentDate: ISODate | null },
+): number {
+  const issues = checkAttachmentRefs(db, projectId, data);
+  if (issues.length > 0) throw new Error(`Demo attachment invalid (${data.fileName}): ${issues.map((i) => i.message).join('; ')}`);
+  const pdf = makeDemoPdf(data.fileName);
+  const dir = join(attachmentsDir, String(projectId));
+  const storedName = makeStoredName(data.fileName);
+  writeAttachmentFile(dir, storedName, pdf);
+  const created = createAttachment(
+    db, projectId,
+    {
+      phaseId: data.phaseId, entryId: data.entryId, typeId: data.typeId, originalName: data.fileName, storedName,
+      mime: 'application/pdf', size: pdf.length, documentDate: data.documentDate,
+    },
+    new Date().toISOString(),
+  );
+  return created.id;
+}
+
 export function toProjectInput(
   demo: DemoProject,
   idFor: (list: ListName, name: string) => number,
@@ -415,8 +638,12 @@ export function toProjectInput(
   };
 }
 
-/** Adds the demo people, then every demo project (and any list values they name), in one transaction. */
-export function seedDemo(db: DatabaseSync, cal: WorkCalendar): number {
+/**
+ * Adds the demo people, then every demo project (and any list values they name), in one transaction.
+ * `attachmentsDir` is where every demo file (meeting minutes, contracts, person documents…) is written; `npm run
+ * seed` uses `'attachments'` and tests pass a temporary folder.
+ */
+export function seedDemo(db: DatabaseSync, cal: WorkCalendar, attachmentsDir = 'attachments'): number {
   transaction(db, () => {
     const idFor = (list: ListName, name: string) =>
       addListValue(db, list, name, DEMO_NAMES_AR[`${list}:${name}`] ?? null).value.id;
@@ -425,11 +652,18 @@ export function seedDemo(db: DatabaseSync, cal: WorkCalendar): number {
       const data = resourceInputSchema.parse({
         name: p.name,
         side: p.side,
+        employment: p.employment ?? 'staff',
         roleId: p.role ? idFor('role', p.role) : null,
         specialisation: p.specialisation ?? null,
         capacity: p.capacity ?? 100,
         email: p.email ?? null,
         phone: p.phone ?? null,
+        companyId: p.company ? idFor('company', p.company) : null,
+        // Outsourced people are only linked to their engagement project once every demo project exists (below).
+        engagementProjectId: null,
+        engagementStart: p.engagementStart ?? null,
+        engagementEnd: p.engagementEnd ?? null,
+        residence: p.residence ?? null,
       });
       people.set(p.name, createResource(db, data).id);
     }
@@ -460,6 +694,106 @@ export function seedDemo(db: DatabaseSync, cal: WorkCalendar): number {
       if (!sub) throw new Error(`Demo to-do phase not found: ${path}`);
       return sub.id;
     };
+
+    // Now that every demo project exists, link each outsourced person to their engagement project.
+    for (const p of DEMO_PEOPLE) {
+      if (p.employment !== 'outsourced' || !p.engagementProject) continue;
+      const data = resourceInputSchema.parse({
+        name: p.name,
+        side: p.side,
+        employment: 'outsourced',
+        roleId: p.role ? idFor('role', p.role) : null,
+        specialisation: p.specialisation ?? null,
+        capacity: p.capacity ?? 100,
+        email: p.email ?? null,
+        phone: p.phone ?? null,
+        companyId: idFor('company', p.company!),
+        engagementProjectId: projectId(p.engagementProject),
+        engagementStart: p.engagementStart ?? null,
+        engagementEnd: p.engagementEnd ?? null,
+        residence: p.residence ?? null,
+      });
+      updateResource(db, personId(p.name), data);
+    }
+
+    // Meetings, updates and their files (M7 Task 10). A meeting's own file is uploaded before the entry, then
+    // linked when the entry is created — the same order the entry form itself follows.
+    for (const spec of DEMO_ENTRIES) {
+      const pid = projectId(spec.project);
+      let attachmentId: number | null = null;
+      if (spec.attachment) {
+        attachmentId = addDemoAttachment(db, attachmentsDir, pid, {
+          phaseId: null, entryId: null, typeId: idFor('attachmentType', spec.attachment.typeName),
+          fileName: spec.attachment.fileName, documentDate: spec.attachment.documentDate ?? null,
+        });
+      }
+      const data: EntryData = entryInputSchema.parse({
+        type: spec.type,
+        effectiveDate: spec.effectiveDate,
+        title: spec.title,
+        body: spec.body ?? '',
+        phaseId: resolvePhaseId(pid, spec.phase ?? null),
+        highlight: spec.highlight ?? false,
+        attendeeIds: (spec.attendees ?? []).map(personId),
+        guestNames: spec.guestNames ?? [],
+        followUps: (spec.followUps ?? []).map((f) => ({
+          title: f.title, assigneeId: f.assignee ? personId(f.assignee) : null, dueDate: f.due,
+        })),
+        attachmentIds: attachmentId !== null ? [attachmentId] : [],
+      });
+      const issues = checkEntry(db, pid, data);
+      if (issues.length > 0) throw new Error(`Demo entry invalid (${spec.title}): ${issues.map((i) => i.message).join('; ')}`);
+      createEntry(db, pid, data);
+    }
+
+    // Standalone files, not attached to any meeting or update.
+    for (const a of DEMO_ATTACHMENTS) {
+      const pid = projectId(a.project);
+      addDemoAttachment(db, attachmentsDir, pid, {
+        phaseId: resolvePhaseId(pid, a.phase ?? null), entryId: null, typeId: idFor('attachmentType', a.typeName),
+        fileName: a.fileName, documentDate: a.documentDate ?? null,
+      });
+    }
+
+    // E-Services' contract carries three key dates, linked to it in one save the way the upload flow saves them.
+    const eServicesId = projectId('E-Services Mobile App');
+    const contractId = addDemoAttachment(db, attachmentsDir, eServicesId, {
+      phaseId: null, entryId: null, typeId: idFor('attachmentType', 'Contract'), fileName: 'E-Services contract.pdf', documentDate: null,
+    });
+    const contractKeyDates = [
+      { typeId: idFor('keyDateType', 'Contract end'), date: '2027-06-30' },
+      { typeId: idFor('keyDateType', 'License expiry'), date: '2026-10-15' },
+      { typeId: idFor('keyDateType', 'Development end'), date: '2027-03-31' },
+    ].map((item) => keyDateItemSchema.parse(item));
+    const replaced = replaceAttachmentKeyDates(db, contractId, contractKeyDates, new Date().toISOString(), todayLocal());
+    if (!replaced || 'issues' in replaced) throw new Error("Demo key dates invalid for E-Services' contract");
+
+    // Case Management's support end key date has no file.
+    const caseMgmtId = projectId('Case Management System');
+    const supportEnd = keyDateInputSchema.parse({ typeId: idFor('keyDateType', 'Support end'), date: '2026-09-20', attachmentId: null });
+    createKeyDate(db, caseMgmtId, supportEnd, new Date().toISOString(), todayLocal());
+
+    // Person documents and work accounts (M7 Task 8), with files written the same way as attachments.
+    for (const d of DEMO_PERSON_DOCUMENTS) {
+      const resourceId = personId(d.person);
+      const pdf = makeDemoPdf(d.fileName);
+      const dir = join(attachmentsDir, 'people', String(resourceId));
+      const storedName = makeStoredName(d.fileName);
+      writeAttachmentFile(dir, storedName, pdf);
+      createPersonDocument(
+        db, resourceId,
+        {
+          typeId: idFor('personDocumentType', d.typeName), originalName: d.fileName, storedName, mime: 'application/pdf',
+          size: pdf.length, expiryDate: d.expiryDate, note: null,
+        },
+        new Date().toISOString(), todayLocal(),
+      );
+    }
+    for (const a of DEMO_PERSON_ACCOUNTS) {
+      const data = personAccountInputSchema.parse({ typeId: idFor('accountType', a.typeName), expiryDate: a.expiryDate, remindDays: a.remindDays });
+      createPersonAccount(db, personId(a.person), data, new Date().toISOString(), todayLocal());
+    }
+
     for (const t of DEMO_TODOS) {
       const pid = projectId(t.project);
       const data = toDoInputSchema.parse({

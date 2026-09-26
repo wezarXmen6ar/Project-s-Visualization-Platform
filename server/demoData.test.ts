@@ -1,4 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { DatabaseSync } from 'node:sqlite';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { buildApp } from './app';
 import { DEFAULT_CALENDAR } from '../shared/calendar';
 import { newProjectSchema } from '../shared/schemas';
 import { computeWorkload } from '../shared/capacity';
@@ -8,9 +13,23 @@ import { openDb } from './db';
 import { DEMO_ARABIC_PROJECT, DEMO_PEOPLE, DEMO_PROJECTS, seedDemo, toProjectInput } from './demoData';
 import { getLists } from './lists/repo';
 import { listProjects } from './projects/repo';
+import { listResources } from './resources/repo';
 import { getMe } from './settings';
 import { listStarters } from './starters/repo';
 import { listToDos } from './todos/repo';
+import { listEntries } from './entries/repo';
+import { getAttachmentFile, listAttachments } from './attachments/repo';
+import { listKeyDates } from './keyDates/repo';
+
+let dir: string;
+
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'pvp-demo-data-'));
+});
+
+afterEach(() => {
+  rmSync(dir, { recursive: true, force: true });
+});
 
 describe('DEMO_PROJECTS', () => {
   it('are all valid projects with unique names', () => {
@@ -29,7 +48,7 @@ describe('DEMO_PROJECTS', () => {
 describe('seedDemo', () => {
   it('adds every demo project with its details, grouping some under main projects', () => {
     const db = openDb(':memory:');
-    expect(seedDemo(db, DEFAULT_CALENDAR)).toBe(DEMO_PROJECTS.length);
+    expect(seedDemo(db, DEFAULT_CALENDAR, dir)).toBe(DEMO_PROJECTS.length);
 
     const projects = listProjects(db);
     expect(projects).toHaveLength(DEMO_PROJECTS.length);
@@ -59,7 +78,7 @@ describe('seedDemo', () => {
 
   it('staffs every demo phase and shows real overbookings and leave around October 2026', () => {
     const db = openDb(':memory:');
-    seedDemo(db, DEFAULT_CALENDAR);
+    seedDemo(db, DEFAULT_CALENDAR, dir);
     for (const p of listProjects(db)) {
       for (const ph of p.phases) {
         expect(p.assignments.some((a) => a.phaseId === ph.id)).toBe(true);
@@ -84,7 +103,7 @@ describe('seedDemo', () => {
 
   it('splits E-Services development into increments, and gives the PM to-dos and starter checklists', () => {
     const db = openDb(':memory:');
-    seedDemo(db, DEFAULT_CALENDAR);
+    seedDemo(db, DEFAULT_CALENDAR, dir);
     const app = listProjects(db).find((p) => p.name === 'E-Services Mobile App')!;
     const dev = app.phases.find((ph) => ph.name === 'Development')!;
     expect(dev).toMatchObject({ start: '2026-11-30', end: '2027-02-19' });
@@ -109,7 +128,9 @@ describe('seedDemo', () => {
       'Check the go-live checklist with operations',
       'Share the release plan with the business',
     ]);
-    const all = listToDos(db, { includeDone: true }).filter(english);
+    // A follow-up to-do from the Requirements workshop meeting (M7 Task 10) is checked in its own test; this one
+    // keeps the M5 demo's original count.
+    const all = listToDos(db, { includeDone: true }).filter(english).filter((t) => t.sourceEntry === null);
     expect(all).toHaveLength(10);
     expect(all.find((t) => t.title.startsWith('Review the payment'))?.phase?.name).toBe('Development › Increment 3 – Payments');
     expect(all.find((t) => t.title === 'Confirm the security testing slot')).toMatchObject({ done: true, doneDate: '2026-09-24' });
@@ -119,7 +140,7 @@ describe('seedDemo', () => {
 
   it('adds one fully Arabic project, and Arabic names for the demo list values', () => {
     const db = openDb(':memory:');
-    expect(seedDemo(db, DEFAULT_CALENDAR)).toBe(7);
+    expect(seedDemo(db, DEFAULT_CALENDAR, dir)).toBe(7);
     const arabic = /[؀-ۿ]/;
     const latinWords = /[A-Za-z]{2,}/;
 
@@ -150,5 +171,146 @@ describe('seedDemo', () => {
       expect(t.title).not.toMatch(latinWords);
       expect(t.assignee?.name).toBe('Sara Ahmed');
     }
+  });
+
+  // M7 Task 10: meetings, updates, files, outsourced people, person documents and key dates.
+  describe('demo meetings, updates, files, outsourced people, person documents and key dates', () => {
+    let db: DatabaseSync;
+    let app: ReturnType<typeof buildApp>;
+
+    beforeEach(() => {
+      db = openDb(':memory:');
+      seedDemo(db, DEFAULT_CALENDAR, dir);
+      app = buildApp(db, { attachmentsDir: dir, today: () => '2026-09-26' });
+    });
+
+    function resourceByName(name: string) {
+      return listResources(db).find((r) => r.name === name)!;
+    }
+
+    it('gives E-Services two entries: a highlighted workshop with attendees, a follow-up and a minutes file', () => {
+      const eServices = listProjects(db).find((p) => p.name === 'E-Services Mobile App')!;
+      const entries = listEntries(db, eServices.id);
+      expect(entries).toHaveLength(2);
+
+      const workshop = entries.find((e) => e.title === 'Requirements workshop')!;
+      expect(workshop.highlight).toBe(true);
+      expect(workshop.attendees.map((a) => a.name).sort()).toEqual(['Aisha Khan', 'Mariam Al Suwaidi', 'Sara Ahmed']);
+      expect(workshop.guests).toEqual(['Khalid Al Mansoori (Dubai Police IT)']);
+      expect(workshop.followUpToDoIds).toHaveLength(1);
+      const followUp = listToDos(db, { includeDone: true }).find((t) => t.id === workshop.followUpToDoIds[0])!;
+      expect(followUp).toMatchObject({ title: 'Share the draft requirements list', dueDate: '2026-10-14' });
+      expect(followUp.assignee?.name).toBe('Aisha Khan');
+
+      expect(workshop.attachmentIds).toHaveLength(1);
+      const attachment = listAttachments(db, eServices.id).find((a) => a.id === workshop.attachmentIds[0])!;
+      expect(attachment.name).toBe('Requirements workshop minutes.pdf');
+      const file = getAttachmentFile(db, attachment.id)!;
+      const bytes = readFileSync(join(dir, String(eServices.id), file.storedName));
+      expect(bytes.subarray(0, 4).toString('latin1')).toBe('%PDF');
+
+      const update = entries.find((e) => e.title === 'Requirements gathering on track')!;
+      expect(update.highlight).toBe(false);
+    });
+
+    it('gives the Arabic project a highlighted workshop with an Arabic title and an Arabic file name', () => {
+      const project = listProjects(db).find((p) => p.name === DEMO_ARABIC_PROJECT)!;
+      const entries = listEntries(db, project.id);
+      const workshop = entries.find((e) => e.title === 'ورشة جمع المتطلبات')!;
+      expect(workshop.highlight).toBe(true);
+      expect(workshop.attachmentIds).toHaveLength(1);
+      const attachment = listAttachments(db, project.id).find((a) => a.id === workshop.attachmentIds[0])!;
+      expect(attachment.name).toBe('محضر ورشة المتطلبات.pdf');
+      const file = getAttachmentFile(db, attachment.id)!;
+      const bytes = readFileSync(join(dir, String(project.id), file.storedName));
+      expect(bytes.subarray(0, 4).toString('latin1')).toBe('%PDF');
+    });
+
+    it('highlights exactly 4 entries across the demo', () => {
+      const highlighted = listProjects(db).flatMap((p) => listEntries(db, p.id)).filter((e) => e.highlight);
+      expect(highlighted).toHaveLength(4);
+    });
+
+    it('every demo attachment and person-document file exists on disk and starts with %PDF', () => {
+      for (const p of listProjects(db)) {
+        for (const a of listAttachments(db, p.id)) {
+          const file = getAttachmentFile(db, a.id)!;
+          const bytes = readFileSync(join(dir, String(p.id), file.storedName));
+          expect(bytes.subarray(0, 4).toString('latin1')).toBe('%PDF');
+        }
+      }
+    });
+
+    it('outsources Omar Farid to E-Services, engaged, and absent from workloadData; Lena Park shows as past', () => {
+      const omar = resourceByName('Omar Farid');
+      expect(omar.employment).toBe('outsourced');
+      expect(omar.engagement).toBe('engaged');
+      expect(omar.engagementProject).toEqual({ id: expect.any(Number), name: 'E-Services Mobile App' });
+      expect(omar.company?.name).toBe('TechNova Solutions');
+      expect(omar.residence).toBe('abroad');
+
+      const load = workloadData(db);
+      expect(load.resources.map((r) => r.name)).not.toContain('Omar Farid');
+
+      const eServices = listProjects(db).find((p) => p.name === 'E-Services Mobile App')!;
+      const increment4 = eServices.phases.find((p) => p.name === 'Development')!.subPhases.find((s) => s.name.startsWith('Increment 4'))!;
+      expect(eServices.assignments.some((a) => a.phaseId === increment4.id && a.resource.name === 'Omar Farid')).toBe(true);
+
+      const lena = resourceByName('Lena Park');
+      expect(lena.employment).toBe('outsourced');
+      expect(lena.engagement).toBe('past');
+    });
+
+    it('has Hassan Ali as staff, contracted through TechNova, and Fatima Noor living in the UAE', () => {
+      const hassan = resourceByName('Hassan Ali');
+      expect(hassan.employment).toBe('staff');
+      expect(hassan.company?.name).toBe('TechNova Solutions');
+      expect(hassan.residence).toBe('abroad');
+
+      const fatima = resourceByName('Fatima Noor');
+      expect(fatima.residence).toBe('uae');
+    });
+
+    it('GET /api/people/expiring?withinDays=30 returns Fatima\'s passport, Omar\'s police clearance and Fatima\'s network account, not Hassan\'s VPN', async () => {
+      const res = await app.inject({ method: 'GET', url: '/api/people/expiring?withinDays=30' });
+      expect(res.statusCode).toBe(200);
+      const items = res.json() as { kind: string; name: string | null; person: { name: string }; state: string }[];
+
+      const passport = items.find((i) => i.kind === 'document' && i.person.name === 'Fatima Noor' && i.name?.includes('passport'));
+      expect(passport?.state).toBe('soon');
+
+      const clearance = items.find((i) => i.kind === 'document' && i.person.name === 'Omar Farid' && i.name?.includes('police'));
+      expect(clearance?.state).toBe('expired');
+
+      const network = items.find((i) => i.kind === 'account' && i.person.name === 'Fatima Noor');
+      expect(network).toBeDefined();
+
+      expect(items.some((i) => i.kind === 'account' && i.person.name === 'Hassan Ali')).toBe(false);
+    });
+
+    it('GET /api/key-dates/upcoming?withinDays=30 returns the E-Services license expiry and Case Management support end', async () => {
+      const res = await app.inject({ method: 'GET', url: '/api/key-dates/upcoming?withinDays=30' });
+      expect(res.statusCode).toBe(200);
+      const items = res.json() as { project: { name: string }; type: { name: string } | null; date: string }[];
+
+      expect(items.some((i) => i.project.name === 'E-Services Mobile App' && i.type?.name === 'License expiry' && i.date === '2026-10-15')).toBe(
+        true,
+      );
+      expect(
+        items.some((i) => i.project.name === 'Case Management System' && i.type?.name === 'Support end' && i.date === '2026-09-20'),
+      ).toBe(true);
+    });
+
+    it("links E-Services' three key dates to its Contract attachment, and gives Case Management's support end no file", () => {
+      const eServices = listProjects(db).find((p) => p.name === 'E-Services Mobile App')!;
+      const keyDates = listKeyDates(db, eServices.id, '2026-09-26');
+      expect(keyDates).toHaveLength(3);
+      for (const kd of keyDates) expect(kd.attachment?.name).toBe('E-Services contract.pdf');
+
+      const caseMgmt = listProjects(db).find((p) => p.name === 'Case Management System')!;
+      const supportEnd = listKeyDates(db, caseMgmt.id, '2026-09-26').find((kd) => kd.type?.name === 'Support end')!;
+      expect(supportEnd.attachment).toBeNull();
+      expect(supportEnd.date).toBe('2026-09-20');
+    });
   });
 });

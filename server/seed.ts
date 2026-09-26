@@ -11,5 +11,5 @@ if (n > 0 && !process.argv.includes('--force')) {
   console.log(`The database already has ${n} project(s), so nothing was added.`);
   console.log('Run "npm run seed -- --force" to add the demo projects anyway.');
 } else {
-  console.log(`Added ${seedDemo(db, getCalendar(db))} demo projects.`);
+  console.log(`Added ${seedDemo(db, getCalendar(db), 'attachments')} demo projects.`);
 }
