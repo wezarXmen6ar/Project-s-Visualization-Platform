@@ -277,6 +277,9 @@ All read-only. The only exception is saving a sandbox scenario as a *proposed* c
 ### 4.2 Portfolio Gantt chart
 Every project in parallel, grouped by main project with summary bars. **Hold bars are hatched, with an arrow to the project that received the resources** (labelled, e.g. "3 devs"); arrows stay faint until hovered. Dependency arrows. Filters: all, hand-picked, by main project, department, category or status.
 
+- **Presenting to one business owner (user, 2026-09-26):** a **Department** (الجهة) filter on the presentation dashboard and the portfolio shows only that department's projects, and the dashboard's tiles, charts and "Waiting on you" follow it (M8 for the filter; the later panels follow it as they arrive).
+- **Context from other departments (M11):** a project the department doesn't own appears only if it affected one of theirs: it took their people in a hold, one of their projects depends on it, or it caused a recorded delay to one of theirs. It shows as a **faded row** labelled with how, e.g. "took 2 developers from Smart Services Portal, 3–24 Mar (+15 days)", with the arrow between them. Its own details stay minimal (name, dates, the effect).
+
 ### 4.3 Focus mode (one project)
 - The phase and requirement Gantt chart with dashed baseline outlines, added-later markers, grey "waiting for business input" segments, hold bars and ⭐ milestones.
 - Clicking anything opens a read-only side panel that shows only highlighted entries.
