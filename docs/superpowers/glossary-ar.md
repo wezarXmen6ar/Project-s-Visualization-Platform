@@ -238,11 +238,11 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | Passport | جواز السفر | user |
 | Company contract | عقد الشركة | user |
 | Information Security Approval | موافقة أمن المعلومات | user |
-| Documents (a person's) | الوثائق | proposed |
-| Upload document | رفع وثيقة | proposed |
-| Expiry date | تاريخ الانتهاء | proposed |
-| Expired / Expires in {n} days | منتهية / تنتهي خلال {n} يوماً (Arabic plurals) | proposed |
-| Our team / Outsourced | فريقنا / متعاقد خارجي | proposed |
-| Outsourced (section) / Past outsourced | المتعاقدون الخارجيون / المتعاقدون السابقون | proposed |
-| Company / Companies | الشركة / الشركات | proposed |
-| Engagement start / end | بداية التعاقد / نهاية التعاقد | proposed |
+| Documents (a person's) | الوثائق | approved |
+| Upload document | رفع وثيقة | approved |
+| Expiry date | تاريخ الانتهاء | approved |
+| Expired / Expires in {n} days | منتهية / تنتهي خلال {n} يوماً (Arabic plurals) | approved |
+| Our team / Outsourced | فريقنا / متعاقد خارجي | approved |
+| Outsourced (section) / Past outsourced | المتعاقدون الخارجيون / المتعاقدون السابقون | approved |
+| Company / Companies | الشركة / الشركات | approved |
+| Engagement start / end | بداية التعاقد / نهاية التعاقد | approved |
