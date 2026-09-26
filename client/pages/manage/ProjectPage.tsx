@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DEFAULT_CALENDAR, countWorkingDays, todayLocal } from '../../../shared/calendar';
 import { projectSpan } from '../../../shared/scheduler';
@@ -11,30 +11,25 @@ import { phaseRows, rangeFor } from '../../gantt/rows';
 import { useElementWidth } from '../../gantt/useElementWidth';
 import { useFormat } from '../../i18n/format';
 import { useLang, useT } from '../../i18n/LanguageProvider';
-import { listName, phaseName } from '../../i18n/listNames';
+import { phaseName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { useLists } from '../../useLists';
 import { useMe } from '../../useMe';
 import { useResources } from '../../useResources';
 import { useWorkload } from '../../useWorkload';
-import { CATEGORY_KEY, PRIORITY_KEY, SCOPE_TABLES, beneficiaryLabel, requesterLabel } from './labels';
 import { NextUp } from './NextUp';
+import { ProjectDetailsTab } from './ProjectDetailsTab';
 import { ProjectPeople } from './ProjectPeople';
+import { ProjectTabs, type ProjectTab } from './ProjectTabs';
 import { ProjectToDos, useProjectToDos } from './ProjectToDos';
 import { StarterOffer } from './StarterOffer';
 
-function Detail({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
-}
+const TAB_KEYS = ['history', 'todos', 'people', 'attachments', 'details'] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+const DEFAULT_TAB: TabKey = 'history';
 
-/** A person's name as user content, so a Latin name reads correctly inside Arabic (and the other way round). */
-function PersonName({ name }: { name: string }) {
-  return <span dir="auto" data-user-content="">{name}</span>;
+function isTabKey(value: string | null): value is TabKey {
+  return value !== null && (TAB_KEYS as readonly string[]).includes(value);
 }
 
 export function ProjectPage() {
@@ -45,6 +40,7 @@ export function ProjectPage() {
   const id = Number(useParams().id);
   const [searchParams, setSearchParams] = useSearchParams();
   const starterParam = searchParams.get('starter');
+  const activeTab: TabKey = isTabKey(searchParams.get('tab')) ? searchParams.get('tab') as TabKey : DEFAULT_TAB;
   const project = useAsync(() => api.getProject(id), [id]);
   const calendar = useAsync(() => api.getCalendar(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();
@@ -92,6 +88,55 @@ export function ProjectPage() {
       { replace: true },
     );
   }
+
+  function setActiveTab(key: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (key === DEFAULT_TAB) next.delete('tab');
+        else next.set('tab', key);
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  const openToDoCount = todos.filter((x) => !x.done).length;
+  const tabs: ProjectTab[] = [
+    { key: 'history', label: t('tabs.history'), content: <section className="card"><p>{t('tabs.comingNextStep')}</p></section> },
+    {
+      key: 'todos',
+      label: openToDoCount > 0 ? t('tabs.todosCount', { count: openToDoCount }) : t('tabs.todos'),
+      content: (
+        <ProjectToDos
+          project={p}
+          me={me}
+          todos={todos}
+          reload={reloadToDos}
+          toggleDone={toggleDone}
+          toggleErrors={toggleErrors}
+          nameFor={nameFor}
+        />
+      ),
+    },
+    {
+      key: 'people',
+      label: t('tabs.people'),
+      content: (
+        <ProjectPeople
+          project={p}
+          people={people}
+          workload={workload}
+          onSaved={(updated) => {
+            setSaved(updated);
+            reloadWorkload();
+          }}
+        />
+      ),
+    },
+    { key: 'attachments', label: t('tabs.attachments'), content: <section className="card"><p>{t('tabs.comingNextStep')}</p></section> },
+    { key: 'details', label: t('tabs.details'), content: <ProjectDetailsTab project={p} nameFor={nameFor} /> },
+  ];
 
   return (
     <main className="page page-wide">
@@ -147,120 +192,7 @@ export function ProjectPage() {
         </div>
       </section>
 
-      <section className="card">
-        <h2>{t('project.details')}</h2>
-        <dl className="details-grid">
-          <Detail label={t('project.priority')}>{t(PRIORITY_KEY[p.priority])}</Detail>
-          <Detail label={t('project.projectManager')}>{p.projectManager ? <PersonName name={p.projectManager.name} /> : '—'}</Detail>
-          <Detail label={t('project.businessPm')}>
-            {p.businessPm ? <PersonName name={p.businessPm.name} /> : <span>—</span>}
-            {p.businessPm?.phone ? (
-              <a className="detail-line" dir="ltr" href={`tel:${p.businessPm.phone.replace(/\s/g, '')}`}>{p.businessPm.phone}</a>
-            ) : null}
-            {p.businessPm?.email ? (
-              <a className="detail-line" dir="ltr" href={`mailto:${p.businessPm.email}`}>{p.businessPm.email}</a>
-            ) : null}
-          </Detail>
-          <Detail label={t('project.mainProject')}>{p.mainProject ? listName(p.mainProject, lang) : t('project.standalone')}</Detail>
-          <Detail label={t('project.category')}>{p.category ? t(CATEGORY_KEY[p.category]) : '—'}</Detail>
-          <Detail label={t('project.projectType')}>{p.projectType ? listName(p.projectType, lang) : '—'}</Detail>
-          <Detail label={t('project.goal')}>{p.goal ? listName(p.goal, lang) : '—'}</Detail>
-          <Detail label={t('project.department')}>{p.department ? listName(p.department, lang) : '—'}</Detail>
-          <Detail label={t('project.requester')}>{requesterLabel(p.requester, lang)}</Detail>
-          <Detail label={t('project.beneficiary')}>{beneficiaryLabel(p.beneficiary, lang)}</Detail>
-        </dl>
-      </section>
-
-      <section className="card">
-        <h2>{t('project.description')}</h2>
-        <h3>{t('project.background')}</h3>
-        <p className="prose" dir="auto" data-user-content="">{p.background || '—'}</p>
-        <h3>{t('project.summary')}</h3>
-        <p className="prose" dir="auto" data-user-content="">{p.summary || '—'}</p>
-      </section>
-
-      <section className="card">
-        <h2>{t('project.scopeAndGoals')}</h2>
-        <div className="scope-summary">
-          {SCOPE_TABLES.map(({ kind, title }) => {
-            const items = p.scopeItems.filter((i) => i.kind === kind).sort((a, b) => a.order - b.order);
-            return (
-              <div key={kind}>
-                <h3>{t(title)}</h3>
-                {items.length === 0 ? (
-                  <p className="muted">{t('project.noneYet')}</p>
-                ) : (
-                  <ol>{items.map((i) => <li key={i.id} dir="auto" data-user-content="">{i.text}</li>)}</ol>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="card">
-        <h2>{t('project.phases')}</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>{t('project.colPhase')}</th>
-              <th>{t('project.colStart')}</th>
-              <th>{t('project.colEnd')}</th>
-              <th>{t('project.colWorkingDays')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {p.phases.map((ph) => (
-              <Fragment key={ph.id}>
-                <tr>
-                  <td>{nameFor(ph.name)}</td>
-                  <td>{formatDate(ph.start)}</td>
-                  <td>{formatDate(ph.end)}</td>
-                  <td>
-                    {ph.durationDays}
-                    {ph.subPhases.length > 0 ? <span className="muted">{` ${t('project.fromSubPhases')}`}</span> : null}
-                  </td>
-                </tr>
-                {ph.subPhases.map((sp) => (
-                  <tr key={sp.id}>
-                    <td className="sub-phase-name">
-                      {/* The arrow points into the row from the phase above: down, then towards the text. Kept
-                          outside the dir="auto" span, so it always sits on the reading-direction side, not inside
-                          user content that may take its own direction. */}
-                      <span aria-hidden="true">{lang === 'ar' ? '↲ ' : '↳ '}</span>
-                      <span dir="auto" data-user-content="">{sp.name}</span>
-                      {sp.withPrevious ? <span className="muted">{` · ${t('project.startsWithAbove')}`}</span> : null}
-                    </td>
-                    <td>{formatDate(sp.start)}</td>
-                    <td>{formatDate(sp.end)}</td>
-                    <td>{sp.durationDays}</td>
-                  </tr>
-                ))}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <ProjectPeople
-        project={p}
-        people={people}
-        workload={workload}
-        onSaved={(updated) => {
-          setSaved(updated);
-          reloadWorkload();
-        }}
-      />
-
-      <ProjectToDos
-        project={p}
-        me={me}
-        todos={todos}
-        reload={reloadToDos}
-        toggleDone={toggleDone}
-        toggleErrors={toggleErrors}
-        nameFor={nameFor}
-      />
+      <ProjectTabs tabs={tabs} activeKey={activeTab} onChange={setActiveTab} />
     </main>
   );
 }

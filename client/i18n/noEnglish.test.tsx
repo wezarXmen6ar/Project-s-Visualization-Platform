@@ -317,20 +317,31 @@ describe('no English left in the Arabic pages', () => {
     expectNoEnglish('the dashboard');
   });
 
-  it('the project page, with its to-do form and people editor open', async () => {
+  it('the project page, with its tabs, to-do form and people editor open', async () => {
     const user = userEvent.setup();
     renderApp('/manage/projects/1');
     await screen.findByRole('heading', { level: 1, name: PROJECT });
-    await screen.findByText('60% · مسؤول', { exact: false });
+    await screen.findByRole('tab', { name: 'السجل' });
     await settled();
     expectNoEnglish('the project page');
 
+    await user.click(screen.getByRole('tab', { name: 'الأشخاص' }));
+    await screen.findByText('60% · مسؤول', { exact: false });
+    expectNoEnglish('the project page on the People tab');
+
+    await user.click(screen.getByRole('button', { name: `تعديل الأشخاص في التطوير › ${INCREMENT}` }));
+    expectNoEnglish('the project page with the people editor open');
+
+    await user.click(screen.getByRole('tab', { name: /^المهام/ }));
     await user.click(screen.getByRole('button', { name: 'إضافة مهمة' }));
     expectNoEnglish('the project page with the to-do form open');
     await user.click(screen.getByRole('button', { name: 'إلغاء' }));
 
-    await user.click(screen.getByRole('button', { name: `تعديل الأشخاص في التطوير › ${INCREMENT}` }));
-    expectNoEnglish('the project page with the people editor open');
+    await user.click(screen.getByRole('tab', { name: 'المرفقات' }));
+    expectNoEnglish('the project page on the Attachments tab');
+
+    await user.click(screen.getByRole('tab', { name: 'التفاصيل' }));
+    expectNoEnglish('the project page on the Details tab');
   });
 
   it('the project page offering starter to-dos', async () => {
@@ -502,7 +513,7 @@ describe('mixed-direction content', () => {
     mockFetch(routes);
     render(
       <LanguageProvider lang="ar">
-        <MemoryRouter initialEntries={['/manage/projects/1']}>
+        <MemoryRouter initialEntries={['/manage/projects/1?tab=details']}>
           <Routes><Route path="/manage/projects/:id" element={<ProjectPage />} /></Routes>
         </MemoryRouter>
       </LanguageProvider>,

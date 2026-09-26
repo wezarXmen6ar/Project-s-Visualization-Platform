@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StarterSuggestion, ToDoRecord } from '../../../shared/types';
 import { mockFetch, sampleProject, samplePeople, sampleToDos, sampleWorkload } from '../../testing/mockFetch';
 import { ProjectPage } from './ProjectPage';
+
+function LocationSpy() {
+  const location = useLocation();
+  return <div data-testid="location">{location.pathname}{location.search}</div>;
+}
 
 /** sampleProject with a "Development › Increment 1" sub-phase (id 120), matching sampleToDos' phase link. */
 function projectWithSubPhase() {
@@ -23,6 +28,7 @@ function projectWithSubPhase() {
 function renderAt(url: string) {
   return render(
     <MemoryRouter initialEntries={[url]}>
+      <LocationSpy />
       <Routes>
         <Route path="/manage/projects/:id" element={<ProjectPage />} />
       </Routes>
@@ -38,7 +44,7 @@ describe('ProjectPage', () => {
       'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
       'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=details');
     expect(await screen.findByRole('heading', { name: 'Portal' })).toBeInTheDocument();
     expect(screen.getByText(/2026-09-24 → 2026-09-30/)).toBeInTheDocument();
     expect(screen.getByTestId('gantt-row-12')).toBeInTheDocument();
@@ -73,7 +79,7 @@ describe('ProjectPage', () => {
       'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
       'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=details');
     expect(await screen.findByText('Digital Services')).toBeInTheDocument();
     expect(screen.getByText('High')).toBeInTheDocument();
     expect(screen.getByText('Sara Ahmed')).toBeInTheDocument();
@@ -100,7 +106,7 @@ describe('ProjectPage', () => {
       'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
       'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=details');
     expect(await screen.findByText('Mariam Al Suwaidi')).toBeInTheDocument();
     expect(screen.getByText('Project manager (tech)')).toBeInTheDocument();
     expect(screen.getByText('Sara Ahmed')).toBeInTheDocument();
@@ -141,7 +147,7 @@ describe('ProjectPage', () => {
       }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=people');
 
     expect(await screen.findByText(/50% · Responsible/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Edit people on Requirements' }));
@@ -191,7 +197,7 @@ describe('ProjectPage', () => {
       }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=people');
 
     expect(await screen.findByText('Development › Increment 1')).toBeInTheDocument();
     expect(screen.getByText(/50% · Responsible/)).toBeInTheDocument();
@@ -229,7 +235,7 @@ describe('ProjectPage', () => {
       'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=details');
     // The arrow marker is a sibling before the sub-phase name span, so the text is only combined at the row level.
     // Scoped to the phases table, since the Gantt chart also has a "Increment 1" label.
     const table = await screen.findByRole('table');
@@ -315,7 +321,7 @@ describe('ProjectPage to-dos', () => {
       },
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=todos');
 
     await user.click(await screen.findByRole('button', { name: 'Add to-do' }));
     await user.type(screen.getByLabelText('Title'), 'Chase the vendor');
@@ -338,7 +344,7 @@ describe('ProjectPage to-dos', () => {
       'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=todos');
 
     await user.click(await screen.findByRole('button', { name: 'Add to-do' }));
     await user.click(screen.getByRole('button', { name: 'Save to-do' }));
@@ -357,7 +363,7 @@ describe('ProjectPage to-dos', () => {
       'PUT /api/todos/200': () => ({ body: { ...todos[0], done: true } }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=todos');
 
     const toDosCard = (await screen.findByRole('heading', { name: 'To-dos' })).closest('section') as HTMLElement;
     await user.click(within(toDosCard).getByLabelText('Done: Chase the missing contract'));
@@ -380,7 +386,7 @@ describe('ProjectPage to-dos', () => {
       'PUT /api/todos/200': () => ({ status: 500, body: { error: 'Something went wrong' } }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=todos');
 
     const toDosCard = (await screen.findByRole('heading', { name: 'To-dos' })).closest('section') as HTMLElement;
     await user.click(within(toDosCard).getByLabelText('Done: Chase the missing contract'));
@@ -398,7 +404,7 @@ describe('ProjectPage to-dos', () => {
       'DELETE /api/todos/200': () => ({ status: 204, body: null }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=todos');
 
     await screen.findByText('Chase the missing contract');
     await user.click(screen.getByRole('button', { name: 'Delete Chase the missing contract' }));
@@ -425,7 +431,7 @@ describe('ProjectPage to-dos', () => {
       'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=todos');
 
     await user.click(await screen.findByRole('button', { name: 'Show 1 done' }));
     expect(screen.getByRole('button', { name: 'Hide done' })).toBeInTheDocument();
@@ -475,7 +481,7 @@ describe('ProjectPage to-dos', () => {
       'GET /api/todos?projectId=1&done=include': () => ({ body: todos }),
       'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
     });
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=todos');
 
     const toDosCard = (await screen.findByRole('heading', { name: 'To-dos' })).closest('section') as HTMLElement;
     const taskTitle = within(toDosCard).getByText('Task with meta');
@@ -497,7 +503,7 @@ describe('ProjectPage to-dos', () => {
       'PUT /api/todos/203': () => ({ body: { ...todos[3], done: false } }),
     });
     const user = userEvent.setup();
-    renderAt('/manage/projects/1');
+    renderAt('/manage/projects/1?tab=todos');
 
     await user.click(await screen.findByRole('button', { name: 'Show 1 done' }));
     const toDosCard = (await screen.findByRole('heading', { name: 'To-dos' })).closest('section') as HTMLElement;
@@ -584,5 +590,98 @@ describe('ProjectPage starter offer', () => {
     renderAt('/manage/projects/1?starter=all');
     await screen.findByRole('heading', { name: 'Portal' });
     expect(screen.queryByRole('heading', { name: 'Starter to-dos' })).toBeNull();
+  });
+
+  it('keeps the tab param when the starter offer is skipped', async () => {
+    const suggestions: StarterSuggestion[] = [{ phaseId: 11, phaseName: 'UAT', title: 'Write test cases' }];
+    mockFetch(baseRoutes(suggestions));
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1?starter=all&tab=todos');
+
+    await screen.findByRole('heading', { name: 'Starter to-dos' });
+    expect(screen.getByRole('tab', { name: 'To-dos' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('button', { name: 'Skip' }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/manage/projects/1?tab=todos');
+  });
+});
+
+describe('ProjectPage tabs', () => {
+  function baseRoutes() {
+    return {
+      'GET /api/projects/1': () => ({ body: sampleProject() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+    };
+  }
+
+  it('selects History by default, showing the coming-soon placeholder', async () => {
+    mockFetch(baseRoutes());
+    renderAt('/manage/projects/1');
+
+    const historyTab = await screen.findByRole('tab', { name: 'History' });
+    expect(historyTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'To-dos' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByText('Coming in the next step')).toBeInTheDocument();
+  });
+
+  it('clicking To-dos shows the to-dos card and puts tab=todos in the URL', async () => {
+    mockFetch(baseRoutes());
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    await user.click(await screen.findByRole('tab', { name: 'To-dos' }));
+    expect(screen.getByRole('heading', { name: 'To-dos' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/manage/projects/1?tab=todos');
+  });
+
+  it('loading at ?tab=people shows People', async () => {
+    mockFetch({ ...baseRoutes(), 'GET /api/resources': () => ({ body: samplePeople() }), 'GET /api/workload': () => ({ body: sampleWorkload() }) });
+    renderAt('/manage/projects/1?tab=people');
+
+    expect(await screen.findByRole('tab', { name: 'People' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: 'People' })).toBeInTheDocument();
+  });
+
+  it('shows a Coming in the next step placeholder for Attachments', async () => {
+    mockFetch(baseRoutes());
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    await user.click(await screen.findByRole('tab', { name: 'Attachments' }));
+    expect(screen.getByText('Coming in the next step')).toBeInTheDocument();
+  });
+
+  it('shows the open to-do count on the To-dos tab', async () => {
+    mockFetch({ ...baseRoutes(), 'GET /api/todos?projectId=1&done=include': () => ({ body: sampleToDos() }) });
+    renderAt('/manage/projects/1');
+
+    expect(await screen.findByRole('tab', { name: 'To-dos (5)' })).toBeInTheDocument();
+  });
+
+  it('ArrowRight moves focus to the next tab', async () => {
+    mockFetch(baseRoutes());
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1');
+
+    const historyTab = await screen.findByRole('tab', { name: 'History' });
+    historyTab.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: 'To-dos' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'To-dos' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('Home and End jump to the first and last tab', async () => {
+    mockFetch(baseRoutes());
+    const user = userEvent.setup();
+    renderAt('/manage/projects/1?tab=people');
+
+    const peopleTab = await screen.findByRole('tab', { name: 'People' });
+    peopleTab.focus();
+    await user.keyboard('{End}');
+    expect(screen.getByRole('tab', { name: 'Details' })).toHaveFocus();
+    await user.keyboard('{Home}');
+    expect(screen.getByRole('tab', { name: 'History' })).toHaveFocus();
   });
 });

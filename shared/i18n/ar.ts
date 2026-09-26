@@ -188,6 +188,15 @@ export const ar: Record<MessageKey, Message> = {
   'nav.resources': 'الموارد',
   'nav.settings': 'الإعدادات',
 
+  // The project page's tabs.
+  'tabs.history': 'السجل',
+  'tabs.todos': 'المهام',
+  'tabs.todosCount': 'المهام ({count})',
+  'tabs.people': 'الأشخاص',
+  'tabs.attachments': 'المرفقات',
+  'tabs.details': 'التفاصيل',
+  'tabs.comingNextStep': 'قريباً في الخطوة التالية',
+
   // The dashboard and the project page.
   'project.new': 'إضافة مشروع جديد',
   'project.emptyTitle': 'لا توجد مشاريع بعد',

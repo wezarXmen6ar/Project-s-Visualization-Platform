@@ -110,15 +110,22 @@ describe('the project screens in Arabic', () => {
       'GET /api/resources': () => ({ body: samplePeople() }),
       'GET /api/workload': () => ({ body: sampleWorkload() }),
     });
+    const user = userEvent.setup();
     arabic('/manage/projects/1', '/manage/projects/:id', <ProjectPage />);
 
     const title = await screen.findByRole('heading', { level: 1, name: 'Portal' });
     expect(title).toHaveAttribute('dir', 'auto');
     expect(screen.getByRole('heading', { name: 'الجدول الزمني' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'السجل' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /^المهام/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'الأشخاص' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'المرفقات' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'التفاصيل' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'خطواتي القادمة' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'التفاصيل' }));
     expect(screen.getByRole('heading', { name: 'التفاصيل' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'تعديل المراحل' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'المهام' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'خطواتي القادمة' })).toBeInTheDocument();
     expect(screen.getByText(/الخميس 24 سبتمبر 2026 ← الأربعاء 30 سبتمبر 2026 · 5 أيام عمل/)).toBeInTheDocument();
     expect(screen.getByText('عالية')).toBeInTheDocument();
     expect(screen.getByText('استراتيجي')).toBeInTheDocument();
@@ -137,10 +144,12 @@ describe('the project screens in Arabic', () => {
     expect(subPhaseName.closest('td')).toHaveTextContent('↲ Increment 1');
 
     // People: the phase's Arabic name, and the allocation line with the Arabic role.
+    await user.click(screen.getByRole('tab', { name: 'الأشخاص' }));
     expect(await screen.findByText('60% · مسؤول', { exact: false })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'تعديل الأشخاص في التطوير › Increment 1' })).toBeInTheDocument();
 
     // To-dos: Arabic buttons, labels and the done toggle.
+    await user.click(screen.getByRole('tab', { name: /^المهام/ }));
     expect(screen.getByRole('button', { name: 'إضافة مهمة' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'إظهار المهمة المنجزة' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'منجزة: Book the UAT room' })).toBeInTheDocument();
@@ -157,7 +166,7 @@ describe('the project screens in Arabic', () => {
       'GET /api/workload': () => ({ body: sampleWorkload() }),
     });
     const user = userEvent.setup();
-    arabic('/manage/projects/1', '/manage/projects/:id', <ProjectPage />);
+    arabic('/manage/projects/1?tab=todos', '/manage/projects/:id', <ProjectPage />);
 
     await user.click(await screen.findByRole('button', { name: 'إضافة مهمة' }));
     expect(screen.getByLabelText('العنوان')).toHaveAttribute('dir', 'auto');
@@ -192,6 +201,27 @@ describe('the project screens in Arabic', () => {
     expect(await screen.findByRole('heading', { name: 'مهام جاهزة' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'إضافة 3 مهام' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'تخطّي' })).toBeInTheDocument();
+  });
+
+  it('ArrowLeft moves focus to the next tab in Arabic (right to left)', async () => {
+    mockFetch({
+      'GET /api/projects/1': () => ({ body: portal() }),
+      'GET /api/settings/calendar': () => ({ body: calendar }),
+      'GET /api/todos?projectId=1&done=include': () => ({ body: [] }),
+      'GET /api/settings/me': () => ({ body: { resourceId: null, name: null } }),
+      'GET /api/lists': () => ({ body: sampleLists() }),
+      'GET /api/resources': () => ({ body: samplePeople() }),
+      'GET /api/workload': () => ({ body: sampleWorkload() }),
+    });
+    const user = userEvent.setup();
+    arabic('/manage/projects/1', '/manage/projects/:id', <ProjectPage />);
+
+    const historyTab = await screen.findByRole('tab', { name: 'السجل' });
+    historyTab.focus();
+    await user.keyboard('{ArrowLeft}');
+    const todosTab = screen.getByRole('tab', { name: /^المهام/ });
+    expect(todosTab).toHaveFocus();
+    expect(todosTab).toHaveAttribute('aria-selected', 'true');
   });
 
   it('shows the wizard steps in Arabic', async () => {

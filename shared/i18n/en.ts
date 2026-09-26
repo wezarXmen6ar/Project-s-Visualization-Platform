@@ -167,6 +167,15 @@ export const en = {
   'nav.resources': 'Resources',
   'nav.settings': 'Settings',
 
+  // The project page's tabs. "todos" shows the open count when there is one, e.g. "To-dos (3)".
+  'tabs.history': 'History',
+  'tabs.todos': 'To-dos',
+  'tabs.todosCount': 'To-dos ({count})',
+  'tabs.people': 'People',
+  'tabs.attachments': 'Attachments',
+  'tabs.details': 'Details',
+  'tabs.comingNextStep': 'Coming in the next step',
+
   // The dashboard and the project page.
   'project.new': 'New project',
   'project.emptyTitle': 'No projects yet',
