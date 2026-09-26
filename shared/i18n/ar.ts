@@ -488,6 +488,7 @@ export const ar: Record<MessageKey, Message> = {
   'entryForm.notesUpdate': 'التفاصيل',
   'entryForm.attendees': 'الحضور',
   'entryForm.searchPeople': 'البحث عن شخص',
+  'entryForm.guestHint': 'شخص من خارج فريق العمل؟ اكتب اسمه واختر «إضافة كضيف».',
   'entryForm.onThisProject': 'على هذا المشروع',
   'entryForm.everyoneElse': 'باقي الأشخاص',
   'entryForm.removeAttendeeAria': 'إزالة {name}',

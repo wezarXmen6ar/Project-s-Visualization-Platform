@@ -229,7 +229,9 @@ export function EntryForm({
             onKeyDown={onSearchKeyDown}
             placeholder={t('entryForm.searchPeople')}
             dir="auto"
+            aria-describedby="entry-guest-hint"
           />
+          <p id="entry-guest-hint" className="field-hint">{t('entryForm.guestHint')}</p>
           <ul className="attendee-options">
             {onProjectAvailable.length > 0 ? <li className="attendee-group-label">{t('entryForm.onThisProject')}</li> : null}
             {onProjectAvailable.map((p) => (
@@ -249,7 +251,7 @@ export function EntryForm({
             ))}
             {showAddGuestOption ? (
               <li>
-                <button type="button" onClick={() => addGuest(trimmedSearch)}>
+                <button type="button" className="attendee-add-guest" onClick={() => addGuest(trimmedSearch)}>
                   {t('entryForm.addGuestOption', { name: trimmedSearch })}
                 </button>
               </li>

@@ -442,6 +442,7 @@ export const en = {
   'entryForm.notesUpdate': 'Notes',
   'entryForm.attendees': 'Attendees',
   'entryForm.searchPeople': 'Search people',
+  'entryForm.guestHint': 'Someone not on the team list? Type their name and choose “Add as a guest”.',
   'entryForm.onThisProject': 'On this project',
   'entryForm.everyoneElse': 'Everyone else',
   'entryForm.removeAttendeeAria': 'Remove {name}',

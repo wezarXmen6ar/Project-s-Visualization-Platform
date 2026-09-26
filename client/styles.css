@@ -859,6 +859,7 @@ button.heat:hover { border-color: var(--border-strong); }
   transition: background var(--dur) var(--ease-out);
 }
 .attendee-options li button:hover { background: var(--surface-2); }
+.attendee-options li button.attendee-add-guest { color: var(--primary); font-weight: 600; }
 .attendee-group-label { color: var(--muted); font-size: 0.8rem; margin-top: var(--sp-1); }
 .followups { display: grid; gap: var(--sp-2); }
 .followup-row { display: grid; grid-template-columns: 2fr 1.5fr 1fr auto; gap: var(--sp-2); align-items: end; }
