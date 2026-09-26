@@ -159,11 +159,11 @@ export function replaceAttachmentKeyDates(
   return transaction(db, () => {
     const keptIds = new Set(items.map((item) => item.id).filter((id): id is number => id !== undefined));
     for (const id of ownIds) {
-      if (!keptIds.has(id)) db.prepare('DELETE FROM key_dates WHERE id = ?').run(id);
+      if (!keptIds.has(id)) db.prepare('DELETE FROM key_dates WHERE id = ? AND attachment_id = ?').run(id, attachmentId);
     }
     for (const item of items) {
       if (item.id !== undefined) {
-        db.prepare('UPDATE key_dates SET type_id = ?, date = ?, note = ? WHERE id = ?').run(item.typeId, item.date, item.note, item.id);
+        db.prepare('UPDATE key_dates SET type_id = ?, date = ?, note = ? WHERE id = ? AND attachment_id = ?').run(item.typeId, item.date, item.note, item.id, attachmentId);
       } else {
         db.prepare('INSERT INTO key_dates (project_id, type_id, attachment_id, date, note, created_at) VALUES (?, ?, ?, ?, ?, ?)')
           .run(projectId, item.typeId, attachmentId, item.date, item.note, createdAt);
