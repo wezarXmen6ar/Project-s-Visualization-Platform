@@ -172,4 +172,25 @@ describe('migrate', () => {
     const check = db.prepare('PRAGMA integrity_check').get() as unknown as { integrity_check: string };
     expect(check.integrity_check).toBe('ok');
   });
+
+  it('adds employment and engagement columns to resources, upgrading from version 14, and existing people become staff', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('PRAGMA foreign_keys = ON');
+    for (const m of MIGRATIONS.slice(0, 14)) db.exec(m);
+    db.exec('PRAGMA user_version = 14');
+    db.prepare("INSERT INTO resources (name, side, capacity, active) VALUES ('Fatima Noor', 'tech', 100, 1)").run();
+
+    migrate(db);
+
+    const version = db.prepare('PRAGMA user_version').get() as unknown as { user_version: number };
+    expect(version.user_version).toBe(MIGRATIONS.length);
+    const columns = (db.prepare('PRAGMA table_info(resources)').all() as unknown as { name: string }[]).map((c) => c.name);
+    expect(columns).toEqual(
+      expect.arrayContaining(['employment', 'company_id', 'engagement_project_id', 'engagement_start', 'engagement_end']),
+    );
+    const row = db.prepare("SELECT employment, company_id, engagement_start, engagement_end FROM resources WHERE name = 'Fatima Noor'").get();
+    expect({ ...row }).toEqual({ employment: 'staff', company_id: null, engagement_start: null, engagement_end: null });
+    const check = db.prepare('PRAGMA integrity_check').get() as unknown as { integrity_check: string };
+    expect(check.integrity_check).toBe('ok');
+  });
 });

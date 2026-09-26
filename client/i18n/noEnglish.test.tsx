@@ -123,18 +123,27 @@ function arabicLists(): Lists {
   lists.mainProject = [{ id: 20, list: 'mainProject', name: 'Digital Services', order: 0, nameAr: 'الخدمات الرقمية' }];
   lists.department = [{ id: 30, list: 'department', name: 'Customer Service', order: 0, nameAr: 'خدمة المتعاملين' }];
   lists.goal = [...lists.goal, { id: 5, list: 'goal', name: 'Improve customer experience', order: 1, nameAr: 'تحسين تجربة المتعاملين' }];
+  lists.company = [{ id: 200, list: 'company', name: 'TechNova', order: 0, nameAr: 'تكنوفا' }];
   return lists;
 }
 
+const OMAR = 'عمر فريد';
+
 function arabicPeople(): ResourceRecord[] {
   const names: Record<number, string> = { 70: SARA, 71: FATIMA, 72: RAMI, 80: MARIAM };
-  return samplePeople().map((p) => ({
+  const staff = samplePeople().map((p) => ({
     ...p,
     name: names[p.id],
     email: p.id === 80 ? 'mariam@example.com' : p.email,
     leave: p.id === 72 ? [{ id: 5, start: '2026-10-19', end: '2026-10-20', note: 'دورة تدريبية' }] : p.leave,
     projects: p.projects.map((pr) => ({ ...pr, name: OTHER_PROJECT })),
   }));
+  const outsourced: ResourceRecord = {
+    id: 90, name: OMAR, side: 'tech', employment: 'outsourced', role: null, specialisation: null, email: null, phone: null,
+    capacity: 100, active: true, leave: [], projects: [], company: { id: 200, name: 'TechNova', nameAr: 'تكنوفا' },
+    engagementProject: { id: 91, name: OTHER_PROJECT }, engagementStart: '2026-09-01', engagementEnd: '2026-12-31', engaged: true,
+  };
+  return [...staff, outsourced];
 }
 
 function arabicProject(): ProjectRecord {

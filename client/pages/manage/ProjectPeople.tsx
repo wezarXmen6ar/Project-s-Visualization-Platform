@@ -19,6 +19,7 @@ interface PhasePeopleBlockProps {
   project: ProjectRecord;
   people: ResourceRecord[];
   roles: ListValue[];
+  companies: ListValue[];
   workload: WorkloadData | undefined;
   editing: number | null;
   draft: DraftAssignment[];
@@ -32,7 +33,8 @@ interface PhasePeopleBlockProps {
 
 /** The people on one phase or sub-phase, editable on its own, with overbooking flagged before saving. */
 function PhasePeopleBlock({
-  id, label, start, end, project, people, roles, workload, editing, draft, errors, saving, onStartEdit, onSave, onCancel, onChangeDraft,
+  id, label, start, end, project, people, roles, companies, workload, editing, draft, errors, saving, onStartEdit, onSave, onCancel,
+  onChangeDraft,
 }: PhasePeopleBlockProps) {
   const t = useT();
   const { lang } = useLang();
@@ -57,6 +59,7 @@ function PhasePeopleBlock({
           dates={dates}
           people={people}
           roles={roles}
+          companies={companies}
           value={draft}
           onChange={onChangeDraft}
           warnings={warnings}
@@ -167,6 +170,7 @@ export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeo
             project={project}
             people={people}
             roles={lists.role}
+            companies={lists.company}
             workload={workload}
             editing={editing}
             draft={draft}
@@ -187,6 +191,7 @@ export function ProjectPeople({ project, people, workload, onSaved }: ProjectPeo
               project={project}
               people={people}
               roles={lists.role}
+              companies={lists.company}
               workload={workload}
               editing={editing}
               draft={draft}

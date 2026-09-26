@@ -8,7 +8,7 @@ import type { ResourceRecord, ToDoRecord } from '../../../shared/types';
 import { LanguageProvider } from '../../i18n/LanguageProvider';
 import { overloadsWith, phaseWarnings } from '../../overloads';
 import {
-  mockFetch, overbookedWorkload, sampleLists, samplePeople, sampleProject, sampleToDos, sampleWorkload,
+  mockFetch, overbookedWorkload, sampleLists, sampleOutsourced, samplePeople, sampleProject, sampleToDos, sampleWorkload,
 } from '../../testing/mockFetch';
 import { FocusPage } from '../present/FocusPage';
 import { ManageDashboardPage } from './ManageDashboardPage';
@@ -71,6 +71,40 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
     const mariam = within(table).getByRole('link', { name: 'Mariam Al Suwaidi' }).closest('tr')!;
     expect(within(mariam).getByText('مالك العملية')).toBeInTheDocument();
     expect(within(mariam).getByText('+971 50 123 4567 · mariam@example.com')).toHaveAttribute('dir', 'ltr');
+  });
+
+  it('shows the Outsourced section and the collapsed Past outsourced list in Arabic', async () => {
+    setToday('2026-10-14');
+    mockFetch({
+      'GET /api/resources': () => ({ body: [...samplePeople(), ...sampleOutsourced()] }),
+      'GET /api/lists': () => ({ body: sampleLists() }),
+      'GET /api/workload': () => ({ body: overbookedWorkload() }),
+    });
+    arabic('/manage/resources', '/manage/resources', <ResourcesPage />);
+
+    const table = await screen.findByRole('table', { name: 'المتعاقدون الخارجيون' });
+    for (const header of ['الاسم', 'الشركة', 'المشروع', 'البداية', 'النهاية', 'التواصل']) {
+      expect(within(table).getByRole('columnheader', { name: header })).toBeInTheDocument();
+    }
+    expect(within(table).getByRole('link', { name: 'Omar Farid' })).toBeInTheDocument();
+    expect(screen.getByText('المتعاقدون السابقون (1)')).toBeInTheDocument();
+  });
+
+  it('shows the outsourced person form in Arabic, with company, project, start and end', async () => {
+    mockFetch({
+      'GET /api/resources': () => ({ body: samplePeople() }),
+      'GET /api/lists': () => ({ body: sampleLists() }),
+      'GET /api/settings/calendar': () => ({ body: { weekendDays: [0, 6], holidays: [] } }),
+      'GET /api/projects': () => ({ body: [] }),
+    });
+    const user = userEvent.setup();
+    arabic('/manage/resources/new', '/manage/resources/new', <PersonPage />);
+
+    await user.click(await screen.findByRole('radio', { name: 'متعاقد خارجي' }));
+    expect(await screen.findByLabelText('الشركة')).toBeInTheDocument();
+    expect(screen.getByLabelText('المشروع')).toBeInTheDocument();
+    expect(screen.getByLabelText('بداية التعاقد')).toBeInTheDocument();
+    expect(screen.getByLabelText('نهاية التعاقد')).toBeInTheDocument();
   });
 
   it('opens an overbooked week in Arabic, with the decision prompt', async () => {

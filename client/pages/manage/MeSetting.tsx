@@ -24,7 +24,9 @@ export function MeSetting({ people }: MeSettingProps) {
     }
   }, [saved]);
 
-  const options = people.filter((p) => p.side === 'tech' && p.active).sort((a, b) => a.name.localeCompare(b.name));
+  const options = people
+    .filter((p) => p.side === 'tech' && p.employment === 'staff' && p.active)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   async function onChange(value: string) {
     const resourceId = value === '' ? null : Number(value);

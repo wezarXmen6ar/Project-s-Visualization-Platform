@@ -1,11 +1,14 @@
 import { translate } from '../../../shared/i18n/translate';
 import type { Lang } from '../../../shared/i18n/types';
 import type { ListValue, ResourceRecord } from '../../../shared/types';
-import { roleName } from '../../i18n/listNames';
+import { companyName, roleName } from '../../i18n/listNames';
 import { SIDE_KEY, SPECIALISATION_KEY } from './labels';
 
 export type SortKey = 'name' | 'side' | 'role' | 'capacity' | 'contact' | 'status' | 'projects';
 export type SortDir = 'asc' | 'desc';
+
+/** The Outsourced table's own columns (Task 7). */
+export type OutsourcedSortKey = 'name' | 'company' | 'project' | 'start' | 'end' | 'contact';
 
 type Key = string | number | null;
 
@@ -17,7 +20,7 @@ function nonEmpty(s: string | null): string | null {
  * A null key always sorts last, in both directions; two non-null keys compare in the given direction. Callers
  * break the resulting tie by name.
  */
-function compare(a: Key, b: Key, dir: SortDir): number {
+export function compare(a: Key, b: Key, dir: SortDir): number {
   if (a === null && b === null) return 0;
   if (a === null) return 1;
   if (b === null) return -1;
@@ -82,4 +85,43 @@ export function sortPeople(
 /** Whether this person has any link — current or finished — to the given project. */
 export function workingOn(person: ResourceRecord, projectId: number): boolean {
   return person.projects.some((p) => p.id === projectId);
+}
+
+/** Matches the Contact column's text: phone, then email — each empty value sorting last, in both directions. */
+function contactCompare(a: ResourceRecord, b: ResourceRecord, dir: SortDir): number {
+  const byPhone = compare(nonEmpty(a.phone), nonEmpty(b.phone), dir);
+  return byPhone !== 0 ? byPhone : compare(nonEmpty(a.email), nonEmpty(b.email), dir);
+}
+
+function outsourcedCompare(
+  a: ResourceRecord, b: ResourceRecord, key: OutsourcedSortKey, dir: SortDir, lang: Lang, companies: ListValue[],
+): number {
+  switch (key) {
+    case 'name':
+      return compare(a.name, b.name, dir);
+    case 'company':
+      return compare(
+        a.company ? companyName(a.company, companies, lang) : null,
+        b.company ? companyName(b.company, companies, lang) : null,
+        dir,
+      );
+    case 'project':
+      return compare(a.engagementProject?.name ?? null, b.engagementProject?.name ?? null, dir);
+    case 'start':
+      return compare(a.engagementStart, b.engagementStart, dir);
+    case 'end':
+      return compare(a.engagementEnd, b.engagementEnd, dir);
+    case 'contact':
+      return contactCompare(a, b, dir);
+  }
+}
+
+/** Sorts outsourced people by one of the Outsourced table's own columns, breaking ties by name. */
+export function sortOutsourced(
+  people: ResourceRecord[], key: OutsourcedSortKey, dir: SortDir, lang: Lang = 'en', companies: ListValue[] = [],
+): ResourceRecord[] {
+  return [...people].sort((a, b) => {
+    const primary = outsourcedCompare(a, b, key, dir, lang, companies);
+    return primary !== 0 ? primary : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
 }

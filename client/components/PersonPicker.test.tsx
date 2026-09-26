@@ -8,8 +8,9 @@ import { mockFetch, samplePeople } from '../testing/mockFetch';
 import { PersonPicker } from './PersonPicker';
 
 const inactive: ResourceRecord = {
-  id: 81, name: 'Old Contact', side: 'business', role: null, specialisation: null, email: null, phone: null,
-  capacity: 100, active: false, leave: [], projects: [],
+  id: 81, name: 'Old Contact', side: 'business', employment: 'staff', role: null, specialisation: null, email: null, phone: null,
+  capacity: 100, active: false, leave: [], projects: [], company: null, engagementProject: null, engagementStart: null,
+  engagementEnd: null, engaged: null,
 };
 
 function Harness({ side, label, initial = null, roleId }: { side: Side; label: string; initial?: number | null; roleId?: number }) {

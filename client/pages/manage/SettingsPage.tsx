@@ -21,6 +21,7 @@ const EDITORS: { list: ListName; title: MessageKey; singular: MessageKey }[] = [
   { list: 'phase', title: 'settings.phases', singular: 'settings.phase' },
   { list: 'role', title: 'settings.roles', singular: 'settings.role' },
   { list: 'attachmentType', title: 'settings.attachmentTypes', singular: 'settings.attachmentType' },
+  { list: 'company', title: 'settings.companies', singular: 'settings.company' },
 ];
 
 export function SettingsPage() {

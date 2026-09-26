@@ -284,6 +284,13 @@ export const MIGRATIONS: string[] = [
     ('attachmentType', 'Contract', 'العقد', 8),
     ('attachmentType', 'Other', 'أخرى', 9);
   `,
+  `
+  ALTER TABLE resources ADD COLUMN employment TEXT NOT NULL DEFAULT 'staff' CHECK (employment IN ('staff', 'outsourced'));
+  ALTER TABLE resources ADD COLUMN company_id INTEGER REFERENCES list_values(id);
+  ALTER TABLE resources ADD COLUMN engagement_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL;
+  ALTER TABLE resources ADD COLUMN engagement_start TEXT;
+  ALTER TABLE resources ADD COLUMN engagement_end TEXT;
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

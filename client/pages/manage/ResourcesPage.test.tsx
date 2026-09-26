@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mockFetch, overbookedWorkload, sampleLists, samplePeople } from '../../testing/mockFetch';
+import { mockFetch, overbookedWorkload, sampleLists, sampleOutsourced, samplePeople } from '../../testing/mockFetch';
 import { ResourcesPage } from './ResourcesPage';
 
 const routes = {
@@ -63,6 +63,25 @@ describe('ResourcesPage', () => {
     mockFetch({ ...routes, 'GET /api/resources': () => ({ body: [] }) });
     renderPage();
     expect(await screen.findByText('No one yet. Add your team and your business-side contacts.')).toBeInTheDocument();
+  });
+
+  it('shows the Outsourced section with an engaged person, and a collapsed Past outsourced with the ended one', async () => {
+    mockFetch({ ...routes, 'GET /api/resources': () => ({ body: [...samplePeople(), ...sampleOutsourced()] }) });
+    renderPage();
+    const outsourcedTable = await screen.findByRole('table', { name: 'Outsourced' });
+    const omar = within(outsourcedTable).getByRole('link', { name: 'Omar Farid' });
+    expect(omar).toHaveAttribute('href', '/manage/resources/90');
+    expect(within(outsourcedTable).queryByText('Layla Zaid')).toBeNull();
+    // The staff table is untouched by outsourced people.
+    expect(within(await peopleTable()).queryByText('Omar Farid')).toBeNull();
+
+    const summary = screen.getByText('Past outsourced (1)');
+    const details = summary.closest('details') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    const user = userEvent.setup();
+    await user.click(summary);
+    expect(details.open).toBe(true);
+    expect(within(details).getByText('Layla Zaid')).toBeInTheDocument();
   });
 
   it('sorts by the Projects column and flips direction on a second click', async () => {

@@ -29,6 +29,7 @@ function fakeServer(calendar: WorkCalendar = { weekendDays: [0, 6], holidays: []
     'GET /api/resources': () => ({ body: structuredClone(people) }),
     'GET /api/lists': () => ({ body: sampleLists() }),
     'GET /api/settings/calendar': () => ({ body: calendar }),
+    'GET /api/projects': () => ({ body: [{ id: 91, name: 'Case Management' }] }),
     'POST /api/resources': (init) => ({ status: 201, body: { ...people[0], ...JSON.parse(init!.body as string), id: 99 } }),
     'PUT /api/resources/72': (init) => ({ body: { ...people[2], ...JSON.parse(init!.body as string) } }),
     'DELETE /api/resources/70': () => ({
@@ -82,6 +83,43 @@ describe('PersonPage', () => {
     expect(JSON.parse(post![1]!.body as string)).toMatchObject({
       name: 'Hassan Ali', side: 'tech', roleId: 63, specialisation: 'full-stack', capacity: 80, active: true,
     });
+  });
+
+  it('shows company, project, start and end only when Outsourced is chosen, and sends them', async () => {
+    const fetchMock = mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderAt('/manage/resources/new');
+    expect(screen.queryByLabelText('Company')).toBeNull();
+    await user.click(screen.getByRole('radio', { name: 'Outsourced' }));
+    expect(await screen.findByLabelText('Company')).toBeInTheDocument();
+    expect(screen.getByLabelText('Project')).toBeInTheDocument();
+    expect(screen.getByLabelText('Engagement start')).toBeInTheDocument();
+    expect(screen.getByLabelText('Engagement end')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Name'), 'Omar Farid');
+    await screen.findByRole('option', { name: 'TechNova' });
+    await user.selectOptions(screen.getByLabelText('Company'), 'TechNova');
+    await user.selectOptions(screen.getByLabelText('Project'), 'Case Management');
+    fireEvent.change(screen.getByLabelText('Engagement start'), { target: { value: '2026-09-01' } });
+    fireEvent.change(screen.getByLabelText('Engagement end'), { target: { value: '2026-12-31' } });
+    await user.click(screen.getByRole('button', { name: 'Add person' }));
+
+    expect(await screen.findByText('Resources list')).toBeInTheDocument();
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/resources' && init?.method === 'POST');
+    expect(JSON.parse(post![1]!.body as string)).toMatchObject({
+      name: 'Omar Farid', side: 'tech', employment: 'outsourced', companyId: 200, engagementProjectId: 91,
+      engagementStart: '2026-09-01', engagementEnd: '2026-12-31',
+    });
+  });
+
+  it('hides the company fields again when switching back to Our team', async () => {
+    mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderAt('/manage/resources/new');
+    await user.click(screen.getByRole('radio', { name: 'Outsourced' }));
+    await screen.findByLabelText('Company');
+    await user.click(screen.getByRole('radio', { name: 'Our team' }));
+    expect(screen.queryByLabelText('Company')).toBeNull();
   });
 
   it('asks a business contact only for name, phone and email', async () => {

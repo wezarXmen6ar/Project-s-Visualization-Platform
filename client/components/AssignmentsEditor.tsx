@@ -1,7 +1,7 @@
 import type { AssignmentRole, ListValue, ResourceRecord } from '../../shared/types';
 import { PlusIcon, TrashIcon } from '../icons';
 import { useLang, useT } from '../i18n/LanguageProvider';
-import { roleName } from '../i18n/listNames';
+import { companyName, roleName } from '../i18n/listNames';
 import type { DraftAssignment } from '../overloads';
 
 interface AssignmentsEditorProps {
@@ -16,14 +16,20 @@ interface AssignmentsEditorProps {
   warnings: Map<number, string[]>;
   /** The Roles list, for each person's role name in Arabic. */
   roles?: ListValue[];
+  /** The Companies list, for an outsourced person's company name in Arabic. */
+  companies?: ListValue[];
 }
 
 /** The people on one phase: who, how much of their week, and whether they are responsible or contributing. */
-export function AssignmentsEditor({ phaseName, dates, people, value, onChange, warnings, roles = [] }: AssignmentsEditorProps) {
+export function AssignmentsEditor({
+  phaseName, dates, people, value, onChange, warnings, roles = [], companies = [],
+}: AssignmentsEditorProps) {
   const t = useT();
   const { lang } = useLang();
-  /** "Fatima Noor · Developer", with "(inactive)" after someone no longer active. */
+  /** "Fatima Noor · Developer" for staff, with "(inactive)" after someone no longer active; "Omar Farid · TechNova"
+   * for an outsourced person, showing their company instead of a role. */
   const personLabel = (p: ResourceRecord) => {
+    if (p.employment === 'outsourced') return p.company ? `${p.name} · ${companyName(p.company, companies, lang)}` : p.name;
     const who = p.role ? `${p.name} · ${roleName(p.role, roles, lang)}` : p.name;
     return p.active ? who : t('common.inactive', { name: who });
   };
@@ -40,8 +46,13 @@ export function AssignmentsEditor({ phaseName, dates, people, value, onChange, w
         const chosenElsewhere = new Set(
           value.filter((_, j) => j !== i).map((other) => other.resourceId).filter((id): id is number => id !== null),
         );
-        const options = people
-          .filter((p) => p.side === 'tech' && (p.active || p.id === a.resourceId) && !chosenElsewhere.has(p.id))
+        const tech = people.filter((p) => p.side === 'tech' && !chosenElsewhere.has(p.id));
+        const staffOptions = tech
+          .filter((p) => p.employment === 'staff' && (p.active || p.id === a.resourceId))
+          .sort((x, y) => x.name.localeCompare(y.name));
+        // Outsourced people are offered only while engaged; once past they stay only if already on this row.
+        const outsourcedOptions = tech
+          .filter((p) => p.employment === 'outsourced' && (p.engaged || p.id === a.resourceId))
           .sort((x, y) => x.name.localeCompare(y.name));
         const lines = a.resourceId === null ? [] : warnings.get(a.resourceId) ?? [];
         return (
@@ -53,11 +64,20 @@ export function AssignmentsEditor({ phaseName, dates, people, value, onChange, w
                 onChange={(e) => update(i, { resourceId: e.target.value === '' ? null : Number(e.target.value) })}
               >
                 <option value="">{t('common.choosePerson')}</option>
-                {options.map((p) => (
+                {staffOptions.map((p) => (
                   <option key={p.id} value={String(p.id)}>
                     {personLabel(p)}
                   </option>
                 ))}
+                {outsourcedOptions.length > 0 ? (
+                  <optgroup label={t('assign.outsourcedGroup')}>
+                    {outsourcedOptions.map((p) => (
+                      <option key={p.id} value={String(p.id)}>
+                        {personLabel(p)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
               </select>
               <span className="inline-number">
                 <input

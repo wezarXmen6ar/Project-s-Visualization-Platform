@@ -32,9 +32,9 @@ describe('resources API', () => {
     });
     expect(res.statusCode).toBe(201);
     expect(res.json()).toEqual({
-      id: expect.any(Number), name: 'Fatima Noor', side: 'tech', role: { id: roles.Developer, name: 'Developer' },
+      id: expect.any(Number), name: 'Fatima Noor', side: 'tech', employment: 'staff', role: { id: roles.Developer, name: 'Developer' },
       specialisation: 'front-end', email: 'fatima@example.com', phone: null, capacity: 80, active: true, leave: [],
-      projects: [],
+      projects: [], company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engaged: null,
     });
   });
 
@@ -210,6 +210,80 @@ describe('resources API', () => {
     const row = db.prepare("SELECT value FROM settings WHERE key = 'me'").get() as { value: string };
     expect(JSON.parse(row.value).resourceId).not.toBe(contact.id);
     expect(JSON.parse(row.value).resourceId).toBeNull();
+  });
+});
+
+describe('outsourced people', () => {
+  let outsourcedApp: ReturnType<typeof buildApp>;
+  let outsourcedDb: DatabaseSync;
+  let companyId: number;
+
+  beforeEach(async () => {
+    outsourcedDb = openDb(':memory:');
+    outsourcedApp = buildApp(outsourcedDb, { today: () => '2026-09-24' });
+    const added = await outsourcedApp.inject({ method: 'POST', url: '/api/lists/company', payload: { name: 'TechNova' } });
+    companyId = added.json().id;
+  });
+
+  const postOutsourced = (payload: object) =>
+    outsourcedApp.inject({
+      method: 'POST', url: '/api/resources',
+      payload: { name: 'Omar Farid', side: 'tech', employment: 'outsourced', companyId, ...payload },
+    });
+
+  it('requires a company for an outsourced person', async () => {
+    const res = await outsourcedApp.inject({
+      method: 'POST', url: '/api/resources', payload: { name: 'Omar Farid', side: 'tech', employment: 'outsourced' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().issues).toEqual([{ path: 'companyId', message: 'Company is required', code: 'validation.companyRequired' }]);
+  });
+
+  it('creates an outsourced person with their company, an optional project and engagement dates', async () => {
+    const res = await postOutsourced({ engagementStart: '2026-09-01', engagementEnd: '2026-12-31' });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({
+      name: 'Omar Farid', side: 'tech', employment: 'outsourced', company: { id: companyId, name: 'TechNova' },
+      engagementProject: null, engagementStart: '2026-09-01', engagementEnd: '2026-12-31', engaged: true,
+    });
+  });
+
+  it('stores a business contact submitted as outsourced as staff, dropping the company', async () => {
+    const res = await outsourcedApp.inject({
+      method: 'POST', url: '/api/resources',
+      payload: { name: 'Mariam', side: 'business', employment: 'outsourced', companyId },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({ side: 'business', employment: 'staff', company: null, engaged: null });
+  });
+
+  it('marks an outsourced person past once their engagement has ended', async () => {
+    const res = await postOutsourced({ engagementStart: '2026-01-01', engagementEnd: '2026-06-30' });
+    expect(res.json()).toMatchObject({ engaged: false });
+  });
+
+  it('rejects an unknown company', async () => {
+    const res = await outsourcedApp.inject({
+      method: 'POST', url: '/api/resources', payload: { name: 'Omar Farid', side: 'tech', employment: 'outsourced', companyId: 9999 },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().issues).toEqual([{ path: 'companyId', message: 'Unknown company', code: 'error.unknownCompany' }]);
+  });
+
+  it('a company in use cannot be deleted', async () => {
+    await postOutsourced({});
+    const res = await outsourcedApp.inject({ method: 'DELETE', url: `/api/lists/company/${companyId}` });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({
+      error: '"TechNova" is used by 1 person', code: 'error.listValueInUsePeople', params: { name: 'TechNova', count: 1 },
+    });
+  });
+
+  it("refuses an outsourced person as 'I am', even when active", async () => {
+    const created = (await postOutsourced({})).json();
+    const res = await outsourcedApp.inject({ method: 'PUT', url: '/api/settings/me', payload: { resourceId: created.id } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: 'Choose someone from your tech team', code: 'error.chooseTechTeamMember' });
   });
 });
 

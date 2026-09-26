@@ -2,9 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { countWorkingDays, DEFAULT_CALENDAR, todayLocal, type WorkCalendar } from '../../../shared/calendar';
 import { resourceInputSchema, toIssues, type ResourceInput } from '../../../shared/schemas';
-import type { ResourceRecord, Side, Specialisation, ToDoRecord } from '../../../shared/types';
+import type { Employment, ListValue, ResourceRecord, Side, Specialisation, ToDoRecord } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '../../icons';
 import { api } from '../../api';
+import { OptionPicker } from '../../components/OptionPicker';
 import { ToDoRow } from '../../components/ToDoRow';
 import { messageFor, messagesOf } from '../../errors';
 import { formatDate } from '../../i18n/format';
@@ -42,28 +43,39 @@ function PersonToDos({
 interface PersonDraft {
   name: string;
   side: Side;
+  employment: Employment;
   roleId: number | null;
   specialisation: Specialisation | null;
   capacity: number;
   email: string;
   phone: string;
   active: boolean;
+  companyId: number | null;
+  engagementProjectId: number | null;
+  engagementStart: string;
+  engagementEnd: string;
 }
 
 const EMPTY_PERSON: PersonDraft = {
-  name: '', side: 'tech', roleId: null, specialisation: null, capacity: 100, email: '', phone: '', active: true,
+  name: '', side: 'tech', employment: 'staff', roleId: null, specialisation: null, capacity: 100, email: '', phone: '',
+  active: true, companyId: null, engagementProjectId: null, engagementStart: '', engagementEnd: '',
 };
 
 function draftFrom(p: ResourceRecord): PersonDraft {
   return {
     name: p.name,
     side: p.side,
+    employment: p.employment,
     roleId: p.role?.id ?? null,
     specialisation: p.specialisation,
     capacity: p.capacity,
     email: p.email ?? '',
     phone: p.phone ?? '',
     active: p.active,
+    companyId: p.company?.id ?? null,
+    engagementProjectId: p.engagementProject?.id ?? null,
+    engagementStart: p.engagementStart ?? '',
+    engagementEnd: p.engagementEnd ?? '',
   };
 }
 
@@ -161,7 +173,9 @@ export function PersonPage() {
   const [version, setVersion] = useState(0);
   const people = useAsync(() => api.listResources(), [version]);
   const lists = useAsync(() => api.getLists(), []);
+  const projects = useAsync(() => api.listProjects(), []);
   const calendar = useAsync(() => api.getCalendar(), []);
+  const [addedCompanies, setAddedCompanies] = useState<ListValue[]>([]);
   const { workload } = useWorkload();
   const [edited, setEdited] = useState<PersonDraft | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
@@ -202,7 +216,11 @@ export function PersonPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const input: ResourceInput = { ...draft };
+    const input: ResourceInput = {
+      ...draft,
+      engagementStart: draft.engagementStart === '' ? null : draft.engagementStart,
+      engagementEnd: draft.engagementEnd === '' ? null : draft.engagementEnd,
+    };
     const parsed = resourceInputSchema.safeParse(input);
     if (!parsed.success) {
       setIssues(toIssues(parsed.error).map((i) => messageFor(t, i)));
@@ -255,11 +273,64 @@ export function PersonPage() {
               {t(SIDE_KEY.business)}
             </label>
           </fieldset>
+          {draft.side === 'tech' ? (
+            <fieldset className="check-group side-choice">
+              <legend>{t('person.employmentLegend')}</legend>
+              <label className="check">
+                <input
+                  type="radio" name="employment" checked={draft.employment === 'staff'}
+                  onChange={() => patch({ employment: 'staff' })}
+                />
+                {t('person.ourTeam')}
+              </label>
+              <label className="check">
+                <input
+                  type="radio" name="employment" checked={draft.employment === 'outsourced'}
+                  onChange={() => patch({ employment: 'outsourced' })}
+                />
+                {t('person.outsourced')}
+              </label>
+            </fieldset>
+          ) : null}
           <div className="form-grid">
             <label>
               {t('person.name')}
               <input dir="auto" data-user-content="" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
             </label>
+            {draft.side === 'tech' && draft.employment === 'outsourced' ? (
+              <>
+                <OptionPicker
+                  label={t('person.company')}
+                  list="company"
+                  options={[...(lists.data?.company ?? []), ...addedCompanies.filter((c) => !(lists.data?.company ?? []).some((v) => v.id === c.id))]}
+                  value={draft.companyId}
+                  onChange={(companyId) => patch({ companyId })}
+                  onAdded={(v) => setAddedCompanies((list) => [...list, v])}
+                  noneLabel={t('common.notSet')}
+                  addLabel={t('person.addCompany')}
+                />
+                <label>
+                  {t('person.engagementProject')}
+                  <select
+                    value={draft.engagementProjectId === null ? '' : String(draft.engagementProjectId)}
+                    onChange={(e) => patch({ engagementProjectId: e.target.value === '' ? null : Number(e.target.value) })}
+                  >
+                    <option value="">{t('person.noEngagementProject')}</option>
+                    {(projects.data ?? []).map((p) => (
+                      <option key={p.id} value={String(p.id)} dir="auto">{p.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {t('person.engagementStart')}
+                  <input type="date" value={draft.engagementStart} onChange={(e) => patch({ engagementStart: e.target.value })} />
+                </label>
+                <label>
+                  {t('person.engagementEnd')}
+                  <input type="date" value={draft.engagementEnd} onChange={(e) => patch({ engagementEnd: e.target.value })} />
+                </label>
+              </>
+            ) : null}
             {draft.side === 'tech' ? (
               <>
                 <label>
@@ -311,7 +382,13 @@ export function PersonPage() {
             <input type="checkbox" checked={draft.active} onChange={(e) => patch({ active: e.target.checked })} />
             {t('person.active')}
           </label>
-          <p className="muted">{draft.side === 'tech' ? t('person.techHint') : t('person.businessHint')}</p>
+          <p className="muted">
+            {draft.side !== 'tech'
+              ? t('person.businessHint')
+              : draft.employment === 'outsourced'
+                ? t('person.outsourcedHint')
+                : t('person.techHint')}
+          </p>
         </section>
 
         <div className="wizard-actions">

@@ -3,7 +3,7 @@ import type { CapacityAssignment, CapacityResource } from './capacity';
 import type { PortfolioStats } from './portfolio';
 
 /** The editable dropdown lists (managed in Settings). A main project is just a name, so it is a list too. */
-export const LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department', 'phase', 'role', 'attachmentType'] as const;
+export const LIST_NAMES = ['mainProject', 'projectType', 'goal', 'department', 'phase', 'role', 'attachmentType', 'company'] as const;
 export type ListName = (typeof LIST_NAMES)[number];
 
 export interface ListValue {
@@ -51,6 +51,10 @@ export type Side = (typeof SIDES)[number];
 export const SPECIALISATIONS = ['front-end', 'back-end', 'full-stack'] as const;
 export type Specialisation = (typeof SPECIALISATIONS)[number];
 
+/** 'staff': your own team. 'outsourced': hired through a company for a project, kept apart until their engagement ends. */
+export const EMPLOYMENTS = ['staff', 'outsourced'] as const;
+export type Employment = (typeof EMPLOYMENTS)[number];
+
 export interface LeaveRecord {
   id: number;
   start: ISODate;
@@ -72,6 +76,8 @@ export interface ResourceRecord {
   id: number;
   name: string;
   side: Side;
+  /** Tech side only. Business contacts are always 'staff'. */
+  employment: Employment;
   /** Tech side only. */
   role: Ref | null;
   /** Tech side only. */
@@ -82,6 +88,16 @@ export interface ResourceRecord {
   /** % of a full working week this person can give (tech side; business contacts are always 100). */
   capacity: number;
   active: boolean;
+  /** Outsourced only, from the Companies list. */
+  company: Ref | null;
+  /** Outsourced only: the project they were hired for. */
+  engagementProject: { id: number; name: string } | null;
+  /** Outsourced only. */
+  engagementStart: ISODate | null;
+  /** Outsourced only. */
+  engagementEnd: ISODate | null;
+  /** Outsourced only: whether today falls within the engagement (an open start or end counts). Null for staff. */
+  engaged: boolean | null;
   /** Ordered by start date. */
   leave: LeaveRecord[];
   /** Ordered by name. Empty when they have no current or past link to any project. */

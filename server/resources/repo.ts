@@ -4,7 +4,7 @@ import type { MessageKey } from '../../shared/i18n/en';
 import { translate } from '../../shared/i18n/translate';
 import type { Params, ReasonParam } from '../../shared/i18n/types';
 import type { LeaveData, ResourceData, ValidationIssue } from '../../shared/schemas';
-import type { LeaveRecord, PersonProject, ResourceRecord, Side, Specialisation } from '../../shared/types';
+import type { Employment, LeaveRecord, PersonProject, ResourceRecord, Side, Specialisation } from '../../shared/types';
 import { transaction } from '../db';
 import { getListValue } from '../lists/repo';
 import { getMe, setMe } from '../settings';
@@ -13,12 +13,17 @@ interface ResourceRow {
   id: number;
   name: string;
   side: Side;
+  employment: Employment;
   role_id: number | null;
   specialisation: Specialisation | null;
   email: string | null;
   phone: string | null;
   capacity: number;
   active: number;
+  company_id: number | null;
+  engagement_project_id: number | null;
+  engagement_start: string | null;
+  engagement_end: string | null;
 }
 
 interface LeaveRow {
@@ -30,10 +35,16 @@ interface LeaveRow {
 }
 
 /** Columns written from ResourceData, in the same order as resourceValues(). */
-const COLUMNS = ['name', 'side', 'role_id', 'specialisation', 'email', 'phone', 'capacity', 'active'];
+const COLUMNS = [
+  'name', 'side', 'employment', 'role_id', 'specialisation', 'email', 'phone', 'capacity', 'active', 'company_id',
+  'engagement_project_id', 'engagement_start', 'engagement_end',
+];
 
 function resourceValues(r: ResourceData) {
-  return [r.name, r.side, r.roleId, r.specialisation, r.email, r.phone, r.capacity, r.active ? 1 : 0];
+  return [
+    r.name, r.side, r.employment, r.roleId, r.specialisation, r.email, r.phone, r.capacity, r.active ? 1 : 0,
+    r.companyId, r.engagementProjectId, r.engagementStart, r.engagementEnd,
+  ];
 }
 
 /**
@@ -66,6 +77,23 @@ function toLeave(row: LeaveRow): LeaveRecord {
 function roleNames(db: DatabaseSync): Map<number, string> {
   const rows = db.prepare("SELECT id, name FROM list_values WHERE list = 'role'").all() as unknown as { id: number; name: string }[];
   return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+function companyNames(db: DatabaseSync): Map<number, string> {
+  const rows = db.prepare("SELECT id, name FROM list_values WHERE list = 'company'").all() as unknown as { id: number; name: string }[];
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+function projectNames(db: DatabaseSync): Map<number, string> {
+  const rows = db.prepare('SELECT id, name FROM projects').all() as unknown as { id: number; name: string }[];
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+/** Engaged means today falls between the start (or open-ended) and the end (or open-ended); past means the end is before today. */
+function isEngaged(start: string | null, end: string | null, today: ISODate): boolean {
+  if (start !== null && start > today) return false;
+  if (end !== null && end < today) return false;
+  return true;
 }
 
 interface ProjectLinkRow {
@@ -137,18 +165,32 @@ function projectsByResource(db: DatabaseSync, today: ISODate): Map<number, Perso
   return result;
 }
 
-function toResource(row: ResourceRow, roles: Map<number, string>, leave: LeaveRecord[], projects: PersonProject[]): ResourceRecord {
+function toResource(
+  row: ResourceRow, roles: Map<number, string>, companies: Map<number, string>, projects2: Map<number, string>,
+  leave: LeaveRecord[], projects: PersonProject[], today: ISODate,
+): ResourceRecord {
   const roleName = row.role_id === null ? undefined : roles.get(row.role_id);
+  const companyName = row.company_id === null ? undefined : companies.get(row.company_id);
+  const engagementProjectName = row.engagement_project_id === null ? undefined : projects2.get(row.engagement_project_id);
   return {
     id: row.id,
     name: row.name,
     side: row.side,
+    employment: row.employment,
     role: row.role_id !== null && roleName !== undefined ? { id: row.role_id, name: roleName } : null,
     specialisation: row.specialisation,
     email: row.email,
     phone: row.phone,
     capacity: row.capacity,
     active: row.active === 1,
+    company: row.company_id !== null && companyName !== undefined ? { id: row.company_id, name: companyName } : null,
+    engagementProject:
+      row.engagement_project_id !== null && engagementProjectName !== undefined
+        ? { id: row.engagement_project_id, name: engagementProjectName }
+        : null,
+    engagementStart: row.engagement_start,
+    engagementEnd: row.engagement_end,
+    engaged: row.employment === 'outsourced' ? isEngaged(row.engagement_start, row.engagement_end, today) : null,
     leave,
     projects,
   };
@@ -164,8 +206,11 @@ export function listResources(db: DatabaseSync, today: ISODate = todayLocal()): 
     leave.set(l.resource_id, [...(leave.get(l.resource_id) ?? []), toLeave(l)]);
   }
   const roles = roleNames(db);
+  const companies = companyNames(db);
+  const projectNamesById = projectNames(db);
   const projects = projectsByResource(db, today);
-  return rows.map((r) => toResource(r, roles, leave.get(r.id) ?? [], projects.get(r.id) ?? []));
+  return rows.map((r) =>
+    toResource(r, roles, companies, projectNamesById, leave.get(r.id) ?? [], projects.get(r.id) ?? [], today));
 }
 
 export function getResource(db: DatabaseSync, id: number, today: ISODate = todayLocal()): ResourceRecord | undefined {
@@ -174,30 +219,40 @@ export function getResource(db: DatabaseSync, id: number, today: ISODate = today
   const leave = (db.prepare('SELECT * FROM leave WHERE resource_id = ? ORDER BY start_date, id').all(id) as unknown as LeaveRow[])
     .map(toLeave);
   const projects = projectsByResource(db, today).get(id) ?? [];
-  return toResource(row, roleNames(db), leave, projects);
+  return toResource(row, roleNames(db), companyNames(db), projectNames(db), leave, projects, today);
 }
 
-/** A chosen role must exist in the role list. */
+/** A chosen role must exist in the role list; a chosen company must exist in the Companies list; a chosen
+ * engagement project must exist. */
 export function checkResourceRefs(db: DatabaseSync, r: ResourceData): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
   if (r.roleId !== null && getListValue(db, r.roleId)?.list !== 'role') {
-    return [{ path: 'roleId', message: translate('en', 'error.unknownRole'), code: 'error.unknownRole' }];
+    issues.push({ path: 'roleId', message: translate('en', 'error.unknownRole'), code: 'error.unknownRole' });
   }
-  return [];
+  if (r.companyId !== null && getListValue(db, r.companyId)?.list !== 'company') {
+    issues.push({ path: 'companyId', message: translate('en', 'error.unknownCompany'), code: 'error.unknownCompany' });
+  }
+  if (r.engagementProjectId !== null && !db.prepare('SELECT id FROM projects WHERE id = ?').get(r.engagementProjectId)) {
+    issues.push({
+      path: 'engagementProjectId', message: translate('en', 'error.unknownEngagementProject'), code: 'error.unknownEngagementProject',
+    });
+  }
+  return issues;
 }
 
-export function createResource(db: DatabaseSync, r: ResourceData): ResourceRecord {
+export function createResource(db: DatabaseSync, r: ResourceData, today: ISODate = todayLocal()): ResourceRecord {
   const res = db
     .prepare(`INSERT INTO resources (${COLUMNS.join(', ')}) VALUES (${COLUMNS.map(() => '?').join(', ')})`)
     .run(...resourceValues(r));
-  return getResource(db, Number(res.lastInsertRowid))!;
+  return getResource(db, Number(res.lastInsertRowid), today)!;
 }
 
 /** Returns undefined when the person does not exist. */
-export function updateResource(db: DatabaseSync, id: number, r: ResourceData): ResourceRecord | undefined {
+export function updateResource(db: DatabaseSync, id: number, r: ResourceData, today: ISODate = todayLocal()): ResourceRecord | undefined {
   const res = db
     .prepare(`UPDATE resources SET ${COLUMNS.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`)
     .run(...resourceValues(r), id);
-  return Number(res.changes) === 0 ? undefined : getResource(db, id);
+  return Number(res.changes) === 0 ? undefined : getResource(db, id, today);
 }
 
 /** All USAGE entries by default; pass a filter to consider only some, e.g. side-change entries. */
@@ -243,7 +298,7 @@ export type ResourceUpdate =
  * at someone on the wrong side, so it is refused the same way a delete of someone in use is refused. To-dos are
  * allowed on either side, so they don't block a side change.
  */
-export function updateResourceChecked(db: DatabaseSync, id: number, r: ResourceData): ResourceUpdate {
+export function updateResourceChecked(db: DatabaseSync, id: number, r: ResourceData, today: ISODate = todayLocal()): ResourceUpdate {
   const person = getResource(db, id);
   if (!person) return { ok: false, status: 404, error: translate('en', 'error.personNotFound'), code: 'error.personNotFound' };
   if (r.side !== person.side) {
@@ -259,7 +314,7 @@ export function updateResourceChecked(db: DatabaseSync, id: number, r: ResourceD
       };
     }
   }
-  return { ok: true, resource: updateResource(db, id, r)! };
+  return { ok: true, resource: updateResource(db, id, r, today)! };
 }
 
 /** Returns undefined when the person does not exist. */

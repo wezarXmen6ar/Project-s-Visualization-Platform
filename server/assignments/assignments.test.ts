@@ -5,17 +5,25 @@ import { openDb } from '../db';
 
 let db: DatabaseSync;
 let app: ReturnType<typeof buildApp>;
-let people: { fatima: number; rami: number; mariam: number; gone: number };
+let people: { fatima: number; rami: number; mariam: number; gone: number; omar: number; laid: number };
+let companyId: number;
 
 beforeEach(async () => {
   db = openDb(':memory:');
   app = buildApp(db, { today: () => '2026-09-24' });
   const add = async (payload: object) => (await app.inject({ method: 'POST', url: '/api/resources', payload })).json().id as number;
+  companyId = (await app.inject({ method: 'POST', url: '/api/lists/company', payload: { name: 'TechNova' } })).json().id;
   people = {
     fatima: await add({ name: 'Fatima Noor', side: 'tech' }),
     rami: await add({ name: 'Rami Saleh', side: 'tech', capacity: 80 }),
     mariam: await add({ name: 'Mariam Al Suwaidi', side: 'business' }),
     gone: await add({ name: 'Old Hand', side: 'tech', active: false }),
+    omar: await add({
+      name: 'Omar Farid', side: 'tech', employment: 'outsourced', companyId, engagementStart: '2026-09-01', engagementEnd: '2026-12-31',
+    }),
+    laid: await add({
+      name: 'Layla Zaid', side: 'tech', employment: 'outsourced', companyId, engagementStart: '2026-01-01', engagementEnd: '2026-06-30',
+    }),
   };
 });
 
@@ -203,6 +211,61 @@ describe('assignments', () => {
         phaseName: 'Development › Increment 1', topPhaseName: 'Development', subPhaseName: 'Increment 1', start: subPhase.start, end: subPhase.end, allocation: 60, role: 'contributor',
       },
     ]);
+  });
+
+  it('excludes outsourced people and their assignments from the workload heatmap', async () => {
+    await projectWith([
+      { resourceId: people.fatima, allocation: 60 },
+      { resourceId: people.omar, allocation: 50 },
+    ]);
+    const data = (await app.inject({ method: 'GET', url: '/api/workload' })).json();
+    expect(data.resources.map((r: { id: number }) => r.id)).toEqual([people.fatima, people.rami]);
+    expect(data.assignments.map((a: { resourceId: number }) => a.resourceId)).toEqual([people.fatima]);
+  });
+
+  it('lets an engaged outsourced person be assigned, refuses one whose engagement has ended, and keeps one already on the phase', async () => {
+    const res = await projectWith([
+      { resourceId: people.fatima, allocation: 60 },
+      { resourceId: people.omar, allocation: 30 },
+      { resourceId: people.laid, allocation: 30 },
+    ]);
+    expect(res.statusCode).toBe(400);
+    expect(issuesOf(res.json())).toEqual([["phases.0.assignments.2.resourceId", "Layla Zaid's engagement has ended"]]);
+
+    const created = await projectWith([
+      { resourceId: people.fatima, allocation: 60 },
+      { resourceId: people.omar, allocation: 30 },
+    ]);
+    expect(created.statusCode).toBe(201);
+    const p = created.json();
+
+    // Omar's engagement has since ended, but he was already on the phase, so he stays; a newly added Layla is refused.
+    await app.inject({
+      method: 'PUT', url: `/api/resources/${people.omar}`,
+      payload: { name: 'Omar Farid', side: 'tech', employment: 'outsourced', companyId, engagementEnd: '2026-09-10' },
+    });
+    const resaved = await app.inject({
+      method: 'PUT', url: `/api/phases/${p.phases[0].id}/assignments`,
+      payload: {
+        assignments: [
+          { resourceId: people.fatima, allocation: 60 },
+          { resourceId: people.omar, allocation: 30 },
+        ],
+      },
+    });
+    expect(resaved.statusCode).toBe(200);
+
+    const withNewPast = await app.inject({
+      method: 'PUT', url: `/api/phases/${p.phases[0].id}/assignments`,
+      payload: {
+        assignments: [
+          { resourceId: people.fatima, allocation: 60 },
+          { resourceId: people.laid, allocation: 30 },
+        ],
+      },
+    });
+    expect(withNewPast.statusCode).toBe(400);
+    expect(issuesOf(withNewPast.json())).toEqual([['assignments.1.resourceId', "Layla Zaid's engagement has ended"]]);
   });
 
   it('will not delete someone who is assigned to a phase', async () => {

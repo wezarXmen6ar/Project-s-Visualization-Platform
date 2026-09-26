@@ -5,8 +5,9 @@ import { sortPeople, workingOn } from './peopleTable';
 
 function person(p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name'>): ResourceRecord {
   return {
-    side: 'tech', role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [],
-    projects: [], ...p,
+    side: 'tech', employment: 'staff', role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true,
+    leave: [], projects: [], company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engaged: null,
+    ...p,
   };
 }
 

@@ -7,13 +7,14 @@ import type { ResourceRecord, Side } from '../../../shared/types';
 import { AlertIcon, ArrowLeftIcon, PlusIcon } from '../../icons';
 import { api } from '../../api';
 import { messagesOf } from '../../errors';
+import { formatDate } from '../../i18n/format';
 import { useLang, useT } from '../../i18n/LanguageProvider';
-import { listName, phaseName, roleName } from '../../i18n/listNames';
+import { companyName, listName, phaseName, roleName } from '../../i18n/listNames';
 import { useAsync } from '../../useAsync';
 import { useWorkload } from '../../useWorkload';
 import { SIDE_KEY, SPECIALISATION_KEY } from './labels';
 import { OverloadPanel } from './OverloadPanel';
-import { sortPeople, workingOn, type SortDir, type SortKey } from './peopleTable';
+import { sortOutsourced, sortPeople, workingOn, type OutsourcedSortKey, type SortDir, type SortKey } from './peopleTable';
 import { DayHeatmap } from './DayHeatmap';
 import { WorkloadHeatmap } from './WorkloadHeatmap';
 
@@ -54,6 +55,22 @@ const COLUMNS: { key: SortKey; label: MessageKey }[] = [
   { key: 'status', label: 'resources.colStatus' },
 ];
 
+const OUTSOURCED_COLUMNS: { key: OutsourcedSortKey; label: MessageKey }[] = [
+  { key: 'name', label: 'resources.colName' },
+  { key: 'company', label: 'resources.colCompany' },
+  { key: 'project', label: 'resources.colProject' },
+  { key: 'start', label: 'resources.colStart' },
+  { key: 'end', label: 'resources.colEnd' },
+  { key: 'contact', label: 'resources.colContact' },
+];
+
+/** Every project appearing in any outsourced person's engagement, sorted by name, for the Outsourced filter. */
+function engagementProjectOptions(people: ResourceRecord[]): { id: number; name: string }[] {
+  const byId = new Map<number, string>();
+  for (const p of people) if (p.engagementProject) byId.set(p.engagementProject.id, p.engagementProject.name);
+  return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** The heatmap legend: each level's class and its catalogue key. */
 const LEGEND: { className: string; label: MessageKey }[] = [
   { className: 'heat heat-low', label: 'heatmap.legendLight' },
@@ -80,6 +97,9 @@ export function ResourcesPage() {
   const [roleId, setRoleId] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<number | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
+  const [companyId, setCompanyId] = useState<number | null>(null);
+  const [outsourcedProjectId, setOutsourcedProjectId] = useState<number | null>(null);
+  const [outsourcedSort, setOutsourcedSort] = useState<{ key: OutsourcedSortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
 
   const { workload, error: workloadError, reload } = useWorkload();
   const [view, setView] = useState<WorkloadView>(savedView);
@@ -109,7 +129,8 @@ export function ResourcesPage() {
   const selectedWeek = selectedPerson?.weeks[0];
   const select = (resourceId: number, weekStart: string) => setSelected({ resourceId, weekStart });
 
-  const all = people.data ?? [];
+  // The People table is our team and business contacts only; outsourced people get their own section below.
+  const all = (people.data ?? []).filter((p) => p.employment === 'staff');
   const filtered = all.filter(
     (p) =>
       (side === 'all' || p.side === side) &&
@@ -117,9 +138,20 @@ export function ResourcesPage() {
       (projectId === null || workingOn(p, projectId)),
   );
   const roles = lists.data?.role ?? [];
+  const companies = lists.data?.company ?? [];
   const shown = sortPeople(filtered, sort.key, sort.dir, lang, roles);
   const nameFor = (name: string) => (lists.data ? phaseName(name, lists.data, lang) : name);
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+
+  const outsourced = (people.data ?? []).filter((p) => p.employment === 'outsourced');
+  const engagedOutsourced = outsourced.filter((p) => p.engaged);
+  const pastOutsourced = outsourced.filter((p) => !p.engaged);
+  const outsourcedFiltered = engagedOutsourced.filter(
+    (p) => (companyId === null || p.company?.id === companyId) && (outsourcedProjectId === null || p.engagementProject?.id === outsourcedProjectId),
+  );
+  const outsourcedShown = sortOutsourced(outsourcedFiltered, outsourcedSort.key, outsourcedSort.dir, lang, companies);
+  const toggleOutsourcedSort = (key: OutsourcedSortKey) =>
+    setOutsourcedSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
 
   return (
     <main className="page">
@@ -297,6 +329,99 @@ export function ResourcesPage() {
               ))}
             </tbody>
           </table>
+        ) : null}
+      </section>
+
+      <section className="card">
+        <h2>{t('resources.outsourced')}</h2>
+        <p className="muted">{t('resources.outsourcedIntro')}</p>
+        <div className="filters">
+          <label>
+            {t('resources.filterCompany')}
+            <select value={companyId === null ? '' : String(companyId)} onChange={(e) => setCompanyId(e.target.value === '' ? null : Number(e.target.value))}>
+              <option value="">{t('resources.anyCompany')}</option>
+              {companies.map((c) => (
+                <option key={c.id} value={String(c.id)}>{listName(c, lang)}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t('resources.colProject')}
+            <select
+              value={outsourcedProjectId === null ? '' : String(outsourcedProjectId)}
+              onChange={(e) => setOutsourcedProjectId(e.target.value === '' ? null : Number(e.target.value))}
+            >
+              <option value="">{t('resources.anyProject')}</option>
+              {engagementProjectOptions(engagedOutsourced).map((p) => (
+                <option key={p.id} value={String(p.id)}>{p.name}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {engagedOutsourced.length === 0 ? <p className="muted">{t('resources.noOutsourced')}</p> : null}
+        {engagedOutsourced.length > 0 && outsourcedShown.length === 0 ? <p className="muted">{t('resources.noMatches')}</p> : null}
+
+        {outsourcedShown.length > 0 ? (
+          <table aria-label={t('resources.outsourced')}>
+            <thead>
+              <tr>
+                {OUTSOURCED_COLUMNS.map(({ key, label }) => (
+                  <th key={key} aria-sort={outsourcedSort.key === key ? (outsourcedSort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="sort-button" onClick={() => toggleOutsourcedSort(key)}>
+                      {t(label)}
+                      {outsourcedSort.key === key ? <span aria-hidden="true"> {outsourcedSort.dir === 'asc' ? '▲' : '▼'}</span> : null}
+                    </button>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {outsourcedShown.map((p) => (
+                <tr key={p.id}>
+                  <td><Link to={`/manage/resources/${p.id}`} dir="auto" data-user-content="">{p.name}</Link></td>
+                  <td dir="auto" data-user-content="">{p.company ? companyName(p.company, companies, lang) : '—'}</td>
+                  <td>
+                    {p.engagementProject ? (
+                      <Link to={`/manage/projects/${p.engagementProject.id}`} dir="auto" data-user-content="">{p.engagementProject.name}</Link>
+                    ) : '—'}
+                  </td>
+                  <td>{p.engagementStart ? formatDate(lang, p.engagementStart) : '—'}</td>
+                  <td>{p.engagementEnd ? formatDate(lang, p.engagementEnd) : '—'}</td>
+                  <td>
+                    {p.phone || p.email ? <span dir="ltr">{[p.phone, p.email].filter(Boolean).join(' · ')}</span> : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
+
+        {pastOutsourced.length > 0 ? (
+          <details className="past-outsourced">
+            <summary>{t('resources.pastOutsourced', { count: pastOutsourced.length })}</summary>
+            <table aria-label={t('resources.pastOutsourced', { count: pastOutsourced.length })}>
+              <thead>
+                <tr>
+                  {OUTSOURCED_COLUMNS.map(({ key, label }) => <th key={key}>{t(label)}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {sortOutsourced(pastOutsourced, 'name', 'asc', lang, companies).map((p) => (
+                  <tr key={p.id}>
+                    <td><Link to={`/manage/resources/${p.id}`} dir="auto" data-user-content="">{p.name}</Link></td>
+                    <td dir="auto" data-user-content="">{p.company ? companyName(p.company, companies, lang) : '—'}</td>
+                    <td>{p.engagementProject ? p.engagementProject.name : '—'}</td>
+                    <td>{p.engagementStart ? formatDate(lang, p.engagementStart) : '—'}</td>
+                    <td>{p.engagementEnd ? formatDate(lang, p.engagementEnd) : '—'}</td>
+                    <td>
+                      {p.phone || p.email ? <span dir="ltr">{[p.phone, p.email].filter(Boolean).join(' · ')}</span> : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
         ) : null}
       </section>
     </main>

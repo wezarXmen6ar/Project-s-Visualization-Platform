@@ -111,14 +111,14 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     return result.ok ? reply.code(204).send() : reply.code(result.status).send({ error: result.error, code: result.code, params: result.params });
   });
 
-  app.get('/api/resources', async () => listResources(db));
+  app.get('/api/resources', async () => listResources(db, today()));
 
   app.post('/api/resources', async (req, reply) => {
     const parsed = resourceInputSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid person', issues: toIssues(parsed.error) });
     const issues = checkResourceRefs(db, parsed.data);
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid person', issues });
-    return reply.code(201).send(createResource(db, parsed.data));
+    return reply.code(201).send(createResource(db, parsed.data, today()));
   });
 
   app.put<{ Params: { id: string } }>('/api/resources/:id', async (req, reply) => {
@@ -126,7 +126,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid person', issues: toIssues(parsed.error) });
     const issues = checkResourceRefs(db, parsed.data);
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid person', issues });
-    const result = updateResourceChecked(db, Number(req.params.id), parsed.data);
+    const result = updateResourceChecked(db, Number(req.params.id), parsed.data, today());
     return result.ok ? result.resource : reply.code(result.status).send({ error: result.error, code: result.code, params: result.params });
   });
 
@@ -160,8 +160,9 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const issues = [
       ...checkRefs(db, parsed.data),
       ...parsed.data.phases.flatMap((p, i) => [
-        ...checkAssignmentPeople(db, p.assignments, `phases.${i}.assignments`),
-        ...p.subPhases.flatMap((s, j) => checkAssignmentPeople(db, s.assignments, `phases.${i}.subPhases.${j}.assignments`)),
+        ...checkAssignmentPeople(db, p.assignments, `phases.${i}.assignments`, new Set(), today()),
+        ...p.subPhases.flatMap((s, j) =>
+          checkAssignmentPeople(db, s.assignments, `phases.${i}.subPhases.${j}.assignments`, new Set(), today())),
       ]),
     ];
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid project', issues });
@@ -193,7 +194,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (projectId === undefined) return reply.code(404).send(err('error.phaseNotFound'));
     const parsed = assignmentsUpdateSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid assignments', issues: toIssues(parsed.error) });
-    const issues = checkAssignmentPeople(db, parsed.data.assignments, 'assignments', phaseAssignmentResourceIds(db, phaseId));
+    const issues = checkAssignmentPeople(db, parsed.data.assignments, 'assignments', phaseAssignmentResourceIds(db, phaseId), today());
     if (issues.length > 0) return reply.code(400).send({ error: 'Invalid assignments', issues });
     transaction(db, () => saveAssignments(db, phaseId, parsed.data.assignments));
     return getProject(db, projectId);
@@ -444,7 +445,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid person', issues: toIssues(parsed.error) });
     const { resourceId } = parsed.data;
     if (resourceId !== null) {
-      const person = db.prepare("SELECT active FROM resources WHERE id = ? AND side = 'tech'").get(resourceId) as unknown as
+      const person = db.prepare("SELECT active FROM resources WHERE id = ? AND side = 'tech' AND employment = 'staff'").get(resourceId) as unknown as
         | { active: number }
         | undefined;
       if (!person || person.active !== 1) return reply.code(400).send(err('error.chooseTechTeamMember'));

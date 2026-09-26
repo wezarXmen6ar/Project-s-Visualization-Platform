@@ -3,7 +3,7 @@ import { dayOfWeek, isISODate } from './calendar';
 import type { MessageKey } from './i18n/en';
 import { isMessageKey, translate } from './i18n/translate';
 import type { Params } from './i18n/types';
-import { ASSIGNMENT_ROLES, CATEGORIES, ENTRY_TYPES, OVERLOAD_DECISIONS, PRIORITIES, SCOPE_KINDS, SIDES, SPECIALISATIONS } from './types';
+import { ASSIGNMENT_ROLES, CATEGORIES, EMPLOYMENTS, ENTRY_TYPES, OVERLOAD_DECISIONS, PRIORITIES, SCOPE_KINDS, SIDES, SPECIALISATIONS } from './types';
 
 export const isoDate = z.string().refine(isISODate, 'validation.invalidDate');
 
@@ -229,6 +229,7 @@ export const resourceInputSchema = z
   .object({
     name: z.string().trim().min(1, 'validation.nameRequired').max(200, tooLong(200)),
     side: z.enum(SIDES),
+    employment: z.enum(EMPLOYMENTS).default('staff'),
     roleId: optionalId,
     specialisation: z
       .enum(SPECIALISATIONS)
@@ -243,9 +244,28 @@ export const resourceInputSchema = z
       .max(100, 'validation.capacityRange')
       .default(100),
     active: z.boolean().default(true),
+    companyId: optionalId,
+    engagementProjectId: optionalId,
+    engagementStart: isoDate.nullish().transform((v) => v ?? null),
+    engagementEnd: isoDate.nullish().transform((v) => v ?? null),
   })
-  // Business contacts have no role or specialisation, and are not counted in workload.
-  .transform((r) => (r.side === 'business' ? { ...r, roleId: null, specialisation: null, capacity: 100 } : r));
+  // Business contacts have no role or specialisation, are not counted in workload, and only tech-team people can
+  // be outsourced.
+  .transform((r) => (r.side === 'business' ? { ...r, roleId: null, specialisation: null, capacity: 100, employment: 'staff' as const } : r))
+  // Only an outsourced person carries a company or engagement.
+  .transform((r) =>
+    r.employment === 'staff'
+      ? { ...r, companyId: null, engagementProjectId: null, engagementStart: null, engagementEnd: null }
+      : r,
+  )
+  .superRefine((r, ctx) => {
+    if (r.employment === 'outsourced' && r.companyId === null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'validation.companyRequired', path: ['companyId'] });
+    }
+    if (r.employment === 'outsourced' && r.engagementStart && r.engagementEnd && r.engagementEnd < r.engagementStart) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'validation.endDateAfterStart', path: ['engagementEnd'] });
+    }
+  });
 
 export const leaveInputSchema = z
   .object({ start: isoDate, end: isoDate, note: optionalText(200) })

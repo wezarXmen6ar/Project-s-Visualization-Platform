@@ -49,3 +49,8 @@ export function isCustomPhaseName(name: string, phases: Named[]): boolean {
 export function roleName(role: Ref, roles: ListValue[], lang: Lang): string {
   return listName(roles.find((r) => r.id === role.id) ?? role, lang);
 }
+
+/** An outsourced person's company name in `lang`, from the Companies list, the same way `roleName` resolves a role. */
+export function companyName(company: Ref, companies: ListValue[], lang: Lang): string {
+  return listName(companies.find((c) => c.id === company.id) ?? company, lang);
+}

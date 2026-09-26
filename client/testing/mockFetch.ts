@@ -116,12 +116,15 @@ export function sampleLists(): Lists {
       'Meeting Minutes', 'Approval', 'Change Request', 'Business Analysis Document', 'BRD', 'Documentation', 'Design',
       'Test Report', 'Contract', 'Other',
     ].map((name, i) => ({ id: 100 + i, list: 'attachmentType' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
+    company: [{ id: 200, list: 'company', name: 'TechNova', order: 0, nameAr: null }],
   };
 }
 
 export function samplePeople(): ResourceRecord[] {
   const person = (p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name' | 'side'>): ResourceRecord => ({
-    role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], projects: [], ...p,
+    role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], projects: [],
+    employment: 'staff', company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engaged: null,
+    ...p,
   });
   return [
     person({ id: 70, name: 'Sara Ahmed', side: 'tech', role: { id: 60, name: 'Project manager' } }),
@@ -134,6 +137,25 @@ export function samplePeople(): ResourceRecord[] {
       projects: [{ id: 91, name: 'Case Management', finished: false }],
     }),
     person({ id: 80, name: 'Mariam Al Suwaidi', side: 'business', phone: '+971 50 123 4567', email: 'mariam@example.com' }),
+  ];
+}
+
+/** One engaged outsourced person and one past one, both hired by TechNova. */
+export function sampleOutsourced(): ResourceRecord[] {
+  const person = (p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name' | 'engaged'>): ResourceRecord => ({
+    side: 'tech', role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], projects: [],
+    employment: 'outsourced', company: { id: 200, name: 'TechNova' }, engagementProject: null, engagementStart: null,
+    engagementEnd: null, ...p,
+  });
+  return [
+    person({
+      id: 90, name: 'Omar Farid', engaged: true, engagementProject: { id: 91, name: 'Case Management' },
+      engagementStart: '2026-09-01', engagementEnd: '2026-12-31',
+    }),
+    person({
+      id: 91, name: 'Layla Zaid', engaged: false, engagementProject: { id: 91, name: 'Case Management' },
+      engagementStart: '2026-01-01', engagementEnd: '2026-06-30',
+    }),
   ];
 }
 

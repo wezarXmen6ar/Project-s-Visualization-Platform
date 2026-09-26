@@ -1,10 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { ISODate } from '../../shared/calendar';
+import { todayLocal, type ISODate } from '../../shared/calendar';
 import { translate } from '../../shared/i18n/translate';
 import type { Params } from '../../shared/i18n/types';
 import type { AssignmentData, OverloadDecisionData, ValidationIssue } from '../../shared/schemas';
 import type {
-  AssignmentRecord, AssignmentRole, OverloadDecision, OverloadDecisionKind, Side, WorkloadAssignment, WorkloadData,
+  AssignmentRecord, AssignmentRole, Employment, OverloadDecision, OverloadDecisionKind, Side, WorkloadAssignment, WorkloadData,
 } from '../../shared/types';
 import { getCalendar } from '../settings';
 
@@ -45,28 +45,46 @@ function toAssignment(row: AssignmentRow): AssignmentRecord {
   };
 }
 
+/** Engaged means today falls between the start (or open-ended) and the end (or open-ended); past means the end is before today. */
+function isEngaged(start: string | null, end: string | null, today: ISODate): boolean {
+  if (start !== null && start > today) return false;
+  if (end !== null && end < today) return false;
+  return true;
+}
+
 /**
- * Everyone assigned must exist, be on the tech team and be active. `path` prefixes each issue, e.g. "phases.0.assignments".
- * `alreadyOnPhase` lists resourceIds already saved on this phase, who may stay even if since made inactive - only a
- * newly-added inactive person is rejected. Leave it empty (the default) when there is no existing phase to compare
- * against, e.g. when creating a project.
+ * Everyone assigned must exist, be on the tech team, and (an active staff member, or an outsourced person still
+ * engaged). `path` prefixes each issue, e.g. "phases.0.assignments". `alreadyOnPhase` lists resourceIds already
+ * saved on this phase, who may stay even if since made inactive or their engagement has since ended - only a
+ * newly-added inactive/unengaged person is rejected. Leave it empty (the default) when there is no existing phase
+ * to compare against, e.g. when creating a project. `today` fixes what "engaged" means.
  */
 export function checkAssignmentPeople(
   db: DatabaseSync,
   list: { resourceId: number }[],
   path: string,
   alreadyOnPhase: ReadonlySet<number> = new Set(),
+  today: ISODate = todayLocal(),
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   list.forEach((a, i) => {
-    const person = db.prepare('SELECT name, side, active FROM resources WHERE id = ?').get(a.resourceId) as unknown as
-      | { name: string; side: Side; active: number }
+    const person = db
+      .prepare('SELECT name, side, active, employment, engagement_start, engagement_end FROM resources WHERE id = ?')
+      .get(a.resourceId) as unknown as
+      | { name: string; side: Side; active: number; employment: Employment; engagement_start: string | null; engagement_end: string | null }
       | undefined;
     const at = `${path}.${i}.resourceId`;
     if (!person) issues.push({ path: at, message: translate('en', 'error.unknownPerson'), code: 'error.unknownPerson' });
     else if (person.side !== 'tech') {
       const params: Params = { name: person.name };
       issues.push({ path: at, message: translate('en', 'error.notTechTeam', params), code: 'error.notTechTeam', params });
+    } else if (person.employment === 'outsourced') {
+      if (!isEngaged(person.engagement_start, person.engagement_end, today) && !alreadyOnPhase.has(a.resourceId)) {
+        const params: Params = { name: person.name };
+        issues.push({
+          path: at, message: translate('en', 'error.personEngagementEnded', params), code: 'error.personEngagementEnded', params,
+        });
+      }
     } else if (person.active !== 1 && !alreadyOnPhase.has(a.resourceId)) {
       const params: Params = { name: person.name };
       issues.push({ path: at, message: translate('en', 'error.personInactive', params), code: 'error.personInactive', params });
@@ -137,10 +155,13 @@ export function recordDecision(db: DatabaseSync, d: OverloadDecisionData, today:
   return toDecision(db.prepare('SELECT * FROM events WHERE id = ?').get(Number(res.lastInsertRowid)) as unknown as EventRow);
 }
 
-/** Active tech-team people with their leave, every assignment with its phase dates, the calendar, and every decision. */
+/**
+ * Active tech-team staff (outsourced people are never in the heatmap or its overbooking warnings — the user's
+ * choice) with their leave, every assignment of theirs with its phase dates, the calendar, and every decision.
+ */
 export function workloadData(db: DatabaseSync): WorkloadData {
   const people = db
-    .prepare("SELECT id, name, capacity FROM resources WHERE side = 'tech' AND active = 1 ORDER BY name COLLATE NOCASE, id")
+    .prepare("SELECT id, name, capacity FROM resources WHERE side = 'tech' AND employment = 'staff' AND active = 1 ORDER BY name COLLATE NOCASE, id")
     .all() as unknown as { id: number; name: string; capacity: number }[];
   const leave = db.prepare('SELECT resource_id, start_date, end_date, note FROM leave ORDER BY start_date, id').all() as unknown as {
     resource_id: number;
@@ -156,6 +177,7 @@ export function workloadData(db: DatabaseSync): WorkloadData {
               CASE WHEN parent.id IS NULL THEN NULL ELSE p.name END AS sub_phase_name,
               p.planned_start, p.planned_end, pr.id AS project_id, pr.name AS project_name
        FROM assignments a
+       JOIN resources r ON r.id = a.resource_id AND r.employment = 'staff'
        JOIN phases p ON p.id = a.phase_id
        LEFT JOIN phases parent ON parent.id = p.parent_id
        JOIN projects pr ON pr.id = p.project_id

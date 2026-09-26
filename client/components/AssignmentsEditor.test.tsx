@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ListValue, ResourceRecord } from '../../shared/types';
 import { LanguageProvider } from '../i18n/LanguageProvider';
 import type { DraftAssignment } from '../overloads';
-import { sampleLists, samplePeople } from '../testing/mockFetch';
+import { sampleLists, sampleOutsourced, samplePeople } from '../testing/mockFetch';
 import { AssignmentsEditor } from './AssignmentsEditor';
 
 function Harness({ spy, warnings = new Map(), people = samplePeople(), roles = [] }: {
@@ -77,6 +77,16 @@ describe('AssignmentsEditor', () => {
     expect(screen.queryByText('Week of 5 Oct: 150% booked, 100% available')).toBeNull();
     await user.selectOptions(screen.getByLabelText('Development person 1'), 'Fatima Noor · Developer');
     expect(screen.getByText('Week of 5 Oct: 150% booked, 100% available')).toBeInTheDocument();
+  });
+
+  it('shows an Outsourced group with the company name, offering only the engaged person', async () => {
+    const user = userEvent.setup();
+    render(<Harness people={[...samplePeople(), ...sampleOutsourced()]} />);
+    await user.click(screen.getByRole('button', { name: 'Add person to Development' }));
+    const select = screen.getByLabelText('Development person 1');
+    const group = within(select).getByRole('group', { name: 'Outsourced' });
+    const options = within(group).getAllByRole('option').map((o) => o.textContent);
+    expect(options).toEqual(['Omar Farid · TechNova']);
   });
 
   it("shows a person's role in Arabic, from the Roles list", async () => {
