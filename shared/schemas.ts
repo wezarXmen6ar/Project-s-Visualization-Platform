@@ -322,7 +322,7 @@ export const attachmentUploadQuerySchema = z.object({
   typeId: optionalIdQuery,
   phaseId: optionalIdQuery,
   entryId: optionalIdQuery,
-  documentDate: isoDate.nullish().transform((v) => v ?? null),
+  documentDate: z.preprocess((v) => (v === '' ? undefined : v), isoDate.nullish().transform((v) => v ?? null)),
 });
 export type AttachmentUploadQueryInput = z.input<typeof attachmentUploadQuerySchema>;
 export type AttachmentUploadQuery = z.output<typeof attachmentUploadQuerySchema>;

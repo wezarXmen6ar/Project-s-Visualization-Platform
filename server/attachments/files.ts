@@ -42,12 +42,12 @@ export function guessMime(fileName: string): string {
   return EXTENSION_MIME[ext] ?? 'application/octet-stream';
 }
 
-/**
- * True for application/pdf and image/*, the types the client can preview inline — except image/svg+xml, which can
- * carry a script and must always download as a plain attachment.
- */
+/** The types the client can preview inline. SVG is deliberately absent: it can carry a script, so it always downloads. */
+const PREVIEWABLE = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp']);
+
+/** True for a PDF or a raster image the browser can show inline (compared case-insensitively). */
 export function isPreviewable(mime: string): boolean {
-  return mime === 'application/pdf' || (mime.startsWith('image/') && mime !== 'image/svg+xml');
+  return PREVIEWABLE.has(mime.toLowerCase());
 }
 
 /**
@@ -58,8 +58,7 @@ export function isPreviewable(mime: string): boolean {
 export function sanitiseFileName(name: string): string {
   const base = name.slice(Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\')) + 1);
   const cleaned = base.replace(/[^\p{L}\p{M}\p{N}.\-_ ]/gu, '_');
-  const trimmed = cleaned.replace(/[. ]+$/, '');
-  const cut = trimmed.slice(0, 100);
+  const cut = cleaned.slice(0, 100).replace(/[. ]+$/, '');
   return cut.length > 0 ? cut : '_';
 }
 

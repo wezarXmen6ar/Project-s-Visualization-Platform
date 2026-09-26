@@ -146,6 +146,15 @@ describe('uploading', () => {
     });
   });
 
+  it('treats empty typeId and documentDate values as absent', async () => {
+    const res = await app.inject({
+      method: 'POST', url: `/api/projects/${projectId}/attachments?typeId=&documentDate=`, payload: PDF_BYTES,
+      headers: { 'content-type': 'application/octet-stream', 'x-file-name': encodeURIComponent('x.pdf') },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({ type: null, documentDate: null });
+  });
+
   it('rejects a file over the configured limit with 413 and error.fileTooLarge', async () => {
     const big = Buffer.alloc(2000, 'a');
     const res = await upload('big.pdf', { body: big });
@@ -185,9 +194,8 @@ describe('downloading', () => {
     expect(plain.rawPayload.equals(PDF_BYTES)).toBe(true);
     expect(plain.headers['content-disposition']).toContain("attachment; filename*=UTF-8''");
     expect(plain.headers['x-content-type-options']).toBe('nosniff');
-    expect(plain.headers['content-security-policy']).toBe(
-      "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
-    );
+    // A PDF skips `sandbox`, which some PDF viewers refuse to run under; every other type keeps it.
+    expect(plain.headers['content-security-policy']).toBe("default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
 
     const inline = await app.inject({ method: 'GET', url: `/api/attachments/${created.id}/file?inline=1` });
     expect(inline.headers['content-disposition']).toContain('inline');
@@ -204,7 +212,15 @@ describe('downloading', () => {
     expect(created.previewable).toBe(false);
     const res = await app.inject({ method: 'GET', url: `/api/attachments/${created.id}/file?inline=1` });
     expect(res.headers['content-disposition']).toContain('attachment');
-    expect(res.headers['content-security-policy']).toContain("default-src 'none'");
+    expect(res.headers['content-security-policy']).toBe("default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
+  });
+
+  it('never inlines an SVG whose declared type uses capitals, and stores the type in lower case', async () => {
+    const created = (await upload('evil.svg', { type: 'image/SVG+xml', body: SVG_BYTES })).json();
+    expect(created.previewable).toBe(false);
+    expect(created.mime).toBe('image/svg+xml');
+    const res = await app.inject({ method: 'GET', url: `/api/attachments/${created.id}/file?inline=1` });
+    expect(res.headers['content-disposition']).toContain('attachment');
   });
 
   it('404s for a missing attachment', async () => {
@@ -413,5 +429,11 @@ describe('isPreviewable', () => {
   it('is true for application/pdf and other image types', () => {
     expect(files.isPreviewable('application/pdf')).toBe(true);
     expect(files.isPreviewable('image/png')).toBe(true);
+    expect(files.isPreviewable('IMAGE/JPEG')).toBe(true);
+  });
+
+  it('is false for image types outside the allowlist', () => {
+    expect(files.isPreviewable('image/SVG+xml')).toBe(false);
+    expect(files.isPreviewable('image/x-icon')).toBe(false);
   });
 });

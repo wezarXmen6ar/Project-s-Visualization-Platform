@@ -312,7 +312,7 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
       // A client-declared MIME type is only trusted when it looks like one; anything else falls back to a guess
       // from the extension, same as when the header is absent.
       const mime = typeof rawType === 'string' && rawType.length <= 100 && /^[\w.+-]+\/[\w.+-]+$/.test(rawType)
-        ? rawType
+        ? rawType.toLowerCase()
         : guessMime(originalName);
 
       const parsedQuery = attachmentUploadQuerySchema.safeParse(req.query);
@@ -357,8 +357,10 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     const encoded = encodeFilenameStar(file.originalName);
     reply.header('X-Content-Type-Options', 'nosniff');
     // SVG can carry a script, so even a plain download is locked down: no scripts, no styles but inline, no
-    // embedding, nothing but same-origin images.
-    reply.header('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
+    // embedding, nothing but same-origin images. A PDF skips `sandbox`, which some browsers' PDF viewers refuse to
+    // run under; the viewer runs PDF scripts in its own sandbox, never on the app's origin.
+    const sandbox = file.mime.toLowerCase() === 'application/pdf' ? '' : '; sandbox';
+    reply.header('Content-Security-Policy', `default-src 'none'; img-src 'self'; style-src 'unsafe-inline'${sandbox}`);
     reply.header('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encoded}`);
     reply.type(file.mime);
     return reply.send(data);

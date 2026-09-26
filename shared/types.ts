@@ -259,7 +259,7 @@ export interface AttachmentRecord {
   size: number;
   documentDate: ISODate | null;
   uploadedAt: string;
-  /** True for application/pdf and image/*, so the client can offer an inline preview. */
+  /** True for a PDF or a raster image (not SVG), so the client can offer an inline preview. */
   previewable: boolean;
 }
 
