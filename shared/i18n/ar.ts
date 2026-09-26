@@ -6,6 +6,8 @@ import type { Message } from './types';
  * Modern Standard Arabic, buttons as verbal nouns, Western digits.
  */
 export const ar: Record<MessageKey, Message> = {
+  'app.title': 'محفظة المشاريع',
+
   'common.save': 'حفظ',
   'common.cancel': 'إلغاء',
   'common.edit': 'تعديل',
@@ -38,7 +40,9 @@ export const ar: Record<MessageKey, Message> = {
 
   'validation.invalid': 'قيمة غير صالحة',
   'validation.invalidDate': 'أدخل تاريخاً صالحاً',
-  'validation.uaeMobile': 'أدخل رقم هاتف إماراتي صالحاً، مثل +971 50 123 4567',
+  // LEFT-TO-RIGHT ISOLATE … POP DIRECTIONAL ISOLATE around the example number, so the bidi algorithm doesn't
+  // reorder it inside the Arabic sentence.
+  'validation.uaeMobile': 'أدخل رقم هاتف إماراتي صالحاً، مثل ⁦+971 50 123 4567⁩',
   'validation.email': 'أدخل بريداً إلكترونياً صالحاً',
   'validation.choosePerson': 'اختر شخصاً',
   'validation.allocationNumber': 'يجب أن تكون نسبة التخصيص رقماً',
@@ -65,6 +69,13 @@ export const ar: Record<MessageKey, Message> = {
   'validation.weekMustBeMonday': 'يجب أن يبدأ الأسبوع يوم الاثنين',
   'validation.writeWhatNeedsDoing': 'اكتب المطلوب تنفيذه',
   'validation.titleUnder200': 'يجب أن يكون العنوان أقل من 200 حرف',
+  'validation.tooLong': {
+    one: 'يجب ألا يتجاوز النص حرفاً واحداً',
+    two: 'يجب ألا يتجاوز النص حرفين',
+    few: 'يجب ألا يتجاوز النص {max} أحرف',
+    many: 'يجب ألا يتجاوز النص {max} حرفاً',
+    other: 'يجب ألا يتجاوز النص {max} حرفاً',
+  },
 
   'error.unknownList': 'قائمة غير معروفة',
   'error.listValueNotFound': 'القيمة غير موجودة',
@@ -149,6 +160,8 @@ export const ar: Record<MessageKey, Message> = {
   'common.couldNotLoadLists': 'تعذّر تحميل القوائم المنسدلة: {error}',
   'common.couldNotLoadPeople': 'تعذّر تحميل الأشخاص: {error}',
   'common.couldNotLoadWorkload': 'تعذّر تحميل عبء العمل للجميع: {error}',
+  'common.requestFailed': 'تعذّر إكمال الطلب ({status})',
+  'common.networkError': 'تعذّر الاتصال بخادم التطبيق',
 
   // Navigation links and crumbs.
   'nav.start': 'البداية',

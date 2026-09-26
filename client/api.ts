@@ -31,7 +31,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { ...init, headers });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(body.error ?? `Request failed (${res.status})`, res.status, body.issues ?? [], body.code, body.params);
+    // No server-supplied message (e.g. a non-JSON error response): fall back to a coded, translatable message
+    // instead of a hard-coded English one. The English text stays exactly what it always was.
+    const hasServerMessage = body.error !== undefined;
+    throw new ApiError(
+      body.error ?? `Request failed (${res.status})`,
+      res.status,
+      body.issues ?? [],
+      hasServerMessage ? body.code : 'common.requestFailed',
+      hasServerMessage ? body.params : { status: res.status },
+    );
   }
   return body as T;
 }

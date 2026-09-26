@@ -3,6 +3,7 @@ import { addDays, countWorkingDays, DEFAULT_CALENDAR, isWorkingDay, type DateRan
 import type { Lang } from '../../shared/i18n/types';
 import { useLang } from '../i18n/LanguageProvider';
 import { formatBarDates } from './barDates';
+import { barTitle } from './rows';
 import { createTimeScale, thinLabels, workWeekEnds } from './scale';
 
 /** The details card for a piece of the chart: a bold title with lines under it. */
@@ -471,7 +472,7 @@ export function Gantt({ rows, range, width, today, onRowClick, calendar, detail 
                         className={seg.detail ? 'gantt-segment gantt-piece' : 'gantt-segment'}
                         {...pieceProps(`segment-${seg.id}`, seg.detail, { x: sx, w: sw, top: barY, bottom: barY + barH })}
                       >
-                        <title>{seg.detail ? `${seg.detail.title}: ${seg.start} → ${seg.end}` : seg.label}</title>
+                        <title>{seg.detail ? barTitle(lang, seg.detail.title, seg.start, seg.end) : seg.label}</title>
                       </rect>
                     ))}
                     {[...dividers].map((dx) => (

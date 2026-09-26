@@ -26,8 +26,10 @@ describe('the presentation screens in Arabic', () => {
     expect(screen.getByText('قيد التنفيذ حالياً')).toBeInTheDocument();
     expect(screen.getByText('انتهت في 2026')).toBeInTheDocument();
     expect(screen.getByText('مقرر أن تبدأ في 2026')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'السنة السابقة' })).toHaveTextContent('›');
-    expect(screen.getByRole('button', { name: 'السنة التالية' })).toHaveTextContent('‹');
+    // The browser mirrors ‹ and › itself in a right-to-left page, so the app always renders ‹ for previous and
+    // › for next (never swapped), as ResourcesPage does.
+    expect(screen.getByRole('button', { name: 'السنة السابقة' })).toHaveTextContent('‹');
+    expect(screen.getByRole('button', { name: 'السنة التالية' })).toHaveTextContent('›');
     expect(screen.getByRole('link', { name: '→ البداية' })).toHaveAttribute('href', '/');
   });
 

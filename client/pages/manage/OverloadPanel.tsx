@@ -245,7 +245,7 @@ export function OverloadPanel({ data, person, week, onClose, onChanged, nameFor 
             <div className="decision-form">
               <label>
                 {t('overload.why')}
-                <textarea rows={2} dir="auto" value={note} onChange={(e) => setNote(e.target.value)} />
+                <textarea rows={2} dir="auto" data-user-content="" value={note} onChange={(e) => setNote(e.target.value)} />
               </label>
               <button type="button" className="button" disabled={saving} onClick={() => void saveAccept()}>{t('overload.record')}</button>
             </div>

@@ -26,6 +26,20 @@ describe('api', () => {
     await expect(api.deleteListValue('goal', 4)).rejects.toThrow(new ApiError('"Speed" is used by 2 projects', 409));
   });
 
+  it('falls back to a coded, translatable message when the response has no server message', async () => {
+    mockFetch({ 'DELETE /api/lists/goal/4': () => ({ status: 500, body: {} }) });
+    try {
+      await api.deleteListValue('goal', 4);
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApiError);
+      const apiErr = err as ApiError;
+      expect(apiErr.message).toBe('Request failed (500)');
+      expect(apiErr.code).toBe('common.requestFailed');
+      expect(apiErr.params).toEqual({ status: 500 });
+    }
+  });
+
   it('saves project details with PUT', async () => {
     const fetchMock = mockFetch({ 'PUT /api/projects/3/details': () => ({ body: { id: 3 } }) });
     await api.updateProjectDetails(3, { name: 'X', color: '#000000' });

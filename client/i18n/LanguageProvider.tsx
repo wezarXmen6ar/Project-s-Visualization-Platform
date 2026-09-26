@@ -52,17 +52,19 @@ export function LanguageProvider(props: { lang?: Lang; children: ReactNode }) {
 
   const isControlled = controlled !== undefined;
 
-  // Put <html> back as it was when the provider goes away, so nothing leaks between tests.
+  // Put <html> and the tab title back as they were when the provider goes away, so nothing leaks between tests.
   useEffect(() => {
     if (isControlled) return;
     const root = document.documentElement;
     const before = { lang: root.getAttribute('lang'), dir: root.getAttribute('dir') };
+    const beforeTitle = document.title;
     return () => {
       for (const name of ['lang', 'dir'] as const) {
         const value = before[name];
         if (value === null) root.removeAttribute(name);
         else root.setAttribute(name, value);
       }
+      document.title = beforeTitle;
     };
   }, [isControlled]);
 
@@ -70,6 +72,7 @@ export function LanguageProvider(props: { lang?: Lang; children: ReactNode }) {
     if (isControlled) return;
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
+    document.title = translate(lang, 'app.title');
   }, [isControlled, lang, dir]);
 
   const value = useMemo(() => ({ lang, dir, setLang }) satisfies LangContext, [lang, dir, setLang]);

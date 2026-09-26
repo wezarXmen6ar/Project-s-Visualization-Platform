@@ -230,8 +230,13 @@ describe('ProjectPage', () => {
     });
     const user = userEvent.setup();
     renderAt('/manage/projects/1');
-    expect(await screen.findByText(/↳ Increment 1/)).toBeInTheDocument();
-    expect(screen.getByText(/↳ Increment 2/)).toBeInTheDocument();
+    // The arrow marker is a sibling before the sub-phase name span, so the text is only combined at the row level.
+    // Scoped to the phases table, since the Gantt chart also has a "Increment 1" label.
+    const table = await screen.findByRole('table');
+    const increment1 = within(table).getByText('Increment 1');
+    expect(increment1.closest('td')).toHaveTextContent(/↳ Increment 1/);
+    const increment2 = within(table).getByText('Increment 2');
+    expect(increment2.closest('td')).toHaveTextContent(/↳ Increment 2/);
     expect(screen.getByText(/starts with the one above/)).toBeInTheDocument();
     expect(screen.getByText(/\(from sub-phases\)/)).toBeInTheDocument();
 

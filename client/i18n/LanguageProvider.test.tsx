@@ -17,6 +17,7 @@ beforeEach(() => {
   localStorage.clear();
   html().removeAttribute('lang');
   html().removeAttribute('dir');
+  document.title = 'unchanged';
 });
 
 afterEach(() => {
@@ -30,14 +31,16 @@ describe('LanguageProvider', () => {
     expect(screen.getByTestId('probe')).toHaveAttribute('data-dir', 'ltr');
     expect(html().getAttribute('dir')).toBeNull();
     expect(html().getAttribute('lang')).toBeNull();
+    expect(document.title).toBe('unchanged');
   });
 
-  it('starts in Arabic with empty storage, and sets <html lang="ar" dir="rtl">', () => {
+  it('starts in Arabic with empty storage, and sets <html lang="ar" dir="rtl"> and the Arabic tab title', () => {
     render(<LanguageProvider><Probe /></LanguageProvider>);
     expect(screen.getByTestId('probe')).toHaveTextContent('إدارة المشاريع');
     expect(screen.getByTestId('probe')).toHaveAttribute('data-dir', 'rtl');
     expect(html()).toHaveAttribute('lang', 'ar');
     expect(html()).toHaveAttribute('dir', 'rtl');
+    expect(document.title).toBe('محفظة المشاريع');
   });
 
   it('switches to English from the switch, and remembers it', async () => {
@@ -54,6 +57,7 @@ describe('LanguageProvider', () => {
     expect(localStorage.getItem('pvp.lang')).toBe('en');
     expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'العربية' })).toHaveAttribute('aria-pressed', 'false');
+    expect(document.title).toBe('Project Portfolio');
   });
 
   it('honours a stored language on the next mount', () => {
@@ -76,17 +80,20 @@ describe('LanguageProvider', () => {
     expect(screen.getByTestId('probe')).toHaveTextContent('Project Management');
   });
 
-  it('uses the given language when controlled, without touching <html>', () => {
+  it('uses the given language when controlled, without touching <html> or the tab title', () => {
     render(<LanguageProvider lang="ar"><Probe /></LanguageProvider>);
     expect(screen.getByTestId('probe')).toHaveTextContent('إدارة المشاريع');
     expect(html().getAttribute('dir')).toBeNull();
+    expect(document.title).toBe('unchanged');
   });
 
-  it('puts <html> back as it was when unmounted', () => {
+  it('puts <html> and the tab title back as they were when unmounted', () => {
     const { unmount } = render(<LanguageProvider><Probe /></LanguageProvider>);
     expect(html()).toHaveAttribute('dir', 'rtl');
+    expect(document.title).toBe('محفظة المشاريع');
     unmount();
     expect(html().getAttribute('dir')).toBeNull();
     expect(html().getAttribute('lang')).toBeNull();
+    expect(document.title).toBe('unchanged');
   });
 });

@@ -68,6 +68,7 @@ describe('PersonPage', () => {
     const fetchMock = mockFetch(fakeServer());
     const user = userEvent.setup();
     renderAt('/manage/resources/new');
+    expect(screen.getByLabelText('Name')).toHaveAttribute('data-user-content', '');
     await user.type(screen.getByLabelText('Name'), 'Hassan Ali');
     await screen.findByRole('option', { name: 'Developer' });
     await user.selectOptions(screen.getByLabelText('Role'), 'Developer');

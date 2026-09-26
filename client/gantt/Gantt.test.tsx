@@ -216,6 +216,23 @@ describe('Gantt', () => {
       expect(screen.queryByRole('tooltip')).toBeNull();
     });
 
+    it("gives a segment's <title> an Arabic, non-ISO hover date, and leaves English as ISO", () => {
+      render(<Gantt rows={detailRows} range={octoberRange} width={1200} />);
+      const enTitle = screen.getByTestId('gantt-segment-s1').querySelector('title');
+      expect(enTitle?.textContent).toBe('Development › Inc 1: 2026-10-05 → 2026-10-09');
+
+      render(
+        <LanguageProvider lang="ar">
+          <Gantt rows={detailRows} range={octoberRange} width={1200} />
+        </LanguageProvider>,
+      );
+      const arTitles = screen.getAllByTestId('gantt-segment-s1').map((el) => el.querySelector('title')?.textContent);
+      const arTitle = arTitles[arTitles.length - 1];
+      expect(arTitle).toContain('أكتوبر');
+      expect(arTitle).toContain('←');
+      expect(arTitle).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    });
+
     it('leaves out a segment name that does not fit', () => {
       render(<Gantt rows={detailRows} range={{ start: '2026-01-01', end: '2026-12-31' }} width={500} />);
       expect(screen.getByTestId('gantt-segment-s1')).toBeInTheDocument();

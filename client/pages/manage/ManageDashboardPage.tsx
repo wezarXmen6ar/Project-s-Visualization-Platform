@@ -33,7 +33,7 @@ export function ManageDashboardPage() {
         .filter((p) => p.weeks.some((w) => w.overloaded && !isAccepted(workload.decisions, p.resourceId, w.weekStart)))
     : [];
   const list = projects.data ?? [];
-  const rows = portfolioRows(list, (name) => phaseName(name, lists, lang));
+  const rows = portfolioRows(list, (name) => phaseName(name, lists, lang), lang);
   // English keeps the ISO dates it always showed; Arabic reads them as "الخميس 24 سبتمبر 2026".
   const spanDate = (d: string) => (lang === 'ar' ? formatDate(lang, d) : d);
   const within = t('dashboard.withinWeeks', { count: NOTICE_WEEKS });

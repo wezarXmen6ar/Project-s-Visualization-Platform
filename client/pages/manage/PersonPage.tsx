@@ -258,7 +258,7 @@ export function PersonPage() {
           <div className="form-grid">
             <label>
               {t('person.name')}
-              <input dir="auto" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
+              <input dir="auto" data-user-content="" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
             </label>
             {draft.side === 'tech' ? (
               <>

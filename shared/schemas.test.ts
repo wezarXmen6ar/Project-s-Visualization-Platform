@@ -48,3 +48,17 @@ describe('normalizeUaeMobile', () => {
     }
   });
 });
+
+describe('a string field over its own length limit with no custom message', () => {
+  it('gets its own validation.tooLong issue, with {max}, instead of zod\'s default English text', () => {
+    const result = newProjectSchema.safeParse({ ...valid, name: 'a'.repeat(201) });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(toIssues(result.error)).toContainEqual({
+      path: 'name',
+      message: 'Keep it under 200 characters',
+      code: 'validation.tooLong',
+      params: { max: 200, count: 200 },
+    });
+  });
+});

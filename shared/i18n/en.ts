@@ -6,6 +6,9 @@ import type { Message } from './types';
  * Keys are namespaced by area: `common.*`, `lang.*`, `landing.*`, `notFound.*`, …
  */
 export const en = {
+  // The browser tab title, set by LanguageProvider's uncontrolled mode (see client/i18n/LanguageProvider.tsx).
+  'app.title': 'Project Portfolio',
+
   'common.save': 'Save',
   'common.cancel': 'Cancel',
   'common.edit': 'Edit',
@@ -67,6 +70,8 @@ export const en = {
   'validation.weekMustBeMonday': 'Week must start on a Monday',
   'validation.writeWhatNeedsDoing': 'Write what needs doing',
   'validation.titleUnder200': 'Keep the title under 200 characters',
+  // Any other string field's own length limit (see `tooLong` in shared/schemas.ts): {max} is that field's limit.
+  'validation.tooLong': 'Keep it under {max} characters',
 
   // Server-built errors (grep server/ for `message:`, `error:`, `issues.push`). Params carry the pieces that change
   // (names, counts); the English text below reproduces the exact old sentence.
@@ -135,6 +140,10 @@ export const en = {
   'common.couldNotLoadLists': 'Could not load the dropdown lists: {error}',
   'common.couldNotLoadPeople': 'Could not load people: {error}',
   'common.couldNotLoadWorkload': "Could not load everyone's workload: {error}",
+  // A failed request with no server-supplied message (e.g. a non-JSON error response), and a request that never
+  // reached the server at all (fetch itself throwing, e.g. offline).
+  'common.requestFailed': 'Request failed ({status})',
+  'common.networkError': 'Could not reach the app server',
 
   // Navigation links and crumbs.
   'nav.start': 'Start',

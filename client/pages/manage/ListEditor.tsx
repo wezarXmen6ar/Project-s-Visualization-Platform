@@ -1,10 +1,15 @@
 import { useState, type FormEvent } from 'react';
+import type { MessageKey } from '../../../shared/i18n/en';
 import type { ListName, ListValue } from '../../../shared/types';
 import { AlertIcon, PlusIcon, TrashIcon } from '../../icons';
-import { api } from '../../api';
+import { ApiError, api } from '../../api';
 import { messagesOf } from '../../errors';
 import { useLang, useT } from '../../i18n/LanguageProvider';
 import { listName } from '../../i18n/listNames';
+
+/** Codes whose {name} param is the value's English name, even in Arabic (see server/lists/repo.ts): the value being
+ * deleted is used elsewhere. Re-rendered with the value's own display name instead of the server's English one. */
+const NAME_ERROR_CODES: MessageKey[] = ['error.listValueInUseProjects', 'error.listValueInUsePeople', 'error.phaseHasStarters'];
 
 interface ListEditorProps {
   title: string;
@@ -26,7 +31,16 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
   const [busy, setBusy] = useState(false);
   const lower = lang === 'en' ? singular.toLowerCase() : singular;
 
-  async function run(action: () => Promise<unknown>, afterSuccess?: () => void) {
+  /** The "in use" errors' `params.name` is the value's English name (see server/lists/repo.ts); `target` is the
+   * value the action was performed on, so its display name (Arabic when set) replaces the English one. */
+  function errorText(err: unknown, target?: ListValue): string {
+    if (err instanceof ApiError && target && err.code && NAME_ERROR_CODES.includes(err.code) && err.params) {
+      return t(err.code, { ...err.params, name: listName(target, lang) });
+    }
+    return messagesOf(err, t)[0];
+  }
+
+  async function run(action: () => Promise<unknown>, afterSuccess?: () => void, target?: ListValue) {
     setBusy(true);
     setError(null);
     try {
@@ -34,7 +48,7 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
       afterSuccess?.();
       onChanged();
     } catch (err) {
-      setError(messagesOf(err, t)[0]);
+      setError(errorText(err, target));
     } finally {
       setBusy(false);
     }
@@ -108,7 +122,7 @@ export function ListEditor({ title, singular, list, values, onChanged }: ListEdi
                     className="button ghost-icon"
                     aria-label={t('list.deleteAria', { name: listName(v, lang) })}
                     disabled={busy}
-                    onClick={() => void run(() => api.deleteListValue(list, v.id))}
+                    onClick={() => void run(() => api.deleteListValue(list, v.id), undefined, v)}
                   >
                     <TrashIcon />
                   </button>

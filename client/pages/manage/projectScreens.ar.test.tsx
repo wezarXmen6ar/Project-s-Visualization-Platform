@@ -131,7 +131,10 @@ describe('the project screens in Arabic', () => {
     const table = screen.getByRole('table');
     expect(within(table).getByText('جمع المتطلبات')).toBeInTheDocument();
     expect(within(table).getAllByText('الاثنين 28 سبتمبر 2026')).toHaveLength(2);
-    expect(within(table).getByText('↲ Increment 1')).toHaveAttribute('dir', 'auto');
+    // The arrow marker sits outside the dir="auto" span, so the two are checked separately.
+    const subPhaseName = within(table).getByText('Increment 1');
+    expect(subPhaseName).toHaveAttribute('dir', 'auto');
+    expect(subPhaseName.closest('td')).toHaveTextContent('↲ Increment 1');
 
     // People: the phase's Arabic name, and the allocation line with the Arabic role.
     expect(await screen.findByText('60% · مسؤول', { exact: false })).toBeInTheDocument();

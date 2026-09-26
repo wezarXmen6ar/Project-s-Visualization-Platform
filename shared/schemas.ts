@@ -7,12 +7,22 @@ import { ASSIGNMENT_ROLES, CATEGORIES, OVERLOAD_DECISIONS, PRIORITIES, SCOPE_KIN
 
 export const isoDate = z.string().refine(isISODate, 'validation.invalidDate');
 
+/**
+ * The message for a `.max(max)` with no message of its own: `validation.tooLong` carries `{max}` (see `toIssues`,
+ * which decodes the limit back out of this string), instead of every such field falling through to zod's own
+ * English text (shown to the user as `validation.invalid`, "Invalid value", in both languages).
+ */
+const TOO_LONG_PREFIX = 'validation.tooLong:';
+function tooLong(max: number): string {
+  return `${TOO_LONG_PREFIX}${max}`;
+}
+
 /** Optional free text: blank becomes null. */
 const optionalText = (max: number) =>
   z
     .string()
     .trim()
-    .max(max)
+    .max(max, tooLong(max))
     .nullish()
     .transform((v) => (v ? v : null));
 
@@ -38,7 +48,7 @@ export function normalizeUaeMobile(input: string): string | null {
 const optionalUaeMobile = z
   .string()
   .trim()
-  .max(30)
+  .max(30, tooLong(30))
   .nullish()
   .transform((v, ctx) => {
     if (!v) return null;
@@ -54,7 +64,7 @@ const optionalUaeMobile = z
 const optionalEmail = z
   .string()
   .trim()
-  .max(200)
+  .max(200, tooLong(200))
   .nullish()
   .transform((v) => (v ? v : null))
   .refine((v) => v === null || z.string().email().safeParse(v).success, 'validation.email');
@@ -92,8 +102,8 @@ const workingDays = z
   .min(1, 'validation.durationMin')
   .max(2000, 'validation.durationTooLong');
 
-const phaseName = z.string().trim().min(1, 'validation.phaseNameRequired').max(200);
-const subPhaseName = z.string().trim().min(1, 'validation.subPhaseNameRequired').max(200);
+const phaseName = z.string().trim().min(1, 'validation.phaseNameRequired').max(200, tooLong(200));
+const subPhaseName = z.string().trim().min(1, 'validation.subPhaseNameRequired').max(200, tooLong(200));
 const existingId = z.number().int().positive().optional();
 
 export const subPhaseInputSchema = z.object({
@@ -139,12 +149,12 @@ export const scopeItemInputSchema = z.object({
   /** Sent when editing an item that is already saved, so it keeps its date added. */
   id: z.number().int().positive().optional(),
   kind: z.enum(SCOPE_KINDS),
-  text: z.string().trim().min(1, 'validation.itemTextEmpty').max(2000),
+  text: z.string().trim().min(1, 'validation.itemTextEmpty').max(2000, tooLong(2000)),
 });
 
 /** Everything about a project except its schedule (start date and phases). Used by create and by edit. */
 export const projectDetailsSchema = z.object({
-  name: z.string().trim().min(1, 'validation.projectNameRequired').max(200),
+  name: z.string().trim().min(1, 'validation.projectNameRequired').max(200, tooLong(200)),
   jiraKey: optionalText(50),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'validation.colorFormat'),
   priority: z.enum(PRIORITIES).default('medium'),
@@ -160,8 +170,8 @@ export const projectDetailsSchema = z.object({
   departmentId: optionalId,
   requester: z.object({ internal: z.boolean(), external: z.boolean() }).default({ internal: false, external: false }),
   beneficiary: z.object({ employees: z.boolean(), customers: z.boolean() }).default({ employees: false, customers: false }),
-  background: z.string().trim().max(10000).default(''),
-  summary: z.string().trim().max(10000).default(''),
+  background: z.string().trim().max(10000, tooLong(10000)).default(''),
+  summary: z.string().trim().max(10000, tooLong(10000)).default(''),
   scopeItems: z.array(scopeItemInputSchema).max(1000).default([]),
 });
 
@@ -202,6 +212,11 @@ export interface ValidationIssue {
 export function toIssues(error: z.ZodError): ValidationIssue[] {
   return error.issues.map((i) => {
     const path = i.path.join('.');
+    if (i.message.startsWith(TOO_LONG_PREFIX)) {
+      const max = Number(i.message.slice(TOO_LONG_PREFIX.length));
+      const params: Params = { max, count: max };
+      return { path, message: translate('en', 'validation.tooLong', params), code: 'validation.tooLong', params };
+    }
     if (isMessageKey(i.message)) return { path, message: translate('en', i.message), code: i.message };
     return { path, message: i.message, code: 'validation.invalid' as MessageKey };
   });
@@ -209,7 +224,7 @@ export function toIssues(error: z.ZodError): ValidationIssue[] {
 
 export const resourceInputSchema = z
   .object({
-    name: z.string().trim().min(1, 'validation.nameRequired').max(200),
+    name: z.string().trim().min(1, 'validation.nameRequired').max(200, tooLong(200)),
     side: z.enum(SIDES),
     roleId: optionalId,
     specialisation: z
@@ -266,12 +281,14 @@ export type ToDoData = z.output<typeof toDoInputSchema>;
 
 export const starterToDoInputSchema = z.object({
   phaseListId: z.number().int().positive(),
-  title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200),
+  title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200, tooLong(200)),
 });
-export const starterTitleSchema = z.object({ title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200) });
+export const starterTitleSchema = z.object({
+  title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200, tooLong(200)),
+});
 export const starterAcceptSchema = z.object({
   items: z
-    .array(z.object({ phaseId: z.number().int().positive(), title: z.string().trim().min(1).max(200) }))
+    .array(z.object({ phaseId: z.number().int().positive(), title: z.string().trim().min(1).max(200, tooLong(200)) }))
     .min(1)
     .max(200),
 });

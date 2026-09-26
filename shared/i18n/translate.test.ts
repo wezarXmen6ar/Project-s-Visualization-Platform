@@ -46,4 +46,10 @@ describe('translate', () => {
     expect(translate('ar', 'no.such.key' as MessageKey)).toBe('no.such.key');
     expect(translate('en', 'no.such.key' as MessageKey)).toBe('no.such.key');
   });
+
+  it('wraps the Arabic UAE-mobile example in bidi isolates, so it renders in the right order', () => {
+    const ar = translate('ar', 'validation.uaeMobile');
+    expect(ar).toContain('⁦+971 50 123 4567⁩');
+    expect(translate('en', 'validation.uaeMobile')).toBe('Enter a UAE mobile number, e.g. +971 50 123 4567');
+  });
 });

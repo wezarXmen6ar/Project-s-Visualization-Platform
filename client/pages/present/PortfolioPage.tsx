@@ -11,7 +11,7 @@ import { useLists } from '../../useLists';
 
 export function PortfolioPage() {
   const t = useT();
-  const { lang, dir } = useLang();
+  const { lang } = useLang();
   const { lists } = useLists();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -22,10 +22,12 @@ export function PortfolioPage() {
   const goToYear = (y: number) => setParams({ year: String(y) });
   const data = portfolio.data?.year === year ? portfolio.data : undefined;
   const rows = data
-    ? groupedPortfolioRows(data.projects, (name) => phaseName(name, lists, lang), (mainProject) => listName(mainProject, lang))
+    ? groupedPortfolioRows(data.projects, (name) => phaseName(name, lists, lang), (mainProject) => listName(mainProject, lang), lang)
     : [];
-  // The year arrows point outwards, away from the year, so they swap in a right-to-left page.
-  const [previousArrow, nextArrow] = dir === 'rtl' ? ['›', '‹'] : ['‹', '›'];
+  // ‹ and › are Bidi_Mirrored, so the browser already flips them in a right-to-left page; rendering them
+  // swapped here would flip them twice. Always render ‹ for previous and › for next, as ResourcesPage does.
+  const previousArrow = '‹';
+  const nextArrow = '›';
 
   return (
     <main className="page page-wide">

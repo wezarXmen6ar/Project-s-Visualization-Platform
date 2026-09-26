@@ -72,6 +72,7 @@ describe('OverloadPanel', () => {
     const user = userEvent.setup();
     const onChanged = renderPanel();
     await user.click(screen.getByRole('button', { name: 'Accept the risk' }));
+    expect(screen.getByLabelText('Why is this OK? (optional)')).toHaveAttribute('data-user-content', '');
     await user.type(screen.getByLabelText('Why is this OK? (optional)'), 'Deadline week');
     await user.click(screen.getByRole('button', { name: 'Record the decision' }));
     await vi.waitFor(() => expect(onChanged).toHaveBeenCalled());

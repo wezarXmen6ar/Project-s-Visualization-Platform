@@ -508,6 +508,9 @@ describe('mixed-direction content', () => {
       </LanguageProvider>,
     );
     const table = await screen.findByRole('table');
-    expect(within(table).getByText('↲ Increment 1')).toHaveAttribute('dir', 'auto');
+    // The arrow marker sits outside the dir="auto" span, so the two are checked separately.
+    const subPhaseName = within(table).getByText('Increment 1');
+    expect(subPhaseName).toHaveAttribute('dir', 'auto');
+    expect(subPhaseName.closest('td')).toHaveTextContent('↲ Increment 1');
   });
 });

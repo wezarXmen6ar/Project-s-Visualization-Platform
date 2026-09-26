@@ -154,7 +154,7 @@
 | free / not working / lightly booked / fully booked (cell labels) | غير محجوز / خارج أيام العمل / محجوز جزئياً / محجوز بالكامل | read by screen readers |
 | This week is overbooked. What do you want to do? | هذا الأسبوع فوق الطاقة. ما الإجراء الذي تريده؟ | |
 | Pause a project / Delay a phase | إيقاف مشروع مؤقتاً / تأجيل مرحلة | follows "إيقاف مؤقت" |
-| Days overbooked on their own | أيام فوق الطاقة بمفردها | |
+| Days overbooked on their own | أيام تتجاوز الطاقة | matches `overload.dayClashes` in the catalogue |
 | Give it to (reassign) | المكلَّف الجديد | |
 | Side (tech team or business side) | الجهة | |
 | Contact / Status | التواصل / الحالة | People table columns |

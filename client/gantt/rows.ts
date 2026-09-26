@@ -106,6 +106,15 @@ export interface PhaseRowOptions {
   lang?: Lang;
 }
 
+/**
+ * The bar's hover `<title>`: "name: start → end" in English (byte-identical to before, ISO dates). In Arabic the
+ * dates are formatted ("الاثنين 12 أكتوبر 2026") and joined with the Arabic arrow ←, so no ISO date leaks through.
+ */
+export function barTitle(lang: Lang, name: string, start: ISODate, end: ISODate): string {
+  if (lang === 'ar') return `${name}: ${formatDate(lang, start)} ← ${formatDate(lang, end)}`;
+  return `${name}: ${start} → ${end}`;
+}
+
 function pieceDetail(
   title: string,
   piece: { id?: number; start: ISODate; end: ISODate },
@@ -134,6 +143,7 @@ function pieceDetail(
  */
 export function phaseRows(project: { phases: PhaseLike[] }, options: PhaseRowOptions = {}): GanttRow[] {
   const nameFor = options.nameFor ?? ((name: string) => name);
+  const lang = options.lang ?? 'en';
   return project.phases.flatMap((p) => {
     const id = String(p.id ?? p.order);
     const color = phaseColorFor(p.name);
@@ -144,7 +154,7 @@ export function phaseRows(project: { phases: PhaseLike[] }, options: PhaseRowOpt
       end: p.end,
       color,
       label: displayName,
-      title: `${displayName}: ${p.start} → ${p.end}`,
+      title: barTitle(lang, displayName, p.start, p.end),
       detail: pieceDetail(displayName, p, options),
     };
     const own: GanttRow = { id, label: displayName, bars: [bar] };
@@ -160,7 +170,7 @@ export function phaseRows(project: { phases: PhaseLike[] }, options: PhaseRowOpt
         subId,
         s,
         detail: pieceDetail(fullName, s, options),
-        title: `${fullName}: ${s.start} → ${s.end}`,
+        title: barTitle(lang, fullName, s.start, s.end),
       };
     });
 
@@ -184,7 +194,11 @@ export function phaseRows(project: { phases: PhaseLike[] }, options: PhaseRowOpt
   });
 }
 
-export function portfolioRows(projects: ProjectRecord[], nameFor: (name: string) => string = (name) => name): GanttRow[] {
+export function portfolioRows(
+  projects: ProjectRecord[],
+  nameFor: (name: string) => string = (name) => name,
+  lang: Lang = 'en',
+): GanttRow[] {
   return projects.map((p) => ({
     id: String(p.id),
     label: p.name,
@@ -196,7 +210,7 @@ export function portfolioRows(projects: ProjectRecord[], nameFor: (name: string)
         end: ph.end,
         color: phaseColorFor(ph.name),
         label: displayName,
-        title: `${p.name} · ${displayName}: ${ph.start} → ${ph.end}`,
+        title: barTitle(lang, `${p.name} · ${displayName}`, ph.start, ph.end),
       };
     }),
   }));
@@ -211,6 +225,7 @@ export function groupedPortfolioRows(
   projects: ProjectRecord[],
   nameFor: (name: string) => string = (name) => name,
   groupNameFor: (mainProject: Ref) => string = (mainProject) => mainProject.name,
+  lang: Lang = 'en',
 ): GanttRow[] {
   const groups = new Map<number, { name: string; members: ProjectRecord[] }>();
   const standalone: ProjectRecord[] = [];
@@ -233,11 +248,11 @@ export function groupedPortfolioRows(
       label: name,
       kind: 'group',
       // The summary bar's colour comes from the .gantt-summary CSS rule.
-      bars: span ? [{ id: rowId, start: span.start, end: span.end, color: 'currentColor', title: `${name}: ${span.start} → ${span.end}` }] : [],
+      bars: span ? [{ id: rowId, start: span.start, end: span.end, color: 'currentColor', title: barTitle(lang, name, span.start, span.end) }] : [],
     });
-    rows.push(...portfolioRows(members, nameFor).map((row) => ({ ...row, kind: 'child' as const })));
+    rows.push(...portfolioRows(members, nameFor, lang).map((row) => ({ ...row, kind: 'child' as const })));
   }
-  return [...rows, ...portfolioRows(standalone, nameFor)];
+  return [...rows, ...portfolioRows(standalone, nameFor, lang)];
 }
 
 export function rangeFor(rows: GanttRow[], fallback: ISODate): DateRange {

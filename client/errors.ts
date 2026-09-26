@@ -25,7 +25,9 @@ export function messageFor(t: Translator, item: { message: string; code?: Messag
 export function messagesOf(err: unknown, t: Translator = translatorFor('en')): string[] {
   if (err instanceof ApiError && err.issues.length > 0) return err.issues.map((i) => messageFor(t, i));
   if (err instanceof ApiError) return [messageFor(t, { message: err.message, code: err.code, params: err.params })];
-  return [err instanceof Error ? err.message : String(err)];
+  // The request never reached the server at all (fetch itself threw, e.g. offline): its message (like "Failed to
+  // fetch") is a browser-specific string, not one of ours, so it's never shown; this translated one always is.
+  return [t('common.networkError')];
 }
 
 /** One `ValidationIssue`'s text, translated when it carries a `code`. */

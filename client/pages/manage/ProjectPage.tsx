@@ -224,8 +224,11 @@ export function ProjectPage() {
                 {ph.subPhases.map((sp) => (
                   <tr key={sp.id}>
                     <td className="sub-phase-name">
-                      {/* The arrow points into the row from the phase above: down, then towards the text. */}
-                      <span dir="auto" data-user-content="">{lang === 'ar' ? '↲ ' : '↳ '}{sp.name}</span>
+                      {/* The arrow points into the row from the phase above: down, then towards the text. Kept
+                          outside the dir="auto" span, so it always sits on the reading-direction side, not inside
+                          user content that may take its own direction. */}
+                      <span aria-hidden="true">{lang === 'ar' ? '↲ ' : '↳ '}</span>
+                      <span dir="auto" data-user-content="">{sp.name}</span>
                       {sp.withPrevious ? <span className="muted">{` · ${t('project.startsWithAbove')}`}</span> : null}
                     </td>
                     <td>{formatDate(sp.start)}</td>

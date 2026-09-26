@@ -34,6 +34,15 @@ describe('rows', () => {
     expect(rows[0]).toMatchObject({ id: '1', label: 'Portal' });
     expect(rows[0].bars.map((b) => b.label)).toEqual(['Requirements', 'Development']);
     expect(rows[0].bars.map((b) => b.color)).toEqual([phaseColorFor('Requirements'), phaseColorFor('Development')]);
+    // English keeps its ISO-with-arrow hover title, unchanged.
+    expect(rows[0].bars[1].title).toBe('Portal · Development: 2026-02-12 → 2026-03-25');
+  });
+
+  it('gives a portfolio bar an Arabic hover title, with no ISO date, when asked', () => {
+    const rows = portfolioRows([project], (name) => name, 'ar');
+    expect(rows[0].bars[1].title).toContain('فبراير');
+    expect(rows[0].bars[1].title).toContain('←');
+    expect(rows[0].bars[1].title).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
   it('computes a month-padded range over all bars', () => {
     expect(rangeFor(phaseRows(project), '2030-01-01')).toEqual({ start: '2026-02-01', end: '2026-03-31' });
@@ -113,6 +122,13 @@ describe('rows', () => {
     expect(rows[0].bars).toEqual([
       expect.objectContaining({ id: 'group-20', start: '2026-02-02', end: '2026-03-20' }),
     ]);
+    // English keeps its ISO-with-arrow hover title, unchanged.
+    expect(rows[0].bars[0].title).toBe('Digital: 2026-02-02 → 2026-03-20');
+
+    const arRows = groupedPortfolioRows([a, b, c], (name) => name, (m) => m.name, 'ar');
+    expect(arRows[0].bars[0].title).toContain('فبراير');
+    expect(arRows[0].bars[0].title).toContain('←');
+    expect(arRows[0].bars[0].title).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 });
 
@@ -208,6 +224,8 @@ describe('phaseRows with sub-phases', () => {
       lines: ['Mon 30 Nov 2026 – Fri 18 Dec 2026 · 15 working days'],
     });
     expect(dev.detail?.title).toBe('Development');
+    // English keeps its own ISO-with-arrow hover title, unchanged.
+    expect(dev.title).toBe('Development: 2026-11-30 → 2027-02-19');
   });
 
   it('counts working days with the given calendar', () => {
@@ -243,6 +261,11 @@ describe('phaseRows with sub-phases', () => {
       'الاثنين 30 نوفمبر 2026 – الجمعة 18 ديسمبر 2026 · 15 يوم عمل',
       'Fatima Noor · 60% · مسؤول',
     ]);
+    // The hover title uses Arabic month names and the Arabic arrow, never an ISO date.
+    expect(dev.title).toContain('نوفمبر');
+    expect(dev.title).toContain('فبراير');
+    expect(dev.title).toContain('←');
+    expect(dev.title).not.toMatch(/\d{4}-\d{2}-\d{2}/);
     const oneDay = phaseRows(
       { phases: [{ order: 0, name: 'Dev', start: '2026-10-05', end: '2026-10-05' }] }, { lang: 'ar' },
     )[0].bars[0];

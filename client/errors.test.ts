@@ -46,7 +46,23 @@ describe('messagesOf', () => {
     expect(en).toBe("رامي صالح can't be deleted because they are assigned to 3 phases and they have 1 to-do. Make them inactive instead.");
   });
 
-  it('handles a plain (non-ApiError) error', () => {
-    expect(messagesOf(new Error('boom'), translatorFor('ar'))).toEqual(['boom']);
+  it('translates a plain (non-ApiError) error as a network error, not its own (browser-specific) message', () => {
+    expect(messagesOf(new Error('Failed to fetch'), translatorFor('ar'))).toEqual(['تعذّر الاتصال بخادم التطبيق']);
+    expect(messagesOf(new Error('Failed to fetch'))).toEqual(['Could not reach the app server']);
+  });
+
+  it('translates a coded requestFailed ApiError (no server message) in Arabic, and keeps English unchanged', () => {
+    const err = new ApiError('Request failed (500)', 500, [], 'common.requestFailed', { status: 500 });
+    expect(messagesOf(err, translatorFor('ar'))).toEqual(['تعذّر إكمال الطلب (500)']);
+    expect(messagesOf(err, translatorFor('en'))).toEqual(['Request failed (500)']);
+    expect(messagesOf(err)).toEqual(['Request failed (500)']);
+  });
+
+  it('shows the Arabic too-long message, with the field\'s own limit, for a 201-character name', () => {
+    const err = new ApiError('Invalid value', 400, [
+      { path: 'name', message: 'Keep it under 200 characters', code: 'validation.tooLong', params: { max: 200, count: 200 } },
+    ]);
+    expect(messagesOf(err, translatorFor('ar'))).toEqual(['يجب ألا يتجاوز النص 200 حرفاً']);
+    expect(messagesOf(err, translatorFor('en'))).toEqual(['Keep it under 200 characters']);
   });
 });
