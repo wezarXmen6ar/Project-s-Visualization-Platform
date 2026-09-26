@@ -283,6 +283,16 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
 - 🟠 **Needs attention:** a slip caused by the technical team, or not yet explained, beyond the tolerance.
 - 🔴 **Only for "decision needed from stakeholders"**, for example a change request waiting for approval, or a requirement waiting for information for more than 30 days.
 
+### 4.4a Additions for stakeholders (user, 2026-09-26; M13 unless noted)
+The goal is to stop stakeholders from assuming the technical team is late: show when requirements really arrived, what is waiting on them, and explain terms simply.
+- **Scope over time:** in focus view, a line of the requirement count (toggle: working days) over time, with a dot where each requirement arrived and the development phase shaded behind it, so late arrivals are obvious.
+- **Arrival markers:** on the focus-view Gantt chart, a small ▼ at the date each added-later requirement arrived, labelled with how far into its phase it came ("added 12 Mar, 3 weeks into development").
+- **Waiting on you (بانتظار قراركم):** a panel on the presentation dashboard and in focus view listing everything waiting on the business side, with days waiting: requirements awaiting information, change requests awaiting approval, business-owned phases not started or overdue (for example UAT sign-off), and open decisions. Neutral and factual; filterable by department and business owner.
+- **Plain-language summary:** at the top of focus view and in PDFs, an automatic one-paragraph story in natural Arabic (and English) generated from recorded events, e.g. "The launch moved 45 days: 30 for change requests approved in March, 10 waiting for requirement information, 5 for public holidays." No free text is invented; every clause comes from an event.
+- **Explanations (ⓘ):** presentation terms (baseline, change request, UAT, dependency, hold, milestone…) carry a small ⓘ that opens a one-line plain explanation in Arabic and English, editable in Settings.
+- **Periodic stakeholder report:** a monthly or quarterly PDF in one click (Arabic by default): what finished, what moved and why (with the summary sentences), what is waiting on stakeholders, and upcoming milestones.
+- **Phase ownership (M8):** each phase is **Technical, Business or Joint** (defaults: requirements sign-off and UAT are Business). Business-owned phases have a distinct outline on every Gantt chart and in the legend, and a late finish of a business-owned phase defaults its responsibility to the business user in the late-finish prompt.
+
 ### 4.5 Export and presenter mode
 - **Export to PDF:** portfolio Gantt chart, Where did the time go?, and focus view.
 - **Presenter mode:** full screen, large text, no internal details (routine updates and unflagged entries are hidden).
@@ -298,6 +308,8 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
   - A single project pops up every highlighted event and auto-pauses on change requests, holds, and phase starts or ends.
   - The portfolio pops up and auto-pauses only on change requests, holds and milestones. Phase changes show as pins, and no more than 3 pop-ups are on screen at once.
 - **Controls:** play/pause, previous and next event, speed (default 1 week per second), timeline slider, auto-pause toggle.
+- **Saved stories (user, 2026-09-26):** choose which events to stop on, add a presenter note to each stop, and save it as a named story (for example "Q3 steering committee") to replay in a meeting.
+- **Storyboard PDF:** export a story as a PDF with one page per stop: the chart as it was on that date, the pop-up and the presenter note, for stakeholders who weren't in the room.
 
 ### 5.2 What-if sandbox
 - Opened from focus view or the portfolio. It runs the real engines on an **in-memory copy** and never writes to the database.
@@ -317,6 +329,8 @@ Every project in parallel, grouped by main project with summary bars. **Hold bar
 - **Resource pool strip:** one anonymous, summarised line per role under the chart (for example, "1 of 3 free, Mar–Apr"). Sandbox only.
 - **Display:** a ghost overlay, with the current plan as dashed outlines, the simulated plan as solid bars, and red "+Nd" labels. Bars slide into place when a change is applied.
 - **Price tag panel:** new go-live dates, extra effort by role, knock-on effects on other projects, and overloads.
+- **Cost of a request, live (user, 2026-09-26):** a one-step form for use in a meeting: a stakeholder asks for something new, the presenter enters rough days by role, and the screen shows at once the new go-live date and which other projects slip, and by how much, in large Arabic text.
+- **Trade-offs side by side:** for that request, the sandbox lays out the options: accept the delay, pause another project, or drop or postpone a lower-priority requirement to keep the date, each with its resulting dates. The app suggests options; people decide.
 - **Save:**
   - "Save as proposed change request" creates a *proposed* change request.
   - "Save as proposed project" creates a project with status *Proposed*.
