@@ -309,6 +309,11 @@ Presentations focus on **development: its sub-phases and the requirements being 
 - **Readiness at a glance:** each development sub-phase shows whether **all its requirements are ready** or it is **waiting for requirements** (with days waiting and who it is waiting on).
 - **Scope origin on every requirement and sub-phase:** **Original scope**, **Added later (within scope)**, **Added by change request** (approved), or **Not approved yet**, with the same marks and colours as the Gantt chart and a legend. Counts in one line: "18 original · 4 added later · 3 by change request · 2 not approved".
 - **"If everything pending is approved" (optional):** a toggle on the focus-view Gantt chart that overlays, as ghost bars, the timeline if every requirement still waiting for approval were approved and scheduled, with the resulting end date and "+N working days". Off by default; clearly labelled as a projection. It uses the real scheduling rules, like the sandbox, and never changes the plan.
+- **Show what the technical team delivered (user, 2026-09-26):** the presentation makes the team's work visible, not only the delays.
+  - The **Developed** column lists each finished sub-phase and requirement with its planned and actual finish date ("finished on time", "finished 3 days early").
+  - One short line per project: **delivered so far** (sub-phases and requirements, and their working days), the share **delivered on time**, and **time saved** by early finishes.
+  - **Extra work absorbed:** requirements added later that the team delivered, and how many of them were absorbed without moving the end date.
+  - The same appears on the project summary, on the Development slide of the status report, and as a "Delivered" group on the presentation dashboard for the selected period. Only facts from recorded dates are shown.
 - **Short everywhere:** the project summary, the plain-language sentence and the status report keep to the essentials; details are one click away.
 - **Status report slides:** a **Development** slide (the board, readiness and scope origin) becomes the centre of each project's slides, right after Summary (from M9 in its first form, finished in M13), and the optional "if everything pending is approved" chart can be included as its own slide.
 
