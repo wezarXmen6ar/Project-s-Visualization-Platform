@@ -213,7 +213,6 @@ export function EntryForm({
               {guestNames.map((g) => (
                 <li key={`guest-${g}`} className="chip chip-guest">
                   <span dir="auto" data-user-content="">{g}</span>
-                  <span className="chip-guest-label">{t('entryForm.guestLabel')}</span>
                   <button type="button" aria-label={t('entryForm.removeAttendeeAria', { name: g })} onClick={() => removeGuest(g)}>
                     ×
                   </button>

@@ -46,7 +46,7 @@ Entries marked **"show in presentation"** appear to stakeholders in the focus vi
 - **Accounts** (added 2026-09-26, user): each person's work accounts (network, email, VPN, Jira…) have an expiry date and their own reminder lead (default 30 days), because renewal takes weeks. They join the documents in the dashboard reminder.
 - **Residence** (added 2026-09-26, user): a tech-team person lives in the UAE or abroad. Information only.
 - **Company for our team** (added 2026-09-26, user): our own team members can be contracted through a company too. The Company field is optional for our team and required for outsourced people.
-- **Guest attendees** (added 2026-09-26, user): a meeting's attendees can include any name typed in, as a guest, for people who aren't in Resources. Guests are never shown on the presentation side.
+- **Typed-in attendees** (added 2026-09-26, user): a meeting's attendees can include any name typed in ("Add attendee" / «إضافة حاضر»; the word "guest" is not used), for people who aren't in Resources. They are never shown on the presentation side.
 - **Person documents** (added 2026-09-26):
   - Each person has their own documents, with types NDA, Police clearance, UAE ID, Passport, Company contract, Information Security Approval and Other.
   - Each document has an **optional expiry date**. The person's page and the dashboard warn 30 days ahead and mark expired ones in red.

@@ -61,7 +61,7 @@ describe('EntryForm', () => {
     expect(input.followUps).toEqual([{ title: 'Book the room', assigneeId: 70, dueDate: null }]);
   });
 
-  it('adds a guest via the "Add as a guest" option, and removes it with its chip button', async () => {
+  it('adds a typed-in attendee via the "Add attendee" option, and removes it with its chip button', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
     render(
@@ -70,7 +70,7 @@ describe('EntryForm', () => {
 
     await user.type(screen.getByLabelText('Title'), 'Kickoff');
     await user.type(screen.getByPlaceholderText('Search people'), 'Visiting Consultant');
-    await user.click(screen.getByRole('button', { name: '+ Add "Visiting Consultant" as a guest' }));
+    await user.click(screen.getByRole('button', { name: '+ Add attendee "Visiting Consultant"' }));
     expect(screen.getByText('Visiting Consultant')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove Visiting Consultant' })).toBeInTheDocument();
 

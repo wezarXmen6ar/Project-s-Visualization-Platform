@@ -78,7 +78,7 @@ describe('EntryItem', () => {
     expect(screen.getByRole('checkbox')).not.toBeDisabled();
   });
 
-  it('lists guests after the people, marked "(guest)", as plain text (not a link)', () => {
+  it('lists typed-in attendees after the people, as plain text (not a link)', () => {
     renderItem(
       <EntryItem
         entry={entry({ attendees: [{ id: 70, name: 'Sara Ahmed' }], guests: ['Visiting Consultant'] })}
@@ -87,7 +87,6 @@ describe('EntryItem', () => {
     expect(screen.getByRole('link', { name: 'Sara Ahmed' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Visiting Consultant' })).not.toBeInTheDocument();
     expect(screen.getByText('Visiting Consultant')).toBeInTheDocument();
-    expect(screen.getByText('(guest)')).toBeInTheDocument();
   });
 
   it('presentation mode hides both attendees and guests', () => {
@@ -99,10 +98,9 @@ describe('EntryItem', () => {
     );
     expect(screen.queryByText('Sara Ahmed')).not.toBeInTheDocument();
     expect(screen.queryByText('Visiting Consultant')).not.toBeInTheDocument();
-    expect(screen.queryByText('(guest)')).not.toBeInTheDocument();
   });
 
-  it('renders a guest in Arabic, with the ضيف marker', () => {
+  it('renders a typed-in attendee in Arabic', () => {
     render(
       <LanguageProvider lang="ar">
         <MemoryRouter>
@@ -111,6 +109,5 @@ describe('EntryItem', () => {
       </LanguageProvider>,
     );
     expect(screen.getByText('زائر')).toHaveAttribute('dir', 'auto');
-    expect(screen.getByText('(ضيف)')).toBeInTheDocument();
   });
 });

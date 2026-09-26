@@ -71,7 +71,7 @@ export function EntryItem({
               {entry.guests.map((g, i) => (
                 <span key={`guest-${i}`}>
                   {entry.attendees.length > 0 || i > 0 ? ', ' : ''}
-                  <span dir="auto" data-user-content="">{g}</span> <span>{t('history.guestMarker')}</span>
+                  <span dir="auto" data-user-content="">{g}</span>
                 </span>
               ))}
             </div>
