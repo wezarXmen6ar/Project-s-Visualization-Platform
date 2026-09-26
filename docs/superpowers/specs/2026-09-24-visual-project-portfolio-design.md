@@ -141,6 +141,11 @@ Saving creates Baseline 1.
 - **Project family (M9):** when a project follows another or has follow-ons, a strip shows the chain, e.g. "Case Management (launched Mar 2026) → Case Management Phase 2 (planned)".
 - **Gantt chart as the centrepiece.** Clicking a bar opens a **slide-in side panel** with a chronological, collapsible timeline (grouped by week or type) of the phase's entries, to-dos and attachments.
 - Tabs: Timeline, Attachments (filter by type or phase), To-dos, **Requirements**, Change requests, Baselines.
+- **M7 decisions (user, 2026-09-26):**
+  - **Tabs:** the project page's sections move into tabs: History (the spec's "Timeline" tab, renamed so it isn't confused with the Gantt chart's Timeline), To-dos, People, Attachments and Details. The chart and My next steps stay above them.
+  - **Meetings** hold attendees (anyone in Resources) and can create follow-up to-dos.
+  - **Uploads:** any file type up to 50 MB. PDFs and images preview in the app.
+  - **Clicking a phase or sub-phase bar** opens a side panel from the inline end with that phase's history. It is read-only, and shows highlighted entries only, in the focus view.
 
 - **Gantt readability (M5 review, 2026-09-25):**
   - Years sit on their own row above the months, so labels never run into each other.

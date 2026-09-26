@@ -203,3 +203,27 @@ Terms already in the app's catalogues but missing above, and the Arabic names of
 | None / Not set | لا يوجد / غير محدد |
 | Show done / Hide done | إظهار المنجزة / إخفاء المنجزة |
 | Backups | النسخ الاحتياطية |
+
+## Proposed for M7: meetings, updates and attachments (waiting for the user's approval)
+| English | Arabic |
+|---|---|
+| Meeting / Meetings | اجتماع / الاجتماعات |
+| Update / Updates | تحديث / التحديثات |
+| History (project tab) | السجل |
+| Add meeting / Add update | إضافة اجتماع / إضافة تحديث |
+| Notes (meeting minutes) | محضر الاجتماع |
+| Notes (update) | التفاصيل |
+| Attendees | الحضور |
+| Date it happened | تاريخ الحدث |
+| Show in presentation | إظهار في العرض |
+| Follow-up to-dos | مهام المتابعة |
+| Attachment / Attachments | مرفق / المرفقات |
+| Upload file | رفع ملف |
+| Attachment type | نوع المرفق |
+| Document date | تاريخ المستند |
+| Preview / Download | معاينة / تنزيل |
+| Phase history (side panel) | سجل المرحلة |
+| Group by week / by type | حسب الأسبوع / حسب النوع |
+| From the meeting on {date} | من اجتماع {date} |
+| Retry | إعادة المحاولة |
+| Attachment types: Meeting Minutes, Approval, Change Request, Business Analysis Document, BRD, Documentation, Design, Test Report, Other | محضر اجتماع، موافقة، Change Request، وثيقة التحليل، وثيقة متطلبات الأعمال (BRD)، التوثيق، التصميم، تقرير الاختبار، أخرى |
