@@ -236,6 +236,13 @@ Saving creates Baseline 1.
 - **Starter checklists (optional):** Settings keeps a short list of to-dos per phase name, for example UAT: "Book UAT sessions", "Get UAT sign-off". The lists start empty. When a project is created, or a phase is added, the matching items are offered ticked, and you can untick any or all of them. Nothing is added unless you keep it.
 - **"I am" (Settings):** you pick yourself from Resources, which is what **Mine** and **My next steps** use.
 
+- **To-do history and priority (M8, user 2026-09-26):** a to-do created in a meeting or by the PM is often discussed again in later meetings while it is still open.
+  - A meeting's form has a **To-dos discussed** section (مهام نوقشت) listing the project's open to-dos. For each one picked, the PM writes what was said and can change its due date, assignee or priority in the same step. Each becomes a dated **update** on the to-do, linked to the meeting.
+  - An update can also be added to a to-do outside a meeting.
+  - The to-do shows its **history**: created (from the meeting on 3 Oct, or by the PM), each update with its meeting and what changed ("due moved 14 → 21 Oct"), and done. The meeting lists the to-dos it discussed.
+  - Each to-do has a **priority**: Normal, Important or Urgent (عادي، مهم، عاجل), shown as a badge, sortable and filterable. Priority changes are kept in the history.
+  - To-dos, their updates and their history stay private to project management.
+
 ### 3.9 Settings
 Weekend days, holidays, attachment types, roles, dropdown lists (main projects, project types, goals, business users, **phases**), waiting-clock thresholds, **"I am"**, and **starter to-dos per phase**. Renaming a phase in the list renames it on every project's phases; a phase name any project uses cannot be deleted.
 
