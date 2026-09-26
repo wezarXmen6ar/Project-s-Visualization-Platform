@@ -79,14 +79,14 @@ describe('AssignmentsEditor', () => {
     expect(screen.getByText('Week of 5 Oct: 150% booked, 100% available')).toBeInTheDocument();
   });
 
-  it('shows an Outsourced group with the company name, offering only the engaged person', async () => {
+  it('shows an Outsourced group with the company name, offering the engaged and the upcoming person but not the past one', async () => {
     const user = userEvent.setup();
     render(<Harness people={[...samplePeople(), ...sampleOutsourced()]} />);
     await user.click(screen.getByRole('button', { name: 'Add person to Development' }));
     const select = screen.getByLabelText('Development person 1');
     const group = within(select).getByRole('group', { name: 'Outsourced' });
     const options = within(group).getAllByRole('option').map((o) => o.textContent);
-    expect(options).toEqual(['Omar Farid · TechNova']);
+    expect(options).toEqual(['Nadia Haddad · TechNova', 'Omar Farid · TechNova']);
   });
 
   it("shows a person's role in Arabic, from the Roles list", async () => {

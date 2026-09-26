@@ -85,13 +85,22 @@ describe('PersonPage', () => {
     });
   });
 
-  it('shows company, project, start and end only when Outsourced is chosen, and sends them', async () => {
+  it('shows Company for any tech person (with a hint and no "not set" once Outsourced), and Project/start/end only when Outsourced', async () => {
     const fetchMock = mockFetch(fakeServer());
     const user = userEvent.setup();
     renderAt('/manage/resources/new');
-    expect(screen.queryByLabelText('Company')).toBeNull();
-    await user.click(screen.getByRole('radio', { name: 'Outsourced' }));
+    // "Our team" (the default): Company is offered, optional, with a hint; the engagement fields are not shown.
     expect(await screen.findByLabelText('Company')).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Company')).getByRole('option', { name: 'Not set' })).toBeInTheDocument();
+    expect(screen.getByText('The company they’re contracted through, if any.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Project')).toBeNull();
+    expect(screen.queryByLabelText('Engagement start')).toBeNull();
+    expect(screen.queryByLabelText('Engagement end')).toBeNull();
+
+    await user.click(screen.getByRole('radio', { name: 'Outsourced' }));
+    // Outsourced: Company is required (no "not set"), the hint is gone, and the engagement fields appear.
+    expect(within(screen.getByLabelText('Company')).queryByRole('option', { name: 'Not set' })).toBeNull();
+    expect(screen.queryByText('The company they’re contracted through, if any.')).toBeNull();
     expect(screen.getByLabelText('Project')).toBeInTheDocument();
     expect(screen.getByLabelText('Engagement start')).toBeInTheDocument();
     expect(screen.getByLabelText('Engagement end')).toBeInTheDocument();
@@ -112,14 +121,32 @@ describe('PersonPage', () => {
     });
   });
 
-  it('hides the company fields again when switching back to Our team', async () => {
+  it('hides the engagement fields again when switching back to Our team, but keeps the (now optional) Company', async () => {
     mockFetch(fakeServer());
     const user = userEvent.setup();
     renderAt('/manage/resources/new');
     await user.click(screen.getByRole('radio', { name: 'Outsourced' }));
     await screen.findByLabelText('Company');
     await user.click(screen.getByRole('radio', { name: 'Our team' }));
-    expect(screen.queryByLabelText('Company')).toBeNull();
+    expect(screen.getByLabelText('Company')).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Company')).getByRole('option', { name: 'Not set' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Project')).toBeNull();
+  });
+
+  it('keeps a company chosen for a staff (our team) tech person', async () => {
+    const fetchMock = mockFetch(fakeServer());
+    const user = userEvent.setup();
+    renderAt('/manage/resources/new');
+    await user.type(screen.getByLabelText('Name'), 'Hassan Ali');
+    await screen.findByRole('option', { name: 'TechNova' });
+    await user.selectOptions(screen.getByLabelText('Company'), 'TechNova');
+    await user.click(screen.getByRole('button', { name: 'Add person' }));
+
+    expect(await screen.findByText('Resources list')).toBeInTheDocument();
+    const post = fetchMock.mock.calls.find(([url, init]) => url === '/api/resources' && init?.method === 'POST');
+    expect(JSON.parse(post![1]!.body as string)).toMatchObject({
+      name: 'Hassan Ali', side: 'tech', employment: 'staff', companyId: 200,
+    });
   });
 
   it('asks a business contact only for name, phone and email', async () => {

@@ -172,6 +172,20 @@ describe('project details', () => {
     ]);
   });
 
+  it('refuses an outsourced person as the (tech) project manager', async () => {
+    const companyId = (await app.inject({ method: 'POST', url: '/api/lists/company', payload: { name: 'TechNova' } })).json().id;
+    const omar = (
+      await app.inject({
+        method: 'POST', url: '/api/resources', payload: { name: 'Omar Farid', side: 'tech', employment: 'outsourced', companyId },
+      })
+    ).json().id;
+    const res = await app.inject({ method: 'POST', url: '/api/projects', payload: { ...base, projectManagerId: omar } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().issues).toEqual([
+      { path: 'projectManagerId', message: 'The project manager must be on our team', code: 'error.pmMustBeStaff' },
+    ]);
+  });
+
   it('will not delete a person who manages a project', async () => {
     await app.inject({ method: 'POST', url: '/api/projects', payload: fullBody() });
     const res = await app.inject({ method: 'DELETE', url: `/api/resources/${ids.sara}` });

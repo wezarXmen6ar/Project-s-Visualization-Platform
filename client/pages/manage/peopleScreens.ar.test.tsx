@@ -87,6 +87,9 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
       expect(within(table).getByRole('columnheader', { name: header })).toBeInTheDocument();
     }
     expect(within(table).getByRole('link', { name: 'Omar Farid' })).toBeInTheDocument();
+    // Nadia's engagement starts the day after "today", so she stays current with a small "starts" note in Arabic.
+    const nadia = within(table).getByRole('link', { name: 'Nadia Haddad' });
+    expect(within(nadia.closest('tr')!).getByText(/يبدأ/)).toBeInTheDocument();
     expect(screen.getByText('المتعاقدون السابقون (1)')).toBeInTheDocument();
   });
 
@@ -100,8 +103,14 @@ describe('the people, workload, to-dos and settings screens in Arabic', () => {
     const user = userEvent.setup();
     arabic('/manage/resources/new', '/manage/resources/new', <PersonPage />);
 
-    await user.click(await screen.findByRole('radio', { name: 'متعاقد خارجي' }));
+    // "فريقنا" (our team, the default): Company is offered with its hint, and no engagement fields yet.
     expect(await screen.findByLabelText('الشركة')).toBeInTheDocument();
+    expect(screen.getByText('الشركة التي يعمل من خلالها، إن وُجدت.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('المشروع')).toBeNull();
+
+    await user.click(screen.getByRole('radio', { name: 'متعاقد خارجي' }));
+    expect(await screen.findByLabelText('الشركة')).toBeInTheDocument();
+    expect(screen.queryByText('الشركة التي يعمل من خلالها، إن وُجدت.')).toBeNull();
     expect(screen.getByLabelText('المشروع')).toBeInTheDocument();
     expect(screen.getByLabelText('بداية التعاقد')).toBeInTheDocument();
     expect(screen.getByLabelText('نهاية التعاقد')).toBeInTheDocument();

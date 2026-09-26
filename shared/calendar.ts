@@ -57,6 +57,21 @@ export function daysBetween(a: ISODate, b: ISODate): number {
   return Math.round((toDate(b).getTime() - toDate(a).getTime()) / MS_PER_DAY);
 }
 
+/** Where an outsourced engagement stands, relative to `today`. Upcoming and engaged are both current — the team
+ * can plan ahead for someone not yet started; only past (their end date has gone by) is history. */
+export type EngagementStatus = 'upcoming' | 'engaged' | 'past';
+
+/**
+ * The single shared rule for an outsourced engagement's status: *past* once the end date (if any) is before
+ * today; *upcoming* when the start date (if any) is after today and it isn't already past; *engaged* otherwise
+ * (an open-ended start or end counts as already-started / never-ending).
+ */
+export function engagementStatus(start: ISODate | null, end: ISODate | null, today: ISODate): EngagementStatus {
+  if (end !== null && end < today) return 'past';
+  if (start !== null && start > today) return 'upcoming';
+  return 'engaged';
+}
+
 export function dayOfWeek(d: ISODate): number {
   return toDate(d).getUTCDay();
 }

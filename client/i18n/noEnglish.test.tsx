@@ -128,6 +128,7 @@ function arabicLists(): Lists {
 }
 
 const OMAR = 'عمر فريد';
+const NADIA = 'نادية حداد';
 
 function arabicPeople(): ResourceRecord[] {
   const names: Record<number, string> = { 70: SARA, 71: FATIMA, 72: RAMI, 80: MARIAM };
@@ -141,9 +142,16 @@ function arabicPeople(): ResourceRecord[] {
   const outsourced: ResourceRecord = {
     id: 90, name: OMAR, side: 'tech', employment: 'outsourced', role: null, specialisation: null, email: null, phone: null,
     capacity: 100, active: true, leave: [], projects: [], company: { id: 200, name: 'TechNova', nameAr: 'تكنوفا' },
-    engagementProject: { id: 91, name: OTHER_PROJECT }, engagementStart: '2026-09-01', engagementEnd: '2026-12-31', engaged: true,
+    engagementProject: { id: 91, name: OTHER_PROJECT }, engagementStart: '2026-09-01', engagementEnd: '2026-12-31', engagement: 'engaged',
   };
-  return [...staff, outsourced];
+  // Upcoming: today (fixed below at 2026-10-07) is still before their start, so the Outsourced section shows the
+  // "starts {date}" note the guard must find in Arabic only.
+  const upcoming: ResourceRecord = {
+    id: 92, name: NADIA, side: 'tech', employment: 'outsourced', role: null, specialisation: null, email: null, phone: null,
+    capacity: 100, active: true, leave: [], projects: [], company: { id: 200, name: 'TechNova', nameAr: 'تكنوفا' },
+    engagementProject: null, engagementStart: '2026-11-01', engagementEnd: null, engagement: 'upcoming',
+  };
+  return [...staff, outsourced, upcoming];
 }
 
 function arabicProject(): ProjectRecord {

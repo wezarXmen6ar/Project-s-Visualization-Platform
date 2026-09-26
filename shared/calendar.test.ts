@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  DEFAULT_CALENDAR, addDays, addWorkingDays, countWorkingDays, dayOfWeek, daysBetween,
+  DEFAULT_CALENDAR, addDays, addWorkingDays, countWorkingDays, dayOfWeek, daysBetween, engagementStatus,
   isISODate, isWorkingDay, nextWorkingDay, toLocalDate, type WorkCalendar,
 } from './calendar';
 
@@ -73,5 +73,32 @@ describe('working days', () => {
   });
   it('refuses a calendar with no working days', () => {
     expect(() => nextWorkingDay('2026-09-24', { weekendDays: [0, 1, 2, 3, 4, 5, 6], holidays: [] })).toThrow();
+  });
+});
+
+describe('engagementStatus', () => {
+  const today = '2026-09-24';
+
+  it('is engaged when today falls between a dated start and end', () => {
+    expect(engagementStatus('2026-09-01', '2026-12-31', today)).toBe('engaged');
+  });
+  it('is engaged on the start and end dates themselves', () => {
+    expect(engagementStatus(today, today, today)).toBe('engaged');
+  });
+  it('is past once the end date is before today, whatever the start', () => {
+    expect(engagementStatus('2026-01-01', '2026-06-30', today)).toBe('past');
+    expect(engagementStatus(null, '2026-09-23', today)).toBe('past');
+  });
+  it('is upcoming when the start date is after today and it is not already past', () => {
+    expect(engagementStatus('2026-10-01', null, today)).toBe('upcoming');
+    expect(engagementStatus('2026-10-01', '2026-12-31', today)).toBe('upcoming');
+  });
+  it('treats an open-ended start as already started, and an open-ended end as never-ending', () => {
+    expect(engagementStatus(null, null, today)).toBe('engaged');
+    expect(engagementStatus(null, '2026-12-31', today)).toBe('engaged');
+    expect(engagementStatus('2026-01-01', null, today)).toBe('engaged');
+  });
+  it('a past end wins even if the (nonsensical) start is also after today', () => {
+    expect(engagementStatus('2026-10-01', '2026-09-01', today)).toBe('past');
   });
 });

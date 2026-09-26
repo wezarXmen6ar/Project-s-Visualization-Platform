@@ -57,6 +57,7 @@ export function DetailsFields({ value, onChange, lists, onListAdded, people, onP
             onAdded={onPersonAdded}
             noneLabel={t('common.notSet')}
             newPersonRoleId={lists.role.find((r) => r.name === 'Project manager')?.id ?? null}
+            staffOnly
           />
           <PersonPicker
             label={t('project.businessPm')}

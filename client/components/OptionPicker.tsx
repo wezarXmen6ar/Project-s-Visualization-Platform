@@ -16,8 +16,11 @@ interface OptionPickerProps {
   onChange: (id: number | null) => void;
   /** Called with a value created inline, so the parent can show it straight away. */
   onAdded: (value: ListValue) => void;
-  /** Text of the empty choice, e.g. "Not set" or "Standalone (no main project)". */
+  /** Text of the empty choice, e.g. "Not set" or "Standalone (no main project)". Ignored when `required`. */
   noneLabel: string;
+  /** Hides the empty choice, for a field that must have a value (e.g. an outsourced person's company). The
+   * inline "+ Add new …" choice stays. */
+  required?: boolean;
   /** Text of the choice that opens the inline add, e.g. "+ Add new department…" or "Other…". */
   addLabel: string;
   /** Keep the label for screen readers and tests but don't show it (e.g. inside a table-like row). */
@@ -28,7 +31,7 @@ interface OptionPickerProps {
 
 /** A dropdown over one of the editable lists, with an inline way to add a new value. */
 export function OptionPicker({
-  label, list, options, value, onChange, onAdded, noneLabel, addLabel, hideLabel = false, newLabel,
+  label, list, options, value, onChange, onAdded, noneLabel, addLabel, hideLabel = false, newLabel, required = false,
 }: OptionPickerProps) {
   const t = useT();
   const { lang } = useLang();
@@ -106,7 +109,7 @@ export function OptionPicker({
           else onChange(e.target.value === NONE ? null : Number(e.target.value));
         }}
       >
-        <option value={NONE}>{noneLabel}</option>
+        {required ? null : <option value={NONE}>{noneLabel}</option>}
         {options.map((o) => (
           <option key={o.id} value={String(o.id)}>{listName(o, lang)}</option>
         ))}

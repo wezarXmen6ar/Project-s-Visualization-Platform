@@ -5,7 +5,7 @@ import { openDb } from '../db';
 
 let db: DatabaseSync;
 let app: ReturnType<typeof buildApp>;
-let people: { fatima: number; rami: number; mariam: number; gone: number; omar: number; laid: number };
+let people: { fatima: number; rami: number; mariam: number; gone: number; omar: number; laid: number; nadia: number };
 let companyId: number;
 
 beforeEach(async () => {
@@ -23,6 +23,9 @@ beforeEach(async () => {
     }),
     laid: await add({
       name: 'Layla Zaid', side: 'tech', employment: 'outsourced', companyId, engagementStart: '2026-01-01', engagementEnd: '2026-06-30',
+    }),
+    nadia: await add({
+      name: 'Nadia Haddad', side: 'tech', employment: 'outsourced', companyId, engagementStart: '2026-11-01',
     }),
   };
 });
@@ -266,6 +269,17 @@ describe('assignments', () => {
     });
     expect(withNewPast.statusCode).toBe(400);
     expect(issuesOf(withNewPast.json())).toEqual([['assignments.1.resourceId', "Layla Zaid's engagement has ended"]]);
+  });
+
+  it('lets a not-yet-started (upcoming) outsourced person be newly assigned', async () => {
+    const res = await projectWith([
+      { resourceId: people.fatima, allocation: 60 },
+      { resourceId: people.nadia, allocation: 30 },
+    ]);
+    expect(res.statusCode).toBe(201);
+    expect(res.json().assignments.map((a: { resource: { id: number } }) => a.resource.id)).toEqual(
+      expect.arrayContaining([people.nadia]),
+    );
   });
 
   it('will not delete someone who is assigned to a phase', async () => {

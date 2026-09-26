@@ -123,7 +123,7 @@ export function sampleLists(): Lists {
 export function samplePeople(): ResourceRecord[] {
   const person = (p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name' | 'side'>): ResourceRecord => ({
     role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], projects: [],
-    employment: 'staff', company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engaged: null,
+    employment: 'staff', company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engagement: null,
     ...p,
   });
   return [
@@ -140,21 +140,25 @@ export function samplePeople(): ResourceRecord[] {
   ];
 }
 
-/** One engaged outsourced person and one past one, both hired by TechNova. */
+/** An engaged outsourced person, a past one and an upcoming one, all hired by TechNova. */
 export function sampleOutsourced(): ResourceRecord[] {
-  const person = (p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name' | 'engaged'>): ResourceRecord => ({
+  const person = (p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name' | 'engagement'>): ResourceRecord => ({
     side: 'tech', role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true, leave: [], projects: [],
     employment: 'outsourced', company: { id: 200, name: 'TechNova' }, engagementProject: null, engagementStart: null,
     engagementEnd: null, ...p,
   });
   return [
     person({
-      id: 90, name: 'Omar Farid', engaged: true, engagementProject: { id: 91, name: 'Case Management' },
+      id: 90, name: 'Omar Farid', engagement: 'engaged', engagementProject: { id: 91, name: 'Case Management' },
       engagementStart: '2026-09-01', engagementEnd: '2026-12-31',
     }),
     person({
-      id: 91, name: 'Layla Zaid', engaged: false, engagementProject: { id: 91, name: 'Case Management' },
+      id: 91, name: 'Layla Zaid', engagement: 'past', engagementProject: { id: 91, name: 'Case Management' },
       engagementStart: '2026-01-01', engagementEnd: '2026-06-30',
+    }),
+    person({
+      id: 92, name: 'Nadia Haddad', engagement: 'upcoming', engagementProject: { id: 91, name: 'Case Management' },
+      engagementStart: '2026-10-15', engagementEnd: null,
     }),
   ];
 }

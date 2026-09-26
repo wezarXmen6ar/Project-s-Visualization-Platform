@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { todayLocal, type ISODate } from '../../shared/calendar';
+import { engagementStatus, todayLocal, type ISODate } from '../../shared/calendar';
 import { translate } from '../../shared/i18n/translate';
 import type { Params } from '../../shared/i18n/types';
 import type { AssignmentData, OverloadDecisionData, ValidationIssue } from '../../shared/schemas';
@@ -45,13 +45,6 @@ function toAssignment(row: AssignmentRow): AssignmentRecord {
   };
 }
 
-/** Engaged means today falls between the start (or open-ended) and the end (or open-ended); past means the end is before today. */
-function isEngaged(start: string | null, end: string | null, today: ISODate): boolean {
-  if (start !== null && start > today) return false;
-  if (end !== null && end < today) return false;
-  return true;
-}
-
 /**
  * Everyone assigned must exist, be on the tech team, and (an active staff member, or an outsourced person still
  * engaged). `path` prefixes each issue, e.g. "phases.0.assignments". `alreadyOnPhase` lists resourceIds already
@@ -79,7 +72,8 @@ export function checkAssignmentPeople(
       const params: Params = { name: person.name };
       issues.push({ path: at, message: translate('en', 'error.notTechTeam', params), code: 'error.notTechTeam', params });
     } else if (person.employment === 'outsourced') {
-      if (!isEngaged(person.engagement_start, person.engagement_end, today) && !alreadyOnPhase.has(a.resourceId)) {
+      const status = engagementStatus(person.engagement_start, person.engagement_end, today);
+      if (status === 'past' && !alreadyOnPhase.has(a.resourceId)) {
         const params: Params = { name: person.name };
         issues.push({
           path: at, message: translate('en', 'error.personEngagementEnded', params), code: 'error.personEngagementEnded', params,

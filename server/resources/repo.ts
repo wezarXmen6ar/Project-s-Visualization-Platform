@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { todayLocal, type ISODate } from '../../shared/calendar';
+import { engagementStatus, todayLocal, type ISODate } from '../../shared/calendar';
 import type { MessageKey } from '../../shared/i18n/en';
 import { translate } from '../../shared/i18n/translate';
 import type { Params, ReasonParam } from '../../shared/i18n/types';
@@ -87,13 +87,6 @@ function companyNames(db: DatabaseSync): Map<number, string> {
 function projectNames(db: DatabaseSync): Map<number, string> {
   const rows = db.prepare('SELECT id, name FROM projects').all() as unknown as { id: number; name: string }[];
   return new Map(rows.map((r) => [r.id, r.name]));
-}
-
-/** Engaged means today falls between the start (or open-ended) and the end (or open-ended); past means the end is before today. */
-function isEngaged(start: string | null, end: string | null, today: ISODate): boolean {
-  if (start !== null && start > today) return false;
-  if (end !== null && end < today) return false;
-  return true;
 }
 
 interface ProjectLinkRow {
@@ -190,7 +183,7 @@ function toResource(
         : null,
     engagementStart: row.engagement_start,
     engagementEnd: row.engagement_end,
-    engaged: row.employment === 'outsourced' ? isEngaged(row.engagement_start, row.engagement_end, today) : null,
+    engagement: row.employment === 'outsourced' ? engagementStatus(row.engagement_start, row.engagement_end, today) : null,
     leave,
     projects,
   };

@@ -1,4 +1,4 @@
-import type { ISODate, WorkCalendar } from './calendar';
+import type { EngagementStatus, ISODate, WorkCalendar } from './calendar';
 import type { CapacityAssignment, CapacityResource } from './capacity';
 import type { PortfolioStats } from './portfolio';
 
@@ -96,8 +96,8 @@ export interface ResourceRecord {
   engagementStart: ISODate | null;
   /** Outsourced only. */
   engagementEnd: ISODate | null;
-  /** Outsourced only: whether today falls within the engagement (an open start or end counts). Null for staff. */
-  engaged: boolean | null;
+  /** Outsourced only: upcoming, engaged or past, per `engagementStatus`. Null for staff. */
+  engagement: EngagementStatus | null;
   /** Ordered by start date. */
   leave: LeaveRecord[];
   /** Ordered by name. Empty when they have no current or past link to any project. */

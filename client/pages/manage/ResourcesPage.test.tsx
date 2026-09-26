@@ -47,6 +47,24 @@ describe('ResourcesPage', () => {
     expect(screen.getByRole('link', { name: 'Add person' })).toHaveAttribute('href', '/manage/resources/new');
   });
 
+  it('shows and filters the People table by Company, for a staff member contracted through one', async () => {
+    const withCompany = samplePeople().map((p) => (p.id === 70 ? { ...p, company: { id: 200, name: 'TechNova' } } : p));
+    mockFetch({ ...routes, 'GET /api/resources': () => ({ body: withCompany }) });
+    const user = userEvent.setup();
+    renderPage();
+    const table = within(await peopleTable());
+    // Company is the 4th column (name, side, role, company, …); indexed rather than matched by text, since an
+    // empty "—" also shows in the Contact column for someone with no phone or email.
+    const sara = table.getByRole('link', { name: 'Sara Ahmed' }).closest('tr')!;
+    expect(within(sara).getAllByRole('cell')[3]).toHaveTextContent('TechNova');
+    const rami = table.getByRole('link', { name: 'Rami Saleh' }).closest('tr')!;
+    expect(within(rami).getAllByRole('cell')[3]).toHaveTextContent('—');
+
+    // The People table's own Company filter is the first of the two ("Company" also filters the Outsourced section).
+    await user.selectOptions(screen.getAllByLabelText('Company')[0], 'TechNova');
+    expect(await names()).toEqual(['Sara Ahmed']);
+  });
+
   it('filters by side and by role', async () => {
     mockFetch(routes);
     const user = userEvent.setup();
@@ -65,12 +83,16 @@ describe('ResourcesPage', () => {
     expect(await screen.findByText('No one yet. Add your team and your business-side contacts.')).toBeInTheDocument();
   });
 
-  it('shows the Outsourced section with an engaged person, and a collapsed Past outsourced with the ended one', async () => {
+  it('shows the Outsourced section with the engaged and the upcoming person, and a collapsed Past outsourced with the ended one', async () => {
     mockFetch({ ...routes, 'GET /api/resources': () => ({ body: [...samplePeople(), ...sampleOutsourced()] }) });
     renderPage();
     const outsourcedTable = await screen.findByRole('table', { name: 'Outsourced' });
     const omar = within(outsourcedTable).getByRole('link', { name: 'Omar Farid' });
     expect(omar).toHaveAttribute('href', '/manage/resources/90');
+    // A future-start (upcoming) person stays current, with a small note, not in Past outsourced.
+    const nadia = within(outsourcedTable).getByRole('link', { name: 'Nadia Haddad' });
+    expect(nadia).toHaveAttribute('href', '/manage/resources/92');
+    expect(within(nadia.closest('tr')!).getByText(/starts Thu 15 Oct 2026/)).toBeInTheDocument();
     expect(within(outsourcedTable).queryByText('Layla Zaid')).toBeNull();
     // The staff table is untouched by outsourced people.
     expect(within(await peopleTable()).queryByText('Omar Farid')).toBeNull();
@@ -82,6 +104,7 @@ describe('ResourcesPage', () => {
     await user.click(summary);
     expect(details.open).toBe(true);
     expect(within(details).getByText('Layla Zaid')).toBeInTheDocument();
+    expect(within(details).queryByText('Nadia Haddad')).toBeNull();
   });
 
   it('sorts by the Projects column and flips direction on a second click', async () => {

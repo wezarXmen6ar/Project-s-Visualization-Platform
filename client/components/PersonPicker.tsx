@@ -19,10 +19,14 @@ interface PersonPickerProps {
   noneLabel: string;
   /** Role given to someone added from here (tech side only), e.g. the "Project manager" role. */
   newPersonRoleId?: number | null;
+  /** Excludes outsourced people, e.g. the (tech) project manager, who must be on our own team. */
+  staffOnly?: boolean;
 }
 
 /** A dropdown of people from Resources, with an inline way to add someone (and a business contact's phone and email). */
-export function PersonPicker({ label, side, people, value, onChange, onAdded, noneLabel, newPersonRoleId = null }: PersonPickerProps) {
+export function PersonPicker({
+  label, side, people, value, onChange, onAdded, noneLabel, newPersonRoleId = null, staffOnly = false,
+}: PersonPickerProps) {
   const t = useT();
   const { lang } = useLang();
   // English lower-cases the field label inside a sentence ("New project manager (tech)"); Arabic has no case.
@@ -35,7 +39,7 @@ export function PersonPicker({ label, side, people, value, onChange, onAdded, no
   const [saving, setSaving] = useState(false);
 
   const options = people
-    .filter((p) => p.side === side && (p.active || p.id === value))
+    .filter((p) => p.side === side && (p.active || p.id === value) && (!staffOnly || p.employment !== 'outsourced'))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   function closeAdd() {

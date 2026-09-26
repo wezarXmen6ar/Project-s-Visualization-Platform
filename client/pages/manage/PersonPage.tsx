@@ -297,38 +297,46 @@ export function PersonPage() {
               {t('person.name')}
               <input dir="auto" data-user-content="" value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
             </label>
-            {draft.side === 'tech' && draft.employment === 'outsourced' ? (
+            {draft.side === 'tech' ? (
               <>
-                <OptionPicker
-                  label={t('person.company')}
-                  list="company"
-                  options={[...(lists.data?.company ?? []), ...addedCompanies.filter((c) => !(lists.data?.company ?? []).some((v) => v.id === c.id))]}
-                  value={draft.companyId}
-                  onChange={(companyId) => patch({ companyId })}
-                  onAdded={(v) => setAddedCompanies((list) => [...list, v])}
-                  noneLabel={t('common.notSet')}
-                  addLabel={t('person.addCompany')}
-                />
-                <label>
-                  {t('person.engagementProject')}
-                  <select
-                    value={draft.engagementProjectId === null ? '' : String(draft.engagementProjectId)}
-                    onChange={(e) => patch({ engagementProjectId: e.target.value === '' ? null : Number(e.target.value) })}
-                  >
-                    <option value="">{t('person.noEngagementProject')}</option>
-                    {(projects.data ?? []).map((p) => (
-                      <option key={p.id} value={String(p.id)} dir="auto">{p.name}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  {t('person.engagementStart')}
-                  <input type="date" value={draft.engagementStart} onChange={(e) => patch({ engagementStart: e.target.value })} />
-                </label>
-                <label>
-                  {t('person.engagementEnd')}
-                  <input type="date" value={draft.engagementEnd} onChange={(e) => patch({ engagementEnd: e.target.value })} />
-                </label>
+                <div>
+                  <OptionPicker
+                    label={t('person.company')}
+                    list="company"
+                    options={[...(lists.data?.company ?? []), ...addedCompanies.filter((c) => !(lists.data?.company ?? []).some((v) => v.id === c.id))]}
+                    value={draft.companyId}
+                    onChange={(companyId) => patch({ companyId })}
+                    onAdded={(v) => setAddedCompanies((list) => [...list, v])}
+                    noneLabel={t('common.notSet')}
+                    addLabel={t('person.addCompany')}
+                    required={draft.employment === 'outsourced'}
+                  />
+                  {draft.employment === 'staff' ? <p className="muted">{t('person.companyHint')}</p> : null}
+                </div>
+                {draft.employment === 'outsourced' ? (
+                  <>
+                    <label>
+                      {t('person.engagementProject')}
+                      <select
+                        value={draft.engagementProjectId === null ? '' : String(draft.engagementProjectId)}
+                        onChange={(e) => patch({ engagementProjectId: e.target.value === '' ? null : Number(e.target.value) })}
+                      >
+                        <option value="">{t('person.noEngagementProject')}</option>
+                        {(projects.data ?? []).map((p) => (
+                          <option key={p.id} value={String(p.id)} dir="auto">{p.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {t('person.engagementStart')}
+                      <input type="date" value={draft.engagementStart} onChange={(e) => patch({ engagementStart: e.target.value })} />
+                    </label>
+                    <label>
+                      {t('person.engagementEnd')}
+                      <input type="date" value={draft.engagementEnd} onChange={(e) => patch({ engagementEnd: e.target.value })} />
+                    </label>
+                  </>
+                ) : null}
               </>
             ) : null}
             {draft.side === 'tech' ? (

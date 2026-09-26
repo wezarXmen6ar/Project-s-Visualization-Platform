@@ -49,6 +49,7 @@ const COLUMNS: { key: SortKey; label: MessageKey }[] = [
   { key: 'name', label: 'resources.colName' },
   { key: 'side', label: 'resources.side' },
   { key: 'role', label: 'resources.role' },
+  { key: 'company', label: 'resources.colCompany' },
   { key: 'projects', label: 'resources.colProjects' },
   { key: 'capacity', label: 'resources.colCapacity' },
   { key: 'contact', label: 'resources.colContact' },
@@ -96,6 +97,7 @@ export function ResourcesPage() {
   const [side, setSide] = useState<Side | 'all'>('all');
   const [roleId, setRoleId] = useState<number | null>(null);
   const [projectId, setProjectId] = useState<number | null>(null);
+  const [peopleCompanyId, setPeopleCompanyId] = useState<number | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'name', dir: 'asc' });
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [outsourcedProjectId, setOutsourcedProjectId] = useState<number | null>(null);
@@ -135,17 +137,19 @@ export function ResourcesPage() {
     (p) =>
       (side === 'all' || p.side === side) &&
       (roleId === null || p.role?.id === roleId) &&
-      (projectId === null || workingOn(p, projectId)),
+      (projectId === null || workingOn(p, projectId)) &&
+      (peopleCompanyId === null || p.company?.id === peopleCompanyId),
   );
   const roles = lists.data?.role ?? [];
   const companies = lists.data?.company ?? [];
-  const shown = sortPeople(filtered, sort.key, sort.dir, lang, roles);
+  const shown = sortPeople(filtered, sort.key, sort.dir, lang, roles, companies);
   const nameFor = (name: string) => (lists.data ? phaseName(name, lists.data, lang) : name);
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
 
   const outsourced = (people.data ?? []).filter((p) => p.employment === 'outsourced');
-  const engagedOutsourced = outsourced.filter((p) => p.engaged);
-  const pastOutsourced = outsourced.filter((p) => !p.engaged);
+  // Upcoming and engaged people are both current: only the past ones move to history.
+  const engagedOutsourced = outsourced.filter((p) => p.engagement !== 'past');
+  const pastOutsourced = outsourced.filter((p) => p.engagement === 'past');
   const outsourcedFiltered = engagedOutsourced.filter(
     (p) => (companyId === null || p.company?.id === companyId) && (outsourcedProjectId === null || p.engagementProject?.id === outsourcedProjectId),
   );
@@ -276,6 +280,18 @@ export function ResourcesPage() {
               ))}
             </select>
           </label>
+          <label>
+            {t('resources.filterCompany')}
+            <select
+              value={peopleCompanyId === null ? '' : String(peopleCompanyId)}
+              onChange={(e) => setPeopleCompanyId(e.target.value === '' ? null : Number(e.target.value))}
+            >
+              <option value="">{t('resources.anyCompany')}</option>
+              {companies.map((c) => (
+                <option key={c.id} value={String(c.id)}>{listName(c, lang)}</option>
+              ))}
+            </select>
+          </label>
         </div>
 
         {!people.data && !people.error ? <p className="muted">{t('common.loading')}</p> : null}
@@ -305,6 +321,7 @@ export function ResourcesPage() {
                     {p.role ? roleName(p.role, roles, lang) : '—'}
                     {p.specialisation ? ` · ${t(SPECIALISATION_KEY[p.specialisation])}` : ''}
                   </td>
+                  <td dir="auto" data-user-content="">{p.company ? companyName(p.company, companies, lang) : '—'}</td>
                   <td>
                     {p.projects.length === 0 ? (
                       '—'
@@ -379,7 +396,12 @@ export function ResourcesPage() {
             <tbody>
               {outsourcedShown.map((p) => (
                 <tr key={p.id}>
-                  <td><Link to={`/manage/resources/${p.id}`} dir="auto" data-user-content="">{p.name}</Link></td>
+                  <td>
+                    <Link to={`/manage/resources/${p.id}`} dir="auto" data-user-content="">{p.name}</Link>
+                    {p.engagement === 'upcoming' && p.engagementStart ? (
+                      <span className="muted"> · {t('resources.startsOn', { date: formatDate(lang, p.engagementStart) })}</span>
+                    ) : null}
+                  </td>
                   <td dir="auto" data-user-content="">{p.company ? companyName(p.company, companies, lang) : '—'}</td>
                   <td>
                     {p.engagementProject ? (

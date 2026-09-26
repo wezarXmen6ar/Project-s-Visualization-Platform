@@ -4,7 +4,7 @@ import type { ListValue, ResourceRecord } from '../../../shared/types';
 import { companyName, roleName } from '../../i18n/listNames';
 import { SIDE_KEY, SPECIALISATION_KEY } from './labels';
 
-export type SortKey = 'name' | 'side' | 'role' | 'capacity' | 'contact' | 'status' | 'projects';
+export type SortKey = 'name' | 'side' | 'role' | 'company' | 'capacity' | 'contact' | 'status' | 'projects';
 export type SortDir = 'asc' | 'desc';
 
 /** The Outsourced table's own columns (Task 7). */
@@ -45,7 +45,9 @@ function projectsKey(p: ResourceRecord): string | null {
   return p.projects.length > 0 ? p.projects.map((pr) => pr.name).join(', ') : null;
 }
 
-function primaryCompare(a: ResourceRecord, b: ResourceRecord, key: SortKey, dir: SortDir, lang: Lang, roles: ListValue[]): number {
+function primaryCompare(
+  a: ResourceRecord, b: ResourceRecord, key: SortKey, dir: SortDir, lang: Lang, roles: ListValue[], companies: ListValue[] = [],
+): number {
   const side = (p: ResourceRecord) => translate(lang, SIDE_KEY[p.side]);
   const status = (p: ResourceRecord) => translate(lang, p.active ? 'person.active' : 'person.inactive');
   switch (key) {
@@ -55,6 +57,12 @@ function primaryCompare(a: ResourceRecord, b: ResourceRecord, key: SortKey, dir:
       return compare(side(a), side(b), dir);
     case 'role':
       return compare(roleText(a, roles, lang), roleText(b, roles, lang), dir);
+    case 'company':
+      return compare(
+        a.company ? companyName(a.company, companies, lang) : null,
+        b.company ? companyName(b.company, companies, lang) : null,
+        dir,
+      );
     case 'capacity':
       return compare(capacityKey(a), capacityKey(b), dir);
     case 'contact': {
@@ -74,10 +82,10 @@ function primaryCompare(a: ResourceRecord, b: ResourceRecord, key: SortKey, dir:
  * breaking ties by name (ignoring case). `roles` is the Roles list, for the roles' Arabic names.
  */
 export function sortPeople(
-  people: ResourceRecord[], key: SortKey, dir: SortDir, lang: Lang = 'en', roles: ListValue[] = [],
+  people: ResourceRecord[], key: SortKey, dir: SortDir, lang: Lang = 'en', roles: ListValue[] = [], companies: ListValue[] = [],
 ): ResourceRecord[] {
   return [...people].sort((a, b) => {
-    const primary = primaryCompare(a, b, key, dir, lang, roles);
+    const primary = primaryCompare(a, b, key, dir, lang, roles, companies);
     return primary !== 0 ? primary : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   });
 }

@@ -94,8 +94,14 @@ export function checkRefs(db: DatabaseSync, details: ProjectDetails): Validation
   for (const { field, side, key } of PERSON_REFS) {
     const id = details[field];
     if (id === null) continue;
-    const person = db.prepare('SELECT side FROM resources WHERE id = ?').get(id) as unknown as { side: Side } | undefined;
-    if (person?.side !== side) issues.push({ path: field, message: translate('en', key), code: key });
+    const person = db.prepare('SELECT side, employment FROM resources WHERE id = ?').get(id) as unknown as
+      | { side: Side; employment: string }
+      | undefined;
+    if (person?.side !== side) {
+      issues.push({ path: field, message: translate('en', key), code: key });
+    } else if (field === 'projectManagerId' && person.employment === 'outsourced') {
+      issues.push({ path: field, message: translate('en', 'error.pmMustBeStaff'), code: 'error.pmMustBeStaff' });
+    }
   }
   return issues;
 }

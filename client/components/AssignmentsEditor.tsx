@@ -50,9 +50,9 @@ export function AssignmentsEditor({
         const staffOptions = tech
           .filter((p) => p.employment === 'staff' && (p.active || p.id === a.resourceId))
           .sort((x, y) => x.name.localeCompare(y.name));
-        // Outsourced people are offered only while engaged; once past they stay only if already on this row.
+        // Outsourced people are offered while upcoming or engaged; once past they stay only if already on this row.
         const outsourcedOptions = tech
-          .filter((p) => p.employment === 'outsourced' && (p.engaged || p.id === a.resourceId))
+          .filter((p) => p.employment === 'outsourced' && (p.engagement !== 'past' || p.id === a.resourceId))
           .sort((x, y) => x.name.localeCompare(y.name));
         const lines = a.resourceId === null ? [] : warnings.get(a.resourceId) ?? [];
         return (

@@ -10,11 +10,21 @@ import { PersonPicker } from './PersonPicker';
 const inactive: ResourceRecord = {
   id: 81, name: 'Old Contact', side: 'business', employment: 'staff', role: null, specialisation: null, email: null, phone: null,
   capacity: 100, active: false, leave: [], projects: [], company: null, engagementProject: null, engagementStart: null,
-  engagementEnd: null, engaged: null,
+  engagementEnd: null, engagement: null,
 };
 
-function Harness({ side, label, initial = null, roleId }: { side: Side; label: string; initial?: number | null; roleId?: number }) {
-  const [people, setPeople] = useState<ResourceRecord[]>([...samplePeople(), inactive]);
+const outsourced: ResourceRecord = {
+  id: 90, name: 'Omar Farid', side: 'tech', employment: 'outsourced', role: null, specialisation: null, email: null, phone: null,
+  capacity: 100, active: true, leave: [], projects: [], company: { id: 200, name: 'TechNova' }, engagementProject: null,
+  engagementStart: null, engagementEnd: null, engagement: 'engaged',
+};
+
+function Harness({
+  side, label, initial = null, roleId, staffOnly = false, extra = [],
+}: {
+  side: Side; label: string; initial?: number | null; roleId?: number; staffOnly?: boolean; extra?: ResourceRecord[];
+}) {
+  const [people, setPeople] = useState<ResourceRecord[]>([...samplePeople(), inactive, ...extra]);
   const [value, setValue] = useState<number | null>(initial);
   return (
     <PersonPicker
@@ -26,6 +36,7 @@ function Harness({ side, label, initial = null, roleId }: { side: Side; label: s
       onAdded={(p) => setPeople((list) => [...list, p])}
       noneLabel="Not set"
       newPersonRoleId={roleId}
+      staffOnly={staffOnly}
     />
   );
 }
@@ -90,6 +101,18 @@ describe('PersonPicker', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Enter a UAE mobile number, e.g. +971 50 123 4567');
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByLabelText('Business project manager')).toHaveValue('');
+  });
+
+  it('excludes outsourced people when staffOnly (e.g. the project manager, who must be on our own team)', () => {
+    render(<Harness side="tech" label="Project manager (tech)" staffOnly extra={[outsourced]} />);
+    expect(optionNames('Project manager (tech)')).toEqual(['Not set', 'Fatima Noor', 'Rami Saleh', 'Sara Ahmed', '+ Add new person…']);
+  });
+
+  it('offers outsourced people when staffOnly is not set', () => {
+    render(<Harness side="tech" label="Development person 1" extra={[outsourced]} />);
+    expect(optionNames('Development person 1')).toEqual([
+      'Not set', 'Fatima Noor', 'Omar Farid', 'Rami Saleh', 'Sara Ahmed', '+ Add new person…',
+    ]);
   });
 
   it('gives a tech person added here the given role, and asks for no phone or email', async () => {

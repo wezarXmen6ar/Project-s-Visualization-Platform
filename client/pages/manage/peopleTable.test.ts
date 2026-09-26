@@ -6,7 +6,7 @@ import { sortPeople, workingOn } from './peopleTable';
 function person(p: Partial<ResourceRecord> & Pick<ResourceRecord, 'id' | 'name'>): ResourceRecord {
   return {
     side: 'tech', employment: 'staff', role: null, specialisation: null, email: null, phone: null, capacity: 100, active: true,
-    leave: [], projects: [], company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engaged: null,
+    leave: [], projects: [], company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engagement: null,
     ...p,
   };
 }
@@ -32,6 +32,14 @@ describe('sortPeople', () => {
     const eighty = person({ id: 2, name: 'B', capacity: 80 });
     expect(sortPeople([oneHundred, eighty], 'capacity', 'asc').map((p) => p.capacity)).toEqual([80, 100]);
     expect(sortPeople([oneHundred, eighty], 'capacity', 'desc').map((p) => p.capacity)).toEqual([100, 80]);
+  });
+
+  it('sorts by company, with no-company people last in both directions', () => {
+    const techNova = person({ id: 1, name: 'A', company: { id: 200, name: 'TechNova' } });
+    const globex = person({ id: 2, name: 'B', company: { id: 201, name: 'Globex' } });
+    const none = person({ id: 3, name: 'C', company: null });
+    expect(sortPeople([none, techNova, globex], 'company', 'asc').map((p) => p.name)).toEqual(['B', 'A', 'C']);
+    expect(sortPeople([none, techNova, globex], 'company', 'desc').map((p) => p.name)).toEqual(['A', 'B', 'C']);
   });
 
   it('breaks ties by name', () => {

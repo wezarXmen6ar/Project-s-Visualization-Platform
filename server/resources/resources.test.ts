@@ -34,7 +34,7 @@ describe('resources API', () => {
     expect(res.json()).toEqual({
       id: expect.any(Number), name: 'Fatima Noor', side: 'tech', employment: 'staff', role: { id: roles.Developer, name: 'Developer' },
       specialisation: 'front-end', email: 'fatima@example.com', phone: null, capacity: 80, active: true, leave: [],
-      projects: [], company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engaged: null,
+      projects: [], company: null, engagementProject: null, engagementStart: null, engagementEnd: null, engagement: null,
     });
   });
 
@@ -244,7 +244,7 @@ describe('outsourced people', () => {
     expect(res.statusCode).toBe(201);
     expect(res.json()).toMatchObject({
       name: 'Omar Farid', side: 'tech', employment: 'outsourced', company: { id: companyId, name: 'TechNova' },
-      engagementProject: null, engagementStart: '2026-09-01', engagementEnd: '2026-12-31', engaged: true,
+      engagementProject: null, engagementStart: '2026-09-01', engagementEnd: '2026-12-31', engagement: 'engaged',
     });
   });
 
@@ -254,12 +254,17 @@ describe('outsourced people', () => {
       payload: { name: 'Mariam', side: 'business', employment: 'outsourced', companyId },
     });
     expect(res.statusCode).toBe(201);
-    expect(res.json()).toMatchObject({ side: 'business', employment: 'staff', company: null, engaged: null });
+    expect(res.json()).toMatchObject({ side: 'business', employment: 'staff', company: null, engagement: null });
   });
 
   it('marks an outsourced person past once their engagement has ended', async () => {
     const res = await postOutsourced({ engagementStart: '2026-01-01', engagementEnd: '2026-06-30' });
-    expect(res.json()).toMatchObject({ engaged: false });
+    expect(res.json()).toMatchObject({ engagement: 'past' });
+  });
+
+  it('marks an outsourced person upcoming when their engagement starts after today', async () => {
+    const res = await postOutsourced({ engagementStart: '2026-11-01' });
+    expect(res.json()).toMatchObject({ engagement: 'upcoming' });
   });
 
   it('rejects an unknown company', async () => {
@@ -276,6 +281,16 @@ describe('outsourced people', () => {
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({
       error: '"TechNova" is used by 1 person', code: 'error.listValueInUsePeople', params: { name: 'TechNova', count: 1 },
+    });
+  });
+
+  it('lets a staff (our team) tech person keep a company they are contracted through', async () => {
+    const res = await outsourcedApp.inject({
+      method: 'POST', url: '/api/resources', payload: { name: 'Sara Ahmed', side: 'tech', employment: 'staff', companyId },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({
+      side: 'tech', employment: 'staff', company: { id: companyId, name: 'TechNova' }, engagement: null,
     });
   });
 

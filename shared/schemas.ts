@@ -252,10 +252,11 @@ export const resourceInputSchema = z
   // Business contacts have no role or specialisation, are not counted in workload, and only tech-team people can
   // be outsourced.
   .transform((r) => (r.side === 'business' ? { ...r, roleId: null, specialisation: null, capacity: 100, employment: 'staff' as const } : r))
-  // Only an outsourced person carries a company or engagement.
+  // A staff member's company (if any) is who they're contracted through, not a project engagement, so it's kept
+  // for the tech team (business contacts never have one) while the engagement fields stay outsourced-only.
   .transform((r) =>
     r.employment === 'staff'
-      ? { ...r, companyId: null, engagementProjectId: null, engagementStart: null, engagementEnd: null }
+      ? { ...r, companyId: r.side === 'tech' ? r.companyId : null, engagementProjectId: null, engagementStart: null, engagementEnd: null }
       : r,
   )
   .superRefine((r, ctx) => {
