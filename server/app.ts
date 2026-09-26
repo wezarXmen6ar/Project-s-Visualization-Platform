@@ -6,8 +6,8 @@ import { translate } from '../shared/i18n/translate';
 import { overlapsYear, portfolioStats } from '../shared/portfolio';
 import { projectSpan } from '../shared/scheduler';
 import {
-  assignmentsUpdateSchema, attachmentUpdateSchema, attachmentUploadQuerySchema, entryInputSchema, leaveInputSchema, listValueInputSchema,
-  meInputSchema, newProjectSchema, overloadDecisionSchema, personAccountInputSchema, personDocumentUpdateSchema,
+  assignmentsUpdateSchema, attachmentUpdateSchema, attachmentUploadQuerySchema, entryInputSchema, keyDateInputSchema, leaveInputSchema,
+  listValueInputSchema, meInputSchema, newProjectSchema, overloadDecisionSchema, personAccountInputSchema, personDocumentUpdateSchema,
   personDocumentUploadQuerySchema, projectDetailsSchema, resourceInputSchema, scheduleUpdateSchema, starterAcceptSchema, starterTitleSchema,
   starterToDoInputSchema, toDoInputSchema, toIssues,
 } from '../shared/schemas';
@@ -38,6 +38,7 @@ import {
   listPersonDocuments, updatePersonDocument,
 } from './people/documents';
 import { listExpiring } from './people/expiring';
+import { checkKeyDateRefs, createKeyDate, deleteKeyDateRow, getKeyDate, listKeyDates, listUpcomingKeyDates, updateKeyDate } from './keyDates/repo';
 import { getCalendar, getMe, setMe } from './settings';
 import { acceptStarters, addStarter, deleteStarter, listStarters, renameStarter, starterSuggestions } from './starters/repo';
 import { checkToDo, createToDo, deleteToDo, getToDo, listToDos, updateToDo } from './todos/repo';
@@ -59,7 +60,7 @@ export interface AppOptions {
 function err(key: 'error.unknownList' | 'error.personNotFound' | 'error.leaveNotFound' | 'error.projectNotFound' |
   'error.phaseNotFound' | 'error.todoNotFound' | 'error.starterNotFound' | 'error.chooseTechTeamMember' | 'error.invalidYear' |
   'error.entryNotFound' | 'error.attachmentNotFound' | 'error.fileEmpty' | 'error.badFileName' |
-  'error.personDocumentNotFound' | 'error.personAccountNotFound' | 'error.accountsTechOnly') {
+  'error.personDocumentNotFound' | 'error.personAccountNotFound' | 'error.accountsTechOnly' | 'error.keyDateNotFound') {
   return { error: translate('en', key), code: key };
 }
 
@@ -504,6 +505,41 @@ export function buildApp(db: DatabaseSync, opts: AppOptions = {}) {
     }
     deleteAttachmentRow(db, id);
     return reply.code(204).send();
+  });
+
+  app.get<{ Params: { id: string } }>('/api/projects/:id/key-dates', async (req, reply) => {
+    const projectId = Number(req.params.id);
+    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send(err('error.projectNotFound'));
+    return listKeyDates(db, projectId, today());
+  });
+
+  app.post<{ Params: { id: string } }>('/api/projects/:id/key-dates', async (req, reply) => {
+    const projectId = Number(req.params.id);
+    if (!db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId)) return reply.code(404).send(err('error.projectNotFound'));
+    const parsed = keyDateInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid key date', issues: toIssues(parsed.error) });
+    const issues = checkKeyDateRefs(db, projectId, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid key date', issues });
+    return reply.code(201).send(createKeyDate(db, projectId, parsed.data, new Date().toISOString(), today()));
+  });
+
+  app.put<{ Params: { id: string } }>('/api/key-dates/:id', async (req, reply) => {
+    const id = Number(req.params.id);
+    const existing = getKeyDate(db, id, today());
+    if (!existing) return reply.code(404).send(err('error.keyDateNotFound'));
+    const parsed = keyDateInputSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid key date', issues: toIssues(parsed.error) });
+    const issues = checkKeyDateRefs(db, existing.projectId, parsed.data);
+    if (issues.length > 0) return reply.code(400).send({ error: 'Invalid key date', issues });
+    return updateKeyDate(db, id, parsed.data, today());
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/key-dates/:id', async (req, reply) =>
+    deleteKeyDateRow(db, Number(req.params.id)) ? reply.code(204).send() : reply.code(404).send(err('error.keyDateNotFound')));
+
+  app.get<{ Querystring: { withinDays?: string } }>('/api/key-dates/upcoming', async (req) => {
+    const withinDays = Number(req.query.withinDays);
+    return listUpcomingKeyDates(db, today(), Number.isInteger(withinDays) && withinDays > 0 ? withinDays : 30);
   });
 
   app.get('/api/starter-todos', async () => listStarters(db));

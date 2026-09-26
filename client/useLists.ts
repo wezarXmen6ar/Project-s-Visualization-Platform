@@ -5,7 +5,7 @@ import { useAsync } from './useAsync';
 
 const EMPTY: Lists = {
   mainProject: [], projectType: [], goal: [], department: [], phase: [], role: [], attachmentType: [], company: [],
-  personDocumentType: [], accountType: [],
+  personDocumentType: [], accountType: [], keyDateType: [],
 };
 
 /** Loads the dropdown lists. `remember` adds a value that was just created inline, so it shows without a reload. */

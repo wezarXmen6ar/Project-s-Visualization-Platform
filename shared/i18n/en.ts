@@ -819,6 +819,56 @@ export const en = {
   // falls back to its file name (see ExpiringDocumentsNotice), an account — which has no file name — to this word.
   'dashboard.genericDocument': 'document',
   'dashboard.genericAccount': 'account',
+
+  // Key dates on a project (M7 Task 9): a contract end, a licence expiry, a development end, and others, entered
+  // with the contract and tracked on the Details tab. Never shown on /present.
+  'error.unknownKeyDateType': 'Unknown key date type',
+  'error.keyDateNotFound': 'Key date not found',
+  'error.listValueInUseKeyDates': {
+    one: '"{name}" is used by {count} key date',
+    other: '"{name}" is used by {count} key dates',
+  },
+  'settings.keyDateTypes': 'Key date types',
+  'settings.keyDateType': 'Key date type',
+  'keyDates.title': 'Key dates',
+  'keyDates.addKeyDate': '+ Add key date',
+  'keyDates.colType': 'Type',
+  'keyDates.dateField': 'Date',
+  'keyDates.noteField': 'Note (optional)',
+  'keyDates.noType': 'No type',
+  'keyDates.noneYet': 'No key dates yet.',
+  'keyDates.passed': 'Passed',
+  'keyDates.today': 'today',
+  'keyDates.inDays': {
+    one: 'in 1 day',
+    other: 'in {count} days',
+  },
+  'keyDates.passedAgo': {
+    one: 'passed 1 day ago',
+    other: 'passed {count} days ago',
+  },
+  'keyDates.removeRowAria': 'Remove key date row {n}',
+  'keyDates.editAria': 'Edit key date {type}',
+  'keyDates.deleteAria': 'Delete key date {type}',
+  'keyDates.confirmDelete': 'Delete this key date?',
+  'keyDates.sectionTitle': 'Key dates',
+  'keyDates.sectionHint': 'The contract’s end date, and any others: licence expiry, development end…',
+
+  // The dashboard's key-dates notice (M7 Task 9).
+  'dashboard.keyDateOne': {
+    one: '{project}: {type} in 1 day',
+    other: '{project}: {type} in {count} days',
+  },
+  'dashboard.keyDateOneToday': '{project}: {type} today',
+  'dashboard.keyDateOnePassed': {
+    one: '{project}: {type} passed 1 day ago',
+    other: '{project}: {type} passed {count} days ago',
+  },
+  'dashboard.keyDatesMany': {
+    one: '1 project date is due soon or has passed',
+    other: '{count} project dates are due soon or have passed',
+  },
+  'dashboard.seeKeyDates': 'See key dates',
 } satisfies Record<string, Message>;
 
 export type MessageKey = keyof typeof en;

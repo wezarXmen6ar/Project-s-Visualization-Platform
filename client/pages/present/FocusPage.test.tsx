@@ -115,6 +115,9 @@ describe('FocusPage', () => {
     // Person documents and accounts (M7 Task 8) are never fetched or shown on the presentation side either.
     expect(requestedUrls.some((url) => url.includes('/documents') || url.includes('/accounts'))).toBe(false);
     expect(document.body.textContent).not.toMatch(/الوثائق|الأحقيات/);
+    // Nor are a project's key dates (M7 Task 9).
+    expect(requestedUrls.some((url) => url.includes('/key-dates'))).toBe(false);
+    expect(document.body.textContent).not.toMatch(/التواريخ المهمة/);
     const buttons = within(panel).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent);
     expect(buttons).toEqual(['Close', 'Preview Minutes.pdf']);
     expect(within(panel).getByRole('link', { name: 'Download Minutes.pdf' })).toBeInTheDocument();

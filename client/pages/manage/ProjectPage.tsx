@@ -189,13 +189,22 @@ export function ProjectPage() {
         <AttachmentsTab
           project={p}
           attachmentTypes={lists.attachmentType}
+          keyDateTypes={lists.keyDateType}
           nameFor={nameFor}
           onOpenHistory={(entryId) => setActiveTab('history', entryId)}
           refreshKey={refreshKey}
         />
       ),
     },
-    { key: 'details', label: t('tabs.details'), content: <ProjectDetailsTab project={p} nameFor={nameFor} /> },
+    {
+      key: 'details',
+      label: t('tabs.details'),
+      content: (
+        <ProjectDetailsTab
+          project={p} nameFor={nameFor} keyDateTypes={lists.keyDateType} today={today} refreshKey={refreshKey}
+        />
+      ),
+    },
   ];
 
   return (

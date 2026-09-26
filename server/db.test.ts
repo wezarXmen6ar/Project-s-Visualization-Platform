@@ -220,4 +220,43 @@ describe('migrate', () => {
     const check = db.prepare('PRAGMA integrity_check').get() as unknown as { integrity_check: string };
     expect(check.integrity_check).toBe('ok');
   });
+
+  it('adds key_dates and seeds the six key date types, upgrading from version 17', () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('PRAGMA foreign_keys = ON');
+    for (const m of MIGRATIONS.slice(0, 17)) db.exec(m);
+    db.exec('PRAGMA user_version = 17');
+    db.prepare("INSERT INTO projects (name, color, start_date, created_at) VALUES ('P', '#000000', '2026-01-05', 'x')").run();
+    db.prepare(
+      "INSERT INTO attachments (project_id, original_name, stored_name, mime, size, uploaded_at) VALUES (1, 'contract.pdf', 'x-contract.pdf', 'application/pdf', 10, 'x')",
+    ).run();
+
+    migrate(db);
+
+    const version = db.prepare('PRAGMA user_version').get() as unknown as { user_version: number };
+    expect(version.user_version).toBe(MIGRATIONS.length);
+    const columns = (db.prepare('PRAGMA table_info(key_dates)').all() as unknown as { name: string }[]).map((c) => c.name);
+    expect(columns).toEqual(
+      expect.arrayContaining(['id', 'project_id', 'type_id', 'attachment_id', 'date', 'note', 'created_at']),
+    );
+    const types = (db.prepare("SELECT name, name_ar FROM list_values WHERE list = 'keyDateType' ORDER BY sort_order").all() as unknown as {
+      name: string; name_ar: string;
+    }[]);
+    expect(types).toEqual([
+      { name: 'Contract end', name_ar: 'انتهاء العقد' },
+      { name: 'License expiry', name_ar: 'انتهاء الترخيص' },
+      { name: 'Development end', name_ar: 'انتهاء التطوير' },
+      { name: 'Warranty end', name_ar: 'انتهاء الضمان' },
+      { name: 'Support end', name_ar: 'انتهاء الدعم الفني' },
+      { name: 'Other', name_ar: 'أخرى' },
+    ]);
+
+    db.prepare("INSERT INTO key_dates (project_id, attachment_id, date, created_at) VALUES (1, 1, '2026-12-01', 'x')").run();
+    db.prepare('DELETE FROM attachments WHERE id = 1').run();
+    const row = db.prepare('SELECT attachment_id FROM key_dates WHERE project_id = 1').get() as unknown as { attachment_id: number | null };
+    expect(row.attachment_id).toBeNull();
+
+    const check = db.prepare('PRAGMA integrity_check').get() as unknown as { integrity_check: string };
+    expect(check.integrity_check).toBe('ok');
+  });
 });

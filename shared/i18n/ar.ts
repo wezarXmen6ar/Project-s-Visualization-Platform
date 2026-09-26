@@ -916,4 +916,73 @@ export const ar: Record<MessageKey, Message> = {
   'dashboard.seeDocuments': 'عرض الوثائق',
   'dashboard.genericDocument': 'الوثيقة',
   'dashboard.genericAccount': 'الأحقية',
+
+  // Key dates on a project (M7 Task 9). The Arabic {type} names are already noun phrases ("انتهاء العقد", "انتهاء
+  // الترخيص"…), so every sentence below builds around them without a gendered verb like ينتهي/تنتهي — "{type} خلال
+  // {count} يوماً" reads naturally whatever type the user later adds through Settings.
+  'error.unknownKeyDateType': 'نوع التاريخ المهم غير معروف',
+  'error.keyDateNotFound': 'التاريخ المهم غير موجود',
+  'error.listValueInUseKeyDates': {
+    one: '"{name}" تُستخدم في تاريخ مهم واحد',
+    two: '"{name}" تُستخدم في تاريخين مهمين',
+    few: '"{name}" تُستخدم في {count} تواريخ مهمة',
+    many: '"{name}" تُستخدم في {count} تاريخاً مهماً',
+    other: '"{name}" تُستخدم في {count} تاريخ مهم',
+  },
+  'settings.keyDateTypes': 'أنواع التواريخ المهمة',
+  'settings.keyDateType': 'نوع التاريخ المهم',
+  'keyDates.title': 'التواريخ المهمة',
+  'keyDates.addKeyDate': '+ إضافة تاريخ مهم',
+  'keyDates.colType': 'النوع',
+  'keyDates.dateField': 'التاريخ',
+  'keyDates.noteField': 'ملاحظة (اختياري)',
+  'keyDates.noType': 'بلا نوع',
+  'keyDates.noneYet': 'لا توجد تواريخ مهمة بعد.',
+  'keyDates.passed': 'فات',
+  'keyDates.today': 'اليوم',
+  'keyDates.inDays': {
+    one: 'خلال يوم واحد',
+    two: 'خلال يومين',
+    few: 'خلال {count} أيام',
+    many: 'خلال {count} يوماً',
+    other: 'خلال {count} يوماً',
+  },
+  'keyDates.passedAgo': {
+    one: 'مضى عليه يوم واحد',
+    two: 'مضى عليه يومان',
+    few: 'مضى عليه {count} أيام',
+    many: 'مضى عليه {count} يوماً',
+    other: 'مضى عليه {count} يوماً',
+  },
+  'keyDates.removeRowAria': 'إزالة صف التاريخ المهم {n}',
+  'keyDates.editAria': 'تعديل التاريخ المهم {type}',
+  'keyDates.deleteAria': 'حذف التاريخ المهم {type}',
+  'keyDates.confirmDelete': 'حذف هذا التاريخ المهم؟',
+  'keyDates.sectionTitle': 'التواريخ المهمة',
+  'keyDates.sectionHint': 'تاريخ انتهاء العقد، وأي تواريخ أخرى: انتهاء الترخيص، انتهاء التطوير…',
+
+  // The dashboard's key-dates notice (M7 Task 9).
+  'dashboard.keyDateOne': {
+    one: '{project}: {type} خلال يوم واحد',
+    two: '{project}: {type} خلال يومين',
+    few: '{project}: {type} خلال {count} أيام',
+    many: '{project}: {type} خلال {count} يوماً',
+    other: '{project}: {type} خلال {count} يوماً',
+  },
+  'dashboard.keyDateOneToday': '{project}: {type} اليوم',
+  'dashboard.keyDateOnePassed': {
+    one: '{project}: {type} مضى عليه يوم واحد',
+    two: '{project}: {type} مضى عليه يومان',
+    few: '{project}: {type} مضى عليه {count} أيام',
+    many: '{project}: {type} مضى عليه {count} يوماً',
+    other: '{project}: {type} مضى عليه {count} يوماً',
+  },
+  'dashboard.keyDatesMany': {
+    one: 'تاريخ مهم واحد قريب أو فات',
+    two: 'تاريخان مهمان قريبان أو فاتا',
+    few: '{count} تواريخ مهمة قريبة أو فاتت',
+    many: '{count} تاريخاً مهماً قريب أو فات',
+    other: '{count} تاريخ مهم قريب أو فات',
+  },
+  'dashboard.seeKeyDates': 'عرض التواريخ المهمة',
 };

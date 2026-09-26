@@ -5,8 +5,8 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Lang } from '../../shared/i18n/types';
 import type {
-  AttachmentRecord, EntryRecord, ExpiringItem, Lists, Me, PersonAccountRecord, PersonDocumentRecord, ProjectRecord, ResourceRecord,
-  StarterToDo, ToDoRecord, WorkloadData,
+  AttachmentRecord, EntryRecord, ExpiringItem, KeyDateRecord, Lists, Me, PersonAccountRecord, PersonDocumentRecord, ProjectRecord,
+  ResourceRecord, StarterToDo, ToDoRecord, UpcomingKeyDate, WorkloadData,
 } from '../../shared/types';
 import { App } from '../App';
 import { ProjectPage } from '../pages/manage/ProjectPage';
@@ -301,6 +301,23 @@ function arabicExpiring(): ExpiringItem[] {
   ];
 }
 
+/** A project's key dates (M7 Task 9), all in Arabic. */
+function arabicKeyDates(): KeyDateRecord[] {
+  return [
+    {
+      id: 700, projectId: 1, type: { id: 320, name: 'License expiry', nameAr: 'انتهاء الترخيص' }, date: '2026-10-19',
+      note: 'تنسيق مع مزود الترخيص', attachment: { id: 400, name: 'خطاب الاعتماد.pdf', mime: 'application/pdf', previewable: true },
+      createdAt: '2026-09-20T09:00:00.000Z', state: 'soon',
+    },
+  ];
+}
+
+function arabicUpcomingKeyDates(): UpcomingKeyDate[] {
+  return [
+    { id: 700, project: { id: 1, name: PROJECT }, type: { id: 320, name: 'License expiry', nameAr: 'انتهاء الترخيص' }, date: '2026-10-19', state: 'soon' },
+  ];
+}
+
 function arabicRoutes(): Record<string, MockHandler> {
   const project = arabicProject();
   const todos = arabicToDos();
@@ -328,6 +345,8 @@ function arabicRoutes(): Record<string, MockHandler> {
     'GET /api/resources/72/documents': () => ({ body: arabicPersonDocuments() }),
     'GET /api/resources/72/accounts': () => ({ body: arabicPersonAccounts() }),
     'GET /api/people/expiring?withinDays=30': () => ({ body: arabicExpiring() }),
+    'GET /api/projects/1/key-dates': () => ({ body: arabicKeyDates() }),
+    'GET /api/key-dates/upcoming?withinDays=30': () => ({ body: arabicUpcomingKeyDates() }),
     'GET /api/portfolio?year=2026': () => ({
       body: { year: 2026, today: '2026-10-07', stats: { active: 1, finishedThisYear: 2, startingThisYear: 3 }, projects: [project] },
     }),
@@ -402,6 +421,7 @@ describe('no English left in the Arabic pages', () => {
     await screen.findAllByRole('link', { name: PROJECT });
     await screen.findByRole('link', { name: 'عرض عبء العمل' });
     await screen.findByText('تنتهي صلاحية جواز السفر لفاطمة نور خلال 12 يوماً');
+    await screen.findByText(`${PROJECT}: انتهاء الترخيص خلال 12 يوماً`);
     await settled();
     expectNoEnglish('the dashboard');
   });
@@ -446,12 +466,16 @@ describe('no English left in the Arabic pages', () => {
     await user.click(screen.getByRole('button', { name: 'رفع ملف' }));
     expectNoEnglish('the project page with the upload row open');
 
+    await user.selectOptions(screen.getByLabelText('النوع', { selector: 'select' }), 'العقد');
+    expectNoEnglish('the project page with the upload row open, Contract chosen and the Key dates section open');
+
     await user.click(screen.getByRole('button', { name: 'معاينة خطاب الاعتماد.pdf' }));
     expectNoEnglish('the project page with a file preview dialog open');
     await user.keyboard('{Escape}');
 
     await user.click(screen.getByRole('tab', { name: 'التفاصيل' }));
-    expectNoEnglish('the project page on the Details tab');
+    await screen.findByText('انتهاء الترخيص');
+    expectNoEnglish('the project page on the Details tab, with the Key dates card');
   });
 
   it('the phase side panel on the project page, grouped both ways and with each form open', async () => {

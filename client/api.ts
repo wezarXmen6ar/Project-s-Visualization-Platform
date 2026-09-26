@@ -2,13 +2,14 @@ import type { WorkCalendar } from '../shared/calendar';
 import type { MessageKey } from '../shared/i18n/en';
 import type { Params } from '../shared/i18n/types';
 import type {
-  AssignmentInput, AttachmentUpdateInput, EntryInput, LeaveInput, NewProjectInput, OverloadDecisionInput, PersonAccountInput,
-  PersonDocumentUpdateInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput, StarterToDoInput, ToDoInput, ValidationIssue,
+  AssignmentInput, AttachmentUpdateInput, EntryInput, KeyDateInput, LeaveInput, NewProjectInput, OverloadDecisionInput,
+  PersonAccountInput, PersonDocumentUpdateInput, ProjectDetailsInput, ResourceInput, ScheduleUpdateInput, StarterToDoInput, ToDoInput,
+  ValidationIssue,
 } from '../shared/schemas';
 import type {
-  AttachmentRecord, BackupStatus, EntryRecord, ExpiringItem, LeaveRecord, ListName, ListValue, Lists, Me, OverloadDecision,
-  PersonAccountRecord, PersonDocumentRecord, PortfolioResponse, ProjectRecord, ResourceRecord, ScheduleSaved, StarterSuggestion,
-  StarterToDo, ToDoRecord, WorkloadData,
+  AttachmentRecord, BackupStatus, EntryRecord, ExpiringItem, KeyDateRecord, LeaveRecord, ListName, ListValue, Lists, Me,
+  OverloadDecision, PersonAccountRecord, PersonDocumentRecord, PortfolioResponse, ProjectRecord, ResourceRecord, ScheduleSaved,
+  StarterSuggestion, StarterToDo, ToDoRecord, UpcomingKeyDate, WorkloadData,
 } from '../shared/types';
 
 export class ApiError extends Error {
@@ -211,4 +212,10 @@ export const api = {
   deletePersonAccount: (id: number) => request<void>(`/api/person-accounts/${id}`, { method: 'DELETE' }),
 
   listExpiring: (withinDays = 30) => request<ExpiringItem[]>(`/api/people/expiring?withinDays=${withinDays}`),
+
+  listKeyDates: (projectId: number) => request<KeyDateRecord[]>(`/api/projects/${projectId}/key-dates`),
+  addKeyDate: (projectId: number, input: KeyDateInput) => request<KeyDateRecord>(`/api/projects/${projectId}/key-dates`, withBody('POST', input)),
+  updateKeyDate: (id: number, input: KeyDateInput) => request<KeyDateRecord>(`/api/key-dates/${id}`, withBody('PUT', input)),
+  deleteKeyDate: (id: number) => request<void>(`/api/key-dates/${id}`, { method: 'DELETE' }),
+  listUpcomingKeyDates: (withinDays = 30) => request<UpcomingKeyDate[]>(`/api/key-dates/upcoming?withinDays=${withinDays}`),
 };

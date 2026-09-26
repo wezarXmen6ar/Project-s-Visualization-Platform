@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockFetch, sampleAttachments, sampleEntries, sampleProject } from '../../testing/mockFetch';
@@ -229,6 +229,103 @@ describe('AttachmentsTab', () => {
 
       await user.click(screen.getByRole('button', { name: 'Reverse sort order' }));
       expect(namesInOrder()).toEqual(['B.pdf', 'C.pdf', 'A.pdf']);
+    });
+  });
+
+  describe('Key dates (M7 Task 9)', () => {
+    const TYPES_WITH_CONTRACT = [...TYPES, { id: 108, list: 'attachmentType' as const, name: 'Contract', order: 8, nameAr: 'العقد' }];
+    const KEY_DATE_TYPES = [
+      { id: 320, list: 'keyDateType' as const, name: 'Contract end', order: 0, nameAr: 'انتهاء العقد' },
+      { id: 321, list: 'keyDateType' as const, name: 'License expiry', order: 1, nameAr: 'انتهاء الترخيص' },
+    ];
+
+    it('opens the Key dates section for a Contract, and saves its key dates linked to the uploaded file', async () => {
+      const { requests } = installMockXhr();
+      const created = {
+        id: 500, projectId: 1, phase: null, entryId: null, type: { id: 108, name: 'Contract', nameAr: 'العقد' }, name: 'contract.pdf',
+        mime: 'application/pdf', size: 10, documentDate: null, uploadedAt: '2026-09-26T09:00:00.000Z', previewable: true,
+      };
+      const keyDatesPosted: { date: string; attachmentId?: number }[] = [];
+      mockFetch({
+        'GET /api/projects/1/attachments': () => ({ body: [] }),
+        'GET /api/projects/1/entries': () => ({ body: [] }),
+        'GET /api/projects/1/key-dates': () => ({ body: [] }),
+        'POST /api/projects/1/key-dates': (init) => {
+          const body = JSON.parse(init!.body as string);
+          keyDatesPosted.push(body);
+          return { status: 201, body: { id: 900, projectId: 1, type: null, date: body.date, note: null, attachment: null, createdAt: 'x', state: 'soon' } };
+        },
+      });
+      const user = userEvent.setup();
+      render(
+        <AttachmentsTab
+          project={sampleProject()} attachmentTypes={TYPES_WITH_CONTRACT} keyDateTypes={KEY_DATE_TYPES} onOpenHistory={vi.fn()}
+        />,
+      );
+      await screen.findByText('No files yet.');
+      await user.click(screen.getByRole('button', { name: 'Upload file' }));
+      await user.selectOptions(screen.getByLabelText('Type'), 'Contract');
+
+      // The Key dates section is open by default for a Contract, with one row already offered.
+      const dateInputs = screen.getAllByLabelText('Date');
+      expect(dateInputs).toHaveLength(1);
+      fireEvent.change(dateInputs[0], { target: { value: '2026-12-01' } });
+
+      const input = screen.getByLabelText('Upload file', { selector: 'input' });
+      const file = new File(['x'], 'contract.pdf', { type: 'application/pdf' });
+      await user.upload(input, file);
+      requests[0].respond(201, created);
+
+      await waitFor(() => expect(keyDatesPosted).toHaveLength(1));
+      expect(keyDatesPosted[0]).toMatchObject({ date: '2026-12-01', attachmentId: 500 });
+    });
+
+    it('leaves the Key dates section collapsed for a non-Contract type', async () => {
+      mockFetch({
+        'GET /api/projects/1/attachments': () => ({ body: [] }),
+        'GET /api/projects/1/entries': () => ({ body: [] }),
+        'GET /api/projects/1/key-dates': () => ({ body: [] }),
+      });
+      const user = userEvent.setup();
+      render(
+        <AttachmentsTab
+          project={sampleProject()} attachmentTypes={TYPES_WITH_CONTRACT} keyDateTypes={KEY_DATE_TYPES} onOpenHistory={vi.fn()}
+        />,
+      );
+      await screen.findByText('No files yet.');
+      await user.click(screen.getByRole('button', { name: 'Upload file' }));
+      await user.selectOptions(screen.getByLabelText('Type'), 'Approval');
+      expect(screen.queryByLabelText('Date')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Key dates' })).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('editing a Contract shows and edits its own key dates', async () => {
+      const attachment = {
+        id: 400, projectId: 1, phase: null, entryId: null, type: { id: 108, name: 'Contract', nameAr: 'العقد' }, name: 'contract.pdf',
+        mime: 'application/pdf', size: 10, documentDate: null, uploadedAt: '2026-09-20T09:00:00.000Z', previewable: true,
+      };
+      const keyDate = {
+        id: 900, projectId: 1, type: { id: 321, name: 'License expiry', nameAr: 'انتهاء الترخيص' }, date: '2026-12-01',
+        note: 'Renew early', attachment: { id: 400, name: 'contract.pdf', mime: 'application/pdf', previewable: true },
+        createdAt: 'x', state: 'soon',
+      };
+      mockFetch({
+        'GET /api/projects/1/attachments': () => ({ body: [attachment] }),
+        'GET /api/projects/1/entries': () => ({ body: [] }),
+        'GET /api/projects/1/key-dates': () => ({ body: [keyDate] }),
+      });
+      const user = userEvent.setup();
+      render(
+        <AttachmentsTab
+          project={sampleProject()} attachmentTypes={TYPES_WITH_CONTRACT} keyDateTypes={KEY_DATE_TYPES} onOpenHistory={vi.fn()}
+        />,
+      );
+      await screen.findByText('contract.pdf');
+      await user.click(screen.getByRole('button', { name: 'Edit contract.pdf' }));
+      expect(screen.getByDisplayValue('2026-12-01')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Renew early')).toBeInTheDocument();
+      const typeSelects = screen.getAllByLabelText('Type', { selector: 'select' });
+      expect(typeSelects.some((el) => (el as HTMLSelectElement).value === '321')).toBe(true);
     });
   });
 

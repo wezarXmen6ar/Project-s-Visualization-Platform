@@ -243,6 +243,22 @@ describe('SettingsPage', () => {
     expect(screen.getByText('العقد')).toBeInTheDocument();
   });
 
+  it('shows the Key date types list, seeded with its Arabic names', async () => {
+    mockFetch(fakeServer());
+    renderPage();
+    expect(await screen.findByRole('heading', { name: 'Key date types' })).toBeInTheDocument();
+    expect(screen.getByText('License expiry')).toBeInTheDocument();
+    expect(screen.getByText('Contract end')).toBeInTheDocument();
+  });
+
+  it('in Arabic, shows the Key date types list with its Arabic names', async () => {
+    mockFetch(fakeServer());
+    renderArabic();
+    expect(await screen.findByRole('heading', { name: 'أنواع التواريخ المهمة' })).toBeInTheDocument();
+    expect(screen.getByText('انتهاء الترخيص')).toBeInTheDocument();
+    expect(screen.getByText('انتهاء العقد')).toBeInTheDocument();
+  });
+
   it('in Arabic, renaming the Arabic name sends nameAr', async () => {
     const fetchMock = mockFetch(fakeServer());
     const user = userEvent.setup();

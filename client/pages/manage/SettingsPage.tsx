@@ -24,6 +24,7 @@ const EDITORS: { list: ListName; title: MessageKey; singular: MessageKey }[] = [
   { list: 'company', title: 'settings.companies', singular: 'settings.company' },
   { list: 'personDocumentType', title: 'settings.personDocumentTypes', singular: 'settings.personDocumentType' },
   { list: 'accountType', title: 'settings.accountTypes', singular: 'settings.accountType' },
+  { list: 'keyDateType', title: 'settings.keyDateTypes', singular: 'settings.keyDateType' },
 ];
 
 export function SettingsPage() {

@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ExpiringItem, Me, ToDoRecord } from '../../../shared/types';
+import type { ExpiringItem, Me, ToDoRecord, UpcomingKeyDate } from '../../../shared/types';
 import { LanguageProvider } from '../../i18n/LanguageProvider';
 import { mockFetch, overbookedWorkload, sampleProject, sampleWorkload, type MockHandler } from '../../testing/mockFetch';
 import { ManageDashboardPage } from './ManageDashboardPage';
@@ -143,6 +143,68 @@ describe('ManageDashboardPage', () => {
       renderPage();
       await screen.findByRole('link', { name: 'Portal' });
       expect(screen.queryByText(/documents? and accounts/)).toBeNull();
+    });
+  });
+
+  describe('the key dates notice', () => {
+    it('shows a single key date and links to the project\'s Details tab', async () => {
+      const items: UpcomingKeyDate[] = [
+        { id: 1, project: { id: 1, name: 'E-Services Mobile App' }, type: { id: 320, name: 'License expiry', nameAr: 'انتهاء الترخيص' }, date: '2026-10-19', state: 'soon' },
+      ];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+      mockFetch(baseRoutes({ 'GET /api/key-dates/upcoming?withinDays=30': () => ({ body: items }) }));
+      renderPage();
+      const notice = await screen.findByText('E-Services Mobile App: License expiry in 12 days');
+      expect(notice.closest('.notice')).toHaveAttribute('role', 'status');
+      expect(screen.getByRole('link', { name: 'See key dates' })).toHaveAttribute('href', '/manage/projects/1?tab=details');
+    });
+
+    it('shows the passed wording for a key date that has gone by', async () => {
+      const items: UpcomingKeyDate[] = [
+        { id: 1, project: { id: 1, name: 'Portal' }, type: { id: 321, name: 'Contract end', nameAr: 'انتهاء العقد' }, date: '2026-09-30', state: 'expired' },
+      ];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+      mockFetch(baseRoutes({ 'GET /api/key-dates/upcoming?withinDays=30': () => ({ body: items }) }));
+      renderPage();
+      await screen.findByText('Portal: Contract end passed 7 days ago');
+    });
+
+    it('shows the plural form and expands into a list of every project and key date', async () => {
+      const items: UpcomingKeyDate[] = [
+        { id: 1, project: { id: 1, name: 'Portal' }, type: { id: 320, name: 'License expiry', nameAr: 'انتهاء الترخيص' }, date: '2026-10-19', state: 'soon' },
+        { id: 2, project: { id: 2, name: 'Case Management' }, type: { id: 321, name: 'Contract end', nameAr: 'انتهاء العقد' }, date: '2026-09-30', state: 'expired' },
+        { id: 3, project: { id: 1, name: 'Portal' }, type: null, date: '2026-10-15', state: 'soon' },
+      ];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+      mockFetch(baseRoutes({ 'GET /api/key-dates/upcoming?withinDays=30': () => ({ body: items }) }));
+      renderPage();
+      const notice = await screen.findByText('3 project dates are due soon or have passed');
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'See key dates' }));
+      const list = notice.closest('.notice')!.querySelector('.notice-expanded') as HTMLElement;
+      expect(within(list).getAllByRole('link', { name: 'Portal' })).toHaveLength(2);
+      expect(within(list).getByRole('link', { name: 'Case Management' })).toBeInTheDocument();
+    });
+
+    it('shows the Arabic wording, with the noun-phrase type and no gendered verb', async () => {
+      const items: UpcomingKeyDate[] = [
+        { id: 1, project: { id: 1, name: 'بوابة الخدمات' }, type: { id: 320, name: 'License expiry', nameAr: 'انتهاء الترخيص' }, date: '2026-10-19', state: 'soon' },
+      ];
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-07T09:00:00'));
+      mockFetch(baseRoutes({ 'GET /api/key-dates/upcoming?withinDays=30': () => ({ body: items }) }));
+      renderPage('ar');
+      await screen.findByText('بوابة الخدمات: انتهاء الترخيص خلال 12 يوماً');
+    });
+
+    it('shows no notice when nothing is due', async () => {
+      mockFetch(baseRoutes({ 'GET /api/key-dates/upcoming?withinDays=30': () => ({ body: [] }) }));
+      renderPage();
+      await screen.findByRole('link', { name: 'Portal' });
+      expect(screen.queryByText(/project dates? (are|is) due/)).toBeNull();
     });
   });
 

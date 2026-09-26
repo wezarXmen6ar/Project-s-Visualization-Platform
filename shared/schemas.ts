@@ -411,6 +411,16 @@ export const personAccountInputSchema = z.object({
 export type PersonAccountInput = z.input<typeof personAccountInputSchema>;
 export type PersonAccountData = z.output<typeof personAccountInputSchema>;
 
+/** POST/PUT for a project's key date (M7 Task 9). */
+export const keyDateInputSchema = z.object({
+  typeId: optionalId,
+  date: isoDate,
+  note: optionalText(2000),
+  attachmentId: optionalId,
+});
+export type KeyDateInput = z.input<typeof keyDateInputSchema>;
+export type KeyDateData = z.output<typeof keyDateInputSchema>;
+
 export const starterToDoInputSchema = z.object({
   phaseListId: z.number().int().positive(),
   title: z.string().trim().min(1, 'validation.writeWhatNeedsDoing').max(200, tooLong(200)),

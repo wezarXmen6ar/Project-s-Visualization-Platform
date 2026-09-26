@@ -16,6 +16,7 @@ import { useLists } from '../../useLists';
 import { useWorkload } from '../../useWorkload';
 import { ExpiringDocumentsNotice } from './ExpiringDocumentsNotice';
 import { isAccepted } from './heatmap';
+import { KeyDatesNotice } from './KeyDatesNotice';
 import { MyNextSteps } from './MyNextSteps';
 
 export function ManageDashboardPage() {
@@ -74,6 +75,8 @@ export function ManageDashboardPage() {
       ) : null}
 
       <ExpiringDocumentsNotice today={today} />
+
+      <KeyDatesNotice today={today} />
 
       <MyNextSteps />
 

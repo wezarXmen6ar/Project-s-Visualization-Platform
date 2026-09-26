@@ -19,6 +19,7 @@ function lists(overrides: Partial<Lists> = {}): Lists {
     company: [],
     personDocumentType: [],
     accountType: [],
+    keyDateType: [],
     ...overrides,
   };
 }

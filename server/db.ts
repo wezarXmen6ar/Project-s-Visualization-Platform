@@ -341,6 +341,25 @@ export const MIGRATIONS: string[] = [
     ('accountType', 'Jira', 'Jira', 3),
     ('accountType', 'Other', 'أخرى', 4);
   `,
+  `
+  CREATE TABLE key_dates (
+    id INTEGER PRIMARY KEY,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    type_id INTEGER REFERENCES list_values(id),
+    attachment_id INTEGER REFERENCES attachments(id) ON DELETE SET NULL,
+    date TEXT NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX key_dates_project ON key_dates(project_id);
+  INSERT INTO list_values (list, name, name_ar, sort_order) VALUES
+    ('keyDateType', 'Contract end', 'انتهاء العقد', 0),
+    ('keyDateType', 'License expiry', 'انتهاء الترخيص', 1),
+    ('keyDateType', 'Development end', 'انتهاء التطوير', 2),
+    ('keyDateType', 'Warranty end', 'انتهاء الضمان', 3),
+    ('keyDateType', 'Support end', 'انتهاء الدعم الفني', 4),
+    ('keyDateType', 'Other', 'أخرى', 5);
+  `,
 ];
 
 /** Runs fn in a transaction. Inside an already-open transaction it just runs fn, so repo functions can be combined. */

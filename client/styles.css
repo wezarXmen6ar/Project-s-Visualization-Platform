@@ -1023,6 +1023,19 @@ button.heat:hover { border-color: var(--border-strong); }
 
 .attach-files { display: grid; gap: var(--sp-2); }
 
+/* The Key dates section inside the Attachments tab's upload/edit rows (M7 Task 9): a collapsible disclosure when
+ * uploading, always open when editing. */
+.key-date-section { flex-basis: 100%; display: grid; gap: var(--sp-2); }
+.key-date-section-title { font-weight: 500; font-size: var(--fs-sm); color: var(--muted); }
+.key-date-rows { display: grid; gap: var(--sp-2); }
+.key-date-row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-3); }
+
+/* The Key dates card's own list on the Details tab (M7 Task 9). */
+.key-date-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.key-date-item { padding-block-end: var(--sp-3); border-block-end: 1px solid var(--border); }
+.key-date-item:last-child { border-block-end: none; padding-block-end: 0; }
+.key-date-headline { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); align-items: baseline; font-weight: 500; }
+
 .file-preview-overlay {
   position: fixed;
   inset: 0;

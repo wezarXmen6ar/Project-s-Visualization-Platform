@@ -1,7 +1,8 @@
 import { useCallback, useState, type DragEvent } from 'react';
-import type { AttachmentRecord, EntryRecord, ListValue, ProjectRecord } from '../../../shared/types';
+import type { AttachmentRecord, EntryRecord, KeyDateRecord, ListValue, ProjectRecord } from '../../../shared/types';
 import { api } from '../../api';
 import { AttachmentList } from '../../components/AttachmentList';
+import { KeyDateRows, newKeyDateDraft, type KeyDateDraft } from '../../components/KeyDateRows';
 import { Uploader } from '../../components/Uploader';
 import { messagesOf } from '../../errors';
 import { AlertIcon, PlusIcon } from '../../icons';
@@ -14,6 +15,8 @@ import type { AttachmentSortKey, SortDir } from './attachmentsTable';
 interface AttachmentsTabProps {
   project: ProjectRecord;
   attachmentTypes: ListValue[];
+  /** For the upload/edit rows' Key dates section. Defaults to none, so existing callers/tests need not pass it. */
+  keyDateTypes?: ListValue[];
   nameFor?: PhaseNameFor;
   /** Opens the History tab, for the "From" column's link. Passed the entry id so History can land on it and highlight it. */
   onOpenHistory: (entryId?: number) => void;
@@ -21,10 +24,21 @@ interface AttachmentsTabProps {
   refreshKey?: number;
 }
 
+/** Key dates entered against a row (either not yet saved for a new file, or already saved for an existing one). */
+function draftFrom(k: KeyDateRecord): KeyDateDraft {
+  return newKeyDateDraft({ typeId: k.type?.id ?? null, date: k.date, note: k.note ?? '', existingId: k.id });
+}
+
 /** The Attachments tab: upload, filter, preview, download, edit and delete a project's files. */
-export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistory, refreshKey = 0 }: AttachmentsTabProps) {
+export function AttachmentsTab({
+  project, attachmentTypes, keyDateTypes = [], nameFor, onOpenHistory, refreshKey = 0,
+}: AttachmentsTabProps) {
   const t = useT();
   const { lang } = useLang();
+  // Matched by the type's editable English name, the seeded value from the constraints table (see EntryForm's same
+  // "Meeting Minutes" match). If the user renames it in Settings, this simply finds nothing and the Key dates
+  // section stays collapsed by default for every type — uploads still work either way.
+  const contractTypeId = attachmentTypes.find((v) => v.name === 'Contract')?.id ?? null;
   const [typeFilter, setTypeFilter] = useState<number | null>(null);
   const [phaseFilter, setPhaseFilter] = useState<number | null>(null);
   const [sort, setSort] = useState<{ key: AttachmentSortKey; dir: SortDir }>({ key: 'uploaded', dir: 'desc' });
@@ -51,18 +65,57 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
   const [droppedFiles, setDroppedFiles] = useState<File[] | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
+  // The upload row's Key dates section (M7 Task 9): open by default for a Contract, collapsed for anything else.
+  // The rows are saved, linked to the file, only once the file itself has uploaded successfully.
+  const [uploadKeyDatesOpen, setUploadKeyDatesOpen] = useState(false);
+  const [uploadKeyDateRows, setUploadKeyDateRows] = useState<KeyDateDraft[]>([]);
+  const [keyDatesSavedForUpload, setKeyDatesSavedForUpload] = useState(false);
+
   const [editing, setEditing] = useState<AttachmentRecord | null>(null);
   const [editTypeId, setEditTypeId] = useState<number | null>(null);
   const [editPhaseId, setEditPhaseId] = useState<number | null>(null);
   const [editDocumentDate, setEditDocumentDate] = useState('');
+  const [editKeyDateRows, setEditKeyDateRows] = useState<KeyDateDraft[]>([]);
 
   const [actionErrors, setActionErrors] = useState<string[]>([]);
+
+  // Every key date in the project, so an attachment being edited can show and edit its own (filtered by attachmentId).
+  const keyDatesLoaded = useAsync(() => api.listKeyDates(project.id), [project.id, version, refreshKey]);
+  const allKeyDates = keyDatesLoaded.data ?? [];
+
+  function onUploadTypeChange(v: number | null) {
+    setUploadTypeId(v);
+    if (v !== null && v === contractTypeId) {
+      setUploadKeyDatesOpen(true);
+      setUploadKeyDateRows((rows) => (rows.length === 0 ? [newKeyDateDraft()] : rows));
+    }
+  }
+
+  // Called once per file that finishes uploading; the upload row's key date rows are linked to the first one only
+  // (uploading a contract is a single-file action), then cleared so a second file doesn't get them too.
+  function onUploaded(attachment: AttachmentRecord) {
+    if (!keyDatesSavedForUpload) {
+      setKeyDatesSavedForUpload(true);
+      const rows = uploadKeyDateRows.filter((r) => r.date !== '');
+      if (rows.length > 0) {
+        void Promise.all(
+          rows.map((r) => api.addKeyDate(project.id, {
+            typeId: r.typeId ?? undefined, date: r.date, note: r.note === '' ? undefined : r.note, attachmentId: attachment.id,
+          })),
+        ).then(reload, (err) => setActionErrors(messagesOf(err, t)));
+      }
+      setUploadKeyDateRows([]);
+      setUploadKeyDatesOpen(false);
+    }
+    reload();
+  }
 
   function startEditing(a: AttachmentRecord) {
     setEditing(a);
     setEditTypeId(a.type?.id ?? null);
     setEditPhaseId(a.phase?.id ?? null);
     setEditDocumentDate(a.documentDate ?? '');
+    setEditKeyDateRows(allKeyDates.filter((k) => k.attachment?.id === a.id).map(draftFrom));
   }
 
   async function saveEdit() {
@@ -74,6 +127,22 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
         phaseId: editPhaseId ?? undefined,
         documentDate: editDocumentDate === '' ? null : editDocumentDate,
       });
+      const originalIds = allKeyDates.filter((k) => k.attachment?.id === editing.id).map((k) => k.id);
+      const keptIds = new Set(editKeyDateRows.map((r) => r.existingId).filter((id): id is number => id !== undefined));
+      await Promise.all([
+        ...originalIds.filter((id) => !keptIds.has(id)).map((id) => api.deleteKeyDate(id)),
+        ...editKeyDateRows
+          .filter((r) => r.date !== '')
+          .map((r) => (
+            r.existingId !== undefined
+              ? api.updateKeyDate(r.existingId, {
+                typeId: r.typeId ?? undefined, date: r.date, note: r.note === '' ? undefined : r.note, attachmentId: editing.id,
+              })
+              : api.addKeyDate(project.id, {
+                typeId: r.typeId ?? undefined, date: r.date, note: r.note === '' ? undefined : r.note, attachmentId: editing.id,
+              })
+          )),
+      ]);
       setEditing(null);
       reload();
     } catch (err) {
@@ -114,7 +183,15 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
       <div className="phase-people-head">
         <h2>{t('tabs.attachments')}</h2>
         {!uploading ? (
-          <button type="button" className="button secondary" onClick={() => setUploading(true)}>
+          <button
+            type="button" className="button secondary"
+            onClick={() => {
+              setUploading(true);
+              setKeyDatesSavedForUpload(false);
+              setUploadKeyDatesOpen(false);
+              setUploadKeyDateRows([]);
+            }}
+          >
             <PlusIcon />{t('attachments.uploadFile')}
           </button>
         ) : null}
@@ -150,7 +227,7 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
         <div className="upload-row">
           <label>
             {t('attachments.typeField')}
-            <select value={uploadTypeId === null ? '' : String(uploadTypeId)} onChange={(e) => setUploadTypeId(e.target.value === '' ? null : Number(e.target.value))}>
+            <select value={uploadTypeId === null ? '' : String(uploadTypeId)} onChange={(e) => onUploadTypeChange(e.target.value === '' ? null : Number(e.target.value))}>
               <option value="">{t('attachments.noType')}</option>
               {attachmentTypes.map((v) => <option key={v.id} value={String(v.id)}>{listName(v, lang)}</option>)}
             </select>
@@ -172,11 +249,23 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
             phaseId={uploadPhaseId}
             documentDate={uploadDocumentDate === '' ? null : uploadDocumentDate}
             buttonLabel={t('attachments.uploadFile')}
-            onUploaded={reload}
+            onUploaded={onUploaded}
             initialFiles={droppedFiles}
             onInitialFilesConsumed={() => setDroppedFiles(null)}
           />
           <button type="button" className="button secondary" onClick={() => setUploading(false)}>{t('attachments.cancelUpload')}</button>
+
+          <div className="key-date-section">
+            <button
+              type="button" className="button-link" aria-expanded={uploadKeyDatesOpen}
+              onClick={() => setUploadKeyDatesOpen((v) => !v)}
+            >
+              {t('keyDates.sectionTitle')}
+            </button>
+            {uploadKeyDatesOpen ? (
+              <KeyDateRows types={keyDateTypes} rows={uploadKeyDateRows} onChange={setUploadKeyDateRows} />
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -200,6 +289,10 @@ export function AttachmentsTab({ project, attachmentTypes, nameFor, onOpenHistor
             {t('attachments.documentDateField')}
             <input type="date" value={editDocumentDate} onChange={(e) => setEditDocumentDate(e.target.value)} />
           </label>
+          <div className="key-date-section">
+            <span className="key-date-section-title">{t('keyDates.sectionTitle')}</span>
+            <KeyDateRows types={keyDateTypes} rows={editKeyDateRows} onChange={setEditKeyDateRows} />
+          </div>
           <div className="option-add-actions">
             <button type="button" className="button" onClick={() => void saveEdit()}>{t('common.save')}</button>
             <button type="button" className="button secondary" onClick={() => setEditing(null)}>{t('common.cancel')}</button>

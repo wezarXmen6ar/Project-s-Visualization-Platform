@@ -33,6 +33,7 @@ const USAGE: Record<ListName, { sql: string; key: MessageKey }> = {
   company: { sql: 'SELECT COUNT(*) AS n FROM resources WHERE company_id = ?', key: 'error.listValueInUsePeople' },
   personDocumentType: { sql: 'SELECT COUNT(*) AS n FROM person_documents WHERE type_id = ?', key: 'error.listValueInUseDocuments' },
   accountType: { sql: 'SELECT COUNT(*) AS n FROM person_accounts WHERE type_id = ?', key: 'error.listValueInUseAccounts' },
+  keyDateType: { sql: 'SELECT COUNT(*) AS n FROM key_dates WHERE type_id = ?', key: 'error.listValueInUseKeyDates' },
 };
 
 export type ListChange =
@@ -62,7 +63,7 @@ export function isListName(value: string): value is ListName {
 export function getLists(db: DatabaseSync): Lists {
   const lists: Lists = {
     mainProject: [], projectType: [], goal: [], department: [], phase: [], role: [], attachmentType: [], company: [],
-    personDocumentType: [], accountType: [],
+    personDocumentType: [], accountType: [], keyDateType: [],
   };
   const rows = db.prepare('SELECT * FROM list_values ORDER BY sort_order, id').all() as unknown as ListRow[];
   for (const row of rows) lists[row.list].push(toValue(row));

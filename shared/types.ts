@@ -6,7 +6,7 @@ import type { PortfolioStats } from './portfolio';
 /** The editable dropdown lists (managed in Settings). A main project is just a name, so it is a list too. */
 export const LIST_NAMES = [
   'mainProject', 'projectType', 'goal', 'department', 'phase', 'role', 'attachmentType', 'company', 'personDocumentType',
-  'accountType',
+  'accountType', 'keyDateType',
 ] as const;
 export type ListName = (typeof LIST_NAMES)[number];
 
@@ -348,6 +348,32 @@ export interface ExpiringItem {
   /** The document's file name; null for an account. */
   name: string | null;
   expiryDate: ISODate;
+  state: ExpiryState;
+}
+
+/**
+ * One of a project's key dates (M7 Task 9): a contract end, a licence expiry, a development end, and others,
+ * entered when uploading the contract and tracked on the project's Details tab. Never shown on /present.
+ */
+export interface KeyDateRecord {
+  id: number;
+  projectId: number;
+  type: Ref | null;
+  date: ISODate;
+  note: string | null;
+  /** The file it comes from, when it is linked to one; null once that file is deleted, or when never linked. */
+  attachment: { id: number; name: string; mime: string; previewable: boolean } | null;
+  createdAt: string;
+  /** Against the fixed 30-day window; 'expired' reads as "passed" in the UI. */
+  state: ExpiryState;
+}
+
+/** One row from GET /api/key-dates/upcoming: a key date close to (or recently past) its date, with its project's name. */
+export interface UpcomingKeyDate {
+  id: number;
+  project: { id: number; name: string };
+  type: Ref | null;
+  date: ISODate;
   state: ExpiryState;
 }
 

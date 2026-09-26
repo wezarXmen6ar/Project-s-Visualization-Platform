@@ -96,6 +96,11 @@ const DEFAULT_NAMES_AR: Record<string, string> = {
   'Information Security Approval': 'موافقة أمن المعلومات',
   'Network account': 'أحقية الشبكة',
   Email: 'البريد الإلكتروني',
+  'Contract end': 'انتهاء العقد',
+  'License expiry': 'انتهاء الترخيص',
+  'Development end': 'انتهاء التطوير',
+  'Warranty end': 'انتهاء الضمان',
+  'Support end': 'انتهاء الدعم الفني',
 };
 
 export function sampleLists(): Lists {
@@ -130,6 +135,8 @@ export function sampleLists(): Lists {
     ].map((name, i) => ({ id: 300 + i, list: 'personDocumentType' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
     accountType: ['Network account', 'Email', 'VPN', 'Jira', 'Other']
       .map((name, i) => ({ id: 310 + i, list: 'accountType' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
+    keyDateType: ['Contract end', 'License expiry', 'Development end', 'Warranty end', 'Support end', 'Other']
+      .map((name, i) => ({ id: 320 + i, list: 'keyDateType' as const, name, order: i, nameAr: DEFAULT_NAMES_AR[name] ?? null })),
   };
 }
 

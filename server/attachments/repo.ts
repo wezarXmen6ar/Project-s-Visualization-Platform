@@ -169,7 +169,11 @@ export function updateAttachment(db: DatabaseSync, id: number, data: AttachmentU
   return getAttachment(db, id);
 }
 
-/** Deletes the row only; the caller moves the file to `_deleted` first. */
+/**
+ * Deletes the row only; the caller moves the file to `_deleted` first. Any key date linked to this attachment
+ * (M7 Task 9) is kept on the project, unlinked: `attachment_id` is set to null by the column's own
+ * `ON DELETE SET NULL` foreign key, so no extra query is needed here.
+ */
 export function deleteAttachmentRow(db: DatabaseSync, id: number): boolean {
   return Number(db.prepare('DELETE FROM attachments WHERE id = ?').run(id).changes) > 0;
 }

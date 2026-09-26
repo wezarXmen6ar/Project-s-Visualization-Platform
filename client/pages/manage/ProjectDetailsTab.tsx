@@ -1,9 +1,10 @@
 import { Fragment, type ReactNode } from 'react';
-import type { ProjectRecord } from '../../../shared/types';
+import type { ListValue, ProjectRecord } from '../../../shared/types';
 import { useFormat } from '../../i18n/format';
 import { useLang, useT } from '../../i18n/LanguageProvider';
 import { listName } from '../../i18n/listNames';
 import { CATEGORY_KEY, PRIORITY_KEY, SCOPE_TABLES, beneficiaryLabel, requesterLabel } from './labels';
+import { KeyDatesCard } from './KeyDatesCard';
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -23,10 +24,14 @@ interface ProjectDetailsTabProps {
   project: ProjectRecord;
   /** Maps a top-level phase's stored name to its display name (e.g. its Arabic name). */
   nameFor: (name: string) => string;
+  keyDateTypes: ListValue[];
+  today: string;
+  /** Bumped by the page when something else changed (e.g. a key date was added from the Attachments tab), to reload the card. */
+  refreshKey?: number;
 }
 
-/** The Details tab: the classification, description, scope and goals, and phases table cards, unchanged from before the tabs. */
-export function ProjectDetailsTab({ project: p, nameFor }: ProjectDetailsTabProps) {
+/** The Details tab: the classification, description, scope and goals, key dates and phases table cards. */
+export function ProjectDetailsTab({ project: p, nameFor, keyDateTypes, today, refreshKey = 0 }: ProjectDetailsTabProps) {
   const t = useT();
   const { lang } = useLang();
   const { formatDate } = useFormat();
@@ -56,6 +61,8 @@ export function ProjectDetailsTab({ project: p, nameFor }: ProjectDetailsTabProp
           <Detail label={t('project.beneficiary')}>{beneficiaryLabel(p.beneficiary, lang)}</Detail>
         </dl>
       </section>
+
+      <KeyDatesCard projectId={p.id} keyDateTypes={keyDateTypes} today={today} refreshKey={refreshKey} />
 
       <section className="card">
         <h2>{t('project.description')}</h2>
