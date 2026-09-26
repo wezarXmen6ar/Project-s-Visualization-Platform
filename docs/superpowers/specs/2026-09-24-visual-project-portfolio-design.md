@@ -188,6 +188,7 @@ Saving creates Baseline 1.
   - **Within scope:** it details something already agreed. Scheduling it needs no approval.
   - **Out of scope:** new work. It can be scheduled only with a change request (one click drafts one); until the change request is approved it counts as unapproved work.
   - **Not decided yet:** recorded now and classed later.
+- **The bank's first version (user, 2026-09-26; stays in M11):** add a requirement from a meeting (linked back, the meeting's date as its date received) or directly in the bank; class it (within scope / out of scope / not decided) and track its status (**In the bank, Waiting for approval, Approved, Scheduled, Declined**), with filters and sorting on both; schedule it onto a phase or sub-phase, or create a new sub-phase for it (out of scope only after its change request is approved); and the two Gantt marks above.
 - **Three looks on the Gantt chart (M11, user 2026-09-26):** original requirements look as they do today; a requirement **added later within scope** has its own mark (for example a blue edge and tag, "added later"); a requirement **out of scope, added with a change request** has a different mark (the orange edge and a CR tag, "change request"). The hover details and the legend name each one, so stakeholders can see which work came in later and why.
 
 ### 3.6 Requirement readiness
