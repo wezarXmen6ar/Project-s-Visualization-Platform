@@ -200,15 +200,15 @@ h3 { font-size: var(--fs-base); font-weight: 600; margin: 0; }
 .tablist {
   display: flex;
   gap: var(--sp-2);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--sp-5);
+  border-block-end: 1px solid var(--border);
+  margin-block-end: var(--sp-5);
   overflow-x: auto;
 }
 .tab-button {
   appearance: none;
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-block-end: 2px solid transparent;
   padding: var(--sp-3) var(--sp-2);
   font-size: var(--fs-sm);
   font-weight: 500;

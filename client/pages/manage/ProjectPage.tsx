@@ -40,7 +40,8 @@ export function ProjectPage() {
   const id = Number(useParams().id);
   const [searchParams, setSearchParams] = useSearchParams();
   const starterParam = searchParams.get('starter');
-  const activeTab: TabKey = isTabKey(searchParams.get('tab')) ? searchParams.get('tab') as TabKey : DEFAULT_TAB;
+  const tabParam = searchParams.get('tab');
+  const activeTab: TabKey = isTabKey(tabParam) ? tabParam : DEFAULT_TAB;
   const project = useAsync(() => api.getProject(id), [id]);
   const calendar = useAsync(() => api.getCalendar(), []);
   const [chartRef, chartWidth] = useElementWidth<HTMLDivElement>();

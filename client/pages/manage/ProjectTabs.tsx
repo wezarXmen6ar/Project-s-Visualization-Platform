@@ -57,7 +57,7 @@ export function ProjectTabs({ tabs, activeKey, onChange }: ProjectTabsProps) {
             role="tab"
             id={`tab-${tab.key}`}
             aria-selected={tab.key === activeKey}
-            aria-controls={`tabpanel-${tab.key}`}
+            aria-controls={tab.key === activeKey ? `tabpanel-${tab.key}` : undefined}
             tabIndex={tab.key === activeKey ? 0 : -1}
             className="tab-button"
             onClick={() => onChange(tab.key)}
